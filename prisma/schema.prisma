@@ -1,0 +1,184 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TIPE_SOAL {
+  PILIHAN_GANDA
+  ISIAN_SINGKAT
+  BENAR_SALAH
+}
+
+enum SUBTEST {
+  KPU
+  PPU
+  KMBM
+  PK
+  LBI
+  LBE
+  PM
+}
+
+model User {
+  id            String   @id
+  name          String
+  email         String
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+  TryoutAttempt TryoutAttempt[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  isPremium     Boolean         @default(false)
+  tryoutAttempt TryoutAttempt[]
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@map("verification")
+}
+
+model Tryout {
+  id          String   @id
+  name        String
+  year        Int
+  duration    Int
+  publishedAt DateTime
+  closedAt    DateTime
+  isClosed    Boolean
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  soal          Soal[]
+  tryoutAttempt TryoutAttempt[]
+
+  @@map("tryout")
+}
+
+model Soal {
+  id          String    @id
+  tryoutId    String
+  tryout      Tryout    @relation(fields: [tryoutId], references: [id], onDelete: Cascade)
+  subtestType SUBTEST
+  tipeSoal    TIPE_SOAL
+  question    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  opsi           Opsi[]
+  pembahasanSoal PembahasanSoal?
+  soalAttempts   SoalAttempt[]
+
+  @@map("soal")
+}
+
+model Opsi {
+  id        String   @id
+  soalId    String
+  soal      Soal     @relation(fields: [soalId], references: [id], onDelete: Cascade)
+  teks      String
+  isCorrect Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("opsi")
+}
+
+model PembahasanSoal {
+  id         String   @id
+  soalId     String   @unique
+  soal       Soal     @relation(fields: [soalId], references: [id], onDelete: Cascade)
+  pembahasan String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("pembahasan_soal")
+}
+
+model TryoutAttempt {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tryoutId  String
+  tryout    Tryout   @relation(fields: [tryoutId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  soalAttempt SoalAttempt[]
+
+  @@map("tryout_attempt")
+}
+
+model SoalAttempt {
+  id              String        @id
+  tryoutAttemptId String
+  tryoutAttempt   TryoutAttempt @relation(fields: [tryoutAttemptId], references: [id], onDelete: Cascade)
+  soalId          String
+  soal            Soal          @relation(fields: [soalId], references: [id], onDelete: Cascade)
+  jawaban         String?
+  isCorrect       Boolean?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("soal_attempt")
+}
