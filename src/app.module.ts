@@ -3,43 +3,13 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from './lib/auth';
-
-const DEFAULT_ADMIN = {
-  email: 'admin@example.com',
-  password: 'password',
-};
-
-const authenticate = async (email: string, password: string) => {
-  if (email === DEFAULT_ADMIN.email && password === DEFAULT_ADMIN.password) {
-    return Promise.resolve(DEFAULT_ADMIN);
-  }
-  return null;
-};
+import { AdminModule } from './module/admin/admin.module';
+import { TryoutModule } from './module/admin/tryout/tryout.module';
+import { PrismaService } from './prisma.service';
+import { SoalModule } from './module/admin/soal/soal.module';
 
 @Module({
-  imports: [
-    AuthModule.forRoot(auth),
-    import('@adminjs/nestjs').then(({ AdminModule }) =>
-      AdminModule.createAdminAsync({
-        useFactory: () => ({
-          adminJsOptions: {
-            rootPath: '/admin',
-            resources: [],
-          },
-          auth: {
-            authenticate,
-            cookieName: 'adminjs',
-            cookiePassword: 'secret',
-          },
-          sessionOptions: {
-            resave: true,
-            saveUninitialized: true,
-            secret: 'secret',
-          },
-        }),
-      }),
-    ),
-  ],
+  imports: [AuthModule.forRoot(auth), AdminModule],
   controllers: [AppController],
   providers: [AppService],
 })
