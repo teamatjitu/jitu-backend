@@ -9,11 +9,10 @@ import { PaginationDto } from './dto/pagination.dto';
 export class TryoutsController {
   constructor(private readonly tryoutsService: TryoutsService) {}
 
-  // @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard)
   @Post(':id/start')
   startTryout(@Param('id') tryoutId: string, @Req() req) {
-    // const userId = req.user.id;
-    const userId = 'cmhfpxw3u00000sc0xjjfgxle';
+    const userId = req.user.id;
     return this.tryoutsService.startTryout(userId, tryoutId);
   }
 
@@ -35,13 +34,13 @@ export class TryoutsController {
     return this.tryoutsService.finishTryout(attemptId);
   }
   
-  // @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard)
   @Get('history')
   getTryoutHistory(
     @Req() req,
     @Query() paginationDto: PaginationDto,
   ) {
-    const userId = 'cmhfpxw3u00000sc0xjjfgxle';
+    const userId = req.user.id;
     return this.tryoutsService.getTryoutHistory(userId, paginationDto);
   }
 
