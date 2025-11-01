@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CreateTryoutDto } from './dto/create-tryout.dto';
 import { UpdateTryoutDto } from './dto/update-tryout.dto';
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from '@/prisma.service';
 import { randomUUID } from 'crypto';
 
 @Injectable()

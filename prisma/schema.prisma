@@ -31,7 +31,7 @@ enum SUBTEST {
 }
 
 model User {
-  id            String   @id
+  id            String   @id @default(cuid())
   name          String
   email         String
   emailVerified Boolean  @default(false)
@@ -48,7 +48,7 @@ model User {
 }
 
 model Session {
-  id        String   @id
+  id        String   @id @default(cuid())
   expiresAt DateTime
   token     String
   createdAt DateTime @default(now())
@@ -63,7 +63,7 @@ model Session {
 }
 
 model Account {
-  id                    String    @id
+  id                    String    @id @default(cuid())
   accountId             String
   providerId            String
   userId                String
@@ -85,7 +85,7 @@ model Account {
 }
 
 model Verification {
-  id         String   @id
+  id         String   @id @default(cuid())
   identifier String
   value      String
   expiresAt  DateTime
@@ -96,7 +96,7 @@ model Verification {
 }
 
 model Tryout {
-  id          String   @id
+  id          String   @id @default(cuid())
   name        String
   year        Int
   duration    Int
@@ -113,7 +113,7 @@ model Tryout {
 }
 
 model Soal {
-  id          String    @id
+  id          String    @id @default(cuid())
   tryoutId    String
   tryout      Tryout    @relation(fields: [tryoutId], references: [id], onDelete: Cascade)
   subtestType SUBTEST
@@ -130,7 +130,7 @@ model Soal {
 }
 
 model Opsi {
-  id        String   @id
+  id        String   @id @default(cuid())
   soalId    String
   soal      Soal     @relation(fields: [soalId], references: [id], onDelete: Cascade)
   teks      String
@@ -142,7 +142,7 @@ model Opsi {
 }
 
 model PembahasanSoal {
-  id         String   @id
+  id         String   @id @default(cuid())
   soalId     String   @unique
   soal       Soal     @relation(fields: [soalId], references: [id], onDelete: Cascade)
   pembahasan String
@@ -153,7 +153,7 @@ model PembahasanSoal {
 }
 
 model TryoutAttempt {
-  id        String   @id
+  id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tryoutId  String
@@ -170,7 +170,7 @@ model TryoutAttempt {
 }
 
 model SoalAttempt {
-  id              String        @id
+  id              String        @id @default(cuid())
   tryoutAttemptId String
   tryoutAttempt   TryoutAttempt @relation(fields: [tryoutAttemptId], references: [id], onDelete: Cascade)
   soalId          String
@@ -180,5 +180,6 @@ model SoalAttempt {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  @@unique([tryoutAttemptId, soalId])
   @@map("soal_attempt")
 }

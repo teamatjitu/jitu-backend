@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateSoalDto } from './dto/create-soal.dto';
 import { UpdateSoalDto } from './dto/update-soal.dto';
 import { CreatePembahasanDto } from './dto/create-pembahasan.dto';
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from '@/prisma.service';
 import { randomUUID } from 'crypto';
 
 @Injectable()
