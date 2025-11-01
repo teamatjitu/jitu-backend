@@ -166,6 +166,10 @@ model TryoutAttempt {
 
   soalAttempt SoalAttempt[]
 
+  rawScore    Int?
+  scaledScore Int?
+  isFinished  Boolean @default(false)
+
   @@map("tryout_attempt")
 }
 
