@@ -145,6 +145,45 @@ async finishTryout(attemptId: string) {
     };
   }
 
-  
+  async getTryoutHistory(userId: string) {
+    const attempts = await this.prisma.tryoutAttempt.findMany({
+      where: { userId: userId },
+      include: {
+        tryout: {
+          select: { name: true, year: true },
+        },
+        _count: {
+          select: {
+            soalAttempt: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    const results: any[] = [];
+
+    for (const attempt of attempts) {
+      const correctCount = await this.prisma.soalAttempt.count({
+        where: {
+          tryoutAttemptId: attempt.id,
+          isCorrect: true,
+        },
+      });
+
+      results.push({
+        attemptId: attempt.id,
+        tryoutName: attempt.tryout.name,
+        tryoutYear: attempt.tryout.year,
+        submittedAt: attempt.createdAt,
+        totalQuestions: attempt._count.soalAttempt,
+        totalCorrect: correctCount,
+      });
+    }
+
+    return results;
+  }
   
 }

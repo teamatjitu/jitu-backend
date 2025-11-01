@@ -32,4 +32,16 @@ export class TryoutsController {
   finishTryout(@Param('attemptId') attemptId: string) {
     return this.tryoutsService.finishTryout(attemptId);
   }
+  
+  // @UseGuards(AuthGuard)
+  @Get('history')
+  getTryoutHistory(@Req() req) {
+    // const userId = req.user.id;
+    const userId = 'cmhfpxw3u00000sc0xjjfgxle';
+
+    return this.tryoutsService.getTryoutHistory(userId);
+  }
+
+
+  
 }
