@@ -42,6 +42,11 @@ export class TryoutsController {
     return this.tryoutsService.getTryoutHistory(userId);
   }
 
+  @Get(':id/leaderboard')
+  getLeaderboard(@Param('id') tryoutId: string) {
+    return this.tryoutsService.getLeaderboard(tryoutId);
+  }
+
 
   
 }

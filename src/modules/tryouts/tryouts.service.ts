@@ -186,4 +186,52 @@ async finishTryout(attemptId: string) {
     return results;
   }
   
+  async getLeaderboard(tryoutId: string) {
+    const attempts = await this.prisma.tryoutAttempt.findMany({
+      where: { tryoutId: tryoutId },
+      include: {
+        user: {
+          select: { name: true, image: true },
+        },
+      },
+    });
+
+    if (attempts.length === 0) {
+      return [];
+    }
+
+    const leaderboardEntries: any[] = [];
+
+    for (const attempt of attempts) {
+      const correctCount = await this.prisma.soalAttempt.count({
+        where: {
+          tryoutAttemptId: attempt.id,
+          isCorrect: true,
+        },
+      });
+
+      leaderboardEntries.push({
+        userId: attempt.userId,
+        userName: attempt.user.name,
+        userImage: attempt.user.image,
+        score: correctCount,
+        submittedAt: attempt.createdAt,
+      });
+    }
+
+    leaderboardEntries.sort((a, b) => {
+      if (a.score !== b.score) {
+        return b.score - a.score;
+      }
+      return a.submittedAt.getTime() - b.submittedAt.getTime();
+    });
+
+    return leaderboardEntries.map((entry, index) => ({
+      rank: index + 1,
+      ...entry,
+    }));
+  }
+
+  
+
 }
