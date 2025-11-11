@@ -25,6 +25,14 @@ export class SoalController {
     return await this.soalService.findAll();
   }
 
+  @Get('tryout/:tryoutId/subtest/:subtestType')
+  async findByTryoutAndSubtest(
+    @Param('tryoutId') tryoutId: string,
+    @Param('subtestType') subtestType: string,
+  ) {
+    return await this.soalService.findByTryoutAndSubtest(tryoutId, subtestType);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.soalService.findOne(id);

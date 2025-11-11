@@ -33,7 +33,6 @@ export class CreateSoalDto {
   @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => CreateOpsiDto)
-  @ArrayMinSize(2)
   opsi?: CreateOpsiDto[];
 
   @IsOptional()

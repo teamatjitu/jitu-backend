@@ -21,4 +21,12 @@ export class CreateTryoutDto {
 
   @IsBoolean()
   isCLosed: boolean;
+
+  @IsDateString()
+  @IsNotEmpty()
+  publishedAt: string;
+
+  @IsDateString()
+  @IsNotEmpty()
+  closedAt: string;
 }

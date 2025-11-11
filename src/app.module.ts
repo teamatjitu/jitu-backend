@@ -4,12 +4,10 @@ import { AppService } from './app.service';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from './lib/auth';
 import { AdminModule } from './module/admin/admin.module';
-import { TryoutModule } from './module/admin/tryout/tryout.module';
-import { PrismaService } from './prisma.service';
-import { SoalModule } from './module/admin/soal/soal.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
-  imports: [AuthModule.forRoot(auth), AdminModule],
+  imports: [AuthModule.forRoot(auth), AdminModule, ScheduleModule.forRoot()],
   controllers: [AppController],
   providers: [AppService],
 })

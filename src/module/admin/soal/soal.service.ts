@@ -4,6 +4,7 @@ import { UpdateSoalDto } from './dto/update-soal.dto';
 import { CreatePembahasanDto } from './dto/create-pembahasan.dto';
 import { PrismaService } from 'src/prisma.service';
 import { randomUUID } from 'crypto';
+import { SUBTEST } from 'generated/prisma';
 
 @Injectable()
 export class SoalService {
@@ -35,6 +36,22 @@ export class SoalService {
 
   async findAll() {
     return await this.prisma.soal.findMany();
+  }
+
+  async findByTryoutAndSubtest(tryoutId: string, subtestType: string) {
+    return await this.prisma.soal.findMany({
+      where: {
+        tryoutId,
+        subtestType: subtestType as any,
+      },
+      include: {
+        opsi: true,
+        pembahasanSoal: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
   }
 
   findOne(id: string) {

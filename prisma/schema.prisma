@@ -21,9 +21,9 @@ enum TIPE_SOAL {
 }
 
 enum SUBTEST {
-  KPU
+  PU
   PPU
-  KMBM
+  PBM
   PK
   LBI
   LBE
