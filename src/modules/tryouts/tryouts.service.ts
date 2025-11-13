@@ -29,6 +29,26 @@ export class TryoutsService {
     return tryoutAttempt;
   }
 
+  async startSubtest(tryoutAttemptId: string, subtestId: string) {
+    const tryoutAttempt = await this.prisma.tryoutAttempt.findUnique({
+      where: { id: tryoutAttemptId },
+      select: { tryoutId: true },
+    });
+
+    if (!tryoutAttempt) {
+      throw new NotFoundException('Tryout attempt not found');
+    }
+
+    const subtestAttempt = await this.prisma.subtestAttempt.create({
+      data: {
+        attemptId: tryoutAttemptId,
+        subtestId,
+      },
+    });
+
+    return subtestAttempt;
+  }
+
   async getTryoutQuestions(attemptId: string) {
     const tryoutAttempt = await this.prisma.tryoutAttempt.findUnique({
       where: { id: attemptId },
@@ -64,6 +84,7 @@ export class TryoutsService {
 
   async submitAnswer(
     attemptId: string,
+    subtestAttemptId: string,
     submitAnswerDto: SubmitAnswerDto,
   ) {
     const { soalId, jawaban } = submitAnswerDto;
@@ -80,12 +101,27 @@ export class TryoutsService {
       },
       create: {
         tryoutAttemptId: attemptId,
+        subtestAttemptId,
         soalId: soalId,
         jawaban: jawaban,
       },
     });
 
     return soalAttempt;
+  }
+
+  async finishSubtest(subtestAttemptId: string) {
+    const finishedSubtestAttempt = await this.prisma.subtestAttempt.update({
+      where: { id: subtestAttemptId },
+      data: {
+        isFinished: true,
+      },
+    });
+
+    return {
+      message: 'Tryout finished. Scoring in progress.',
+      subtestAttemptId: finishedSubtestAttempt.id,
+    };
   }
 
   async finishTryout(attemptId: string) {
@@ -126,7 +162,7 @@ export class TryoutsService {
       });
       updatePromises.push(updatePromise);
     }
-    
+
     await this.prisma.$transaction(updatePromises);
 
     const finishedAttempt = await this.prisma.tryoutAttempt.update({

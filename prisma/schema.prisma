@@ -99,7 +99,6 @@ model Tryout {
   id          String   @id @default(cuid())
   name        String
   year        Int
-  duration    Int
   publishedAt DateTime
   closedAt    DateTime
   isClosed    Boolean
@@ -107,20 +106,37 @@ model Tryout {
   updatedAt   DateTime @updatedAt
 
   soal          Soal[]
+  subtest       Subtest[]
   tryoutAttempt TryoutAttempt[]
 
   @@map("tryout")
 }
 
+model Subtest {
+  id        String   @id @default(cuid())
+  name      String
+  duration  Int
+  tryoutId  String
+  tryout    Tryout   @relation(fields: [tryoutId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  soal           Soal[]
+  subtestAttempt SubtestAttempt[]
+
+  @@map("subtest")
+}
+
 model Soal {
-  id          String    @id @default(cuid())
-  tryoutId    String
-  tryout      Tryout    @relation(fields: [tryoutId], references: [id], onDelete: Cascade)
-  subtestType SUBTEST
-  tipeSoal    TIPE_SOAL
-  question    String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String    @id @default(cuid())
+  tryoutId  String
+  tryout    Tryout    @relation(fields: [tryoutId], references: [id], onDelete: Cascade)
+  subtestId String
+  subtest   Subtest   @relation(fields: [subtestId], references: [id], onDelete: Cascade)
+  tipeSoal  TIPE_SOAL
+  question  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   opsi           Opsi[]
   pembahasanSoal PembahasanSoal?
@@ -164,7 +180,8 @@ model TryoutAttempt {
   accountId String
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  soalAttempt SoalAttempt[]
+  subtestAttempt SubtestAttempt[]
+  soalAttempt    SoalAttempt[]
 
   rawScore    Int?
   scaledScore Int?
@@ -173,16 +190,34 @@ model TryoutAttempt {
   @@map("tryout_attempt")
 }
 
+model SubtestAttempt {
+  id         String        @id @default(cuid())
+  attemptId  String
+  attempt    TryoutAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  subtestId  String
+  subtest    Subtest       @relation(fields: [subtestId], references: [id], onDelete: Cascade)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  isFinished Boolean       @default(false)
+
+  soalAttempt SoalAttempt[]
+
+  @@unique([attemptId, subtestId])
+  @@map("subtest_attempt")
+}
+
 model SoalAttempt {
-  id              String        @id @default(cuid())
-  tryoutAttemptId String
-  tryoutAttempt   TryoutAttempt @relation(fields: [tryoutAttemptId], references: [id], onDelete: Cascade)
-  soalId          String
-  soal            Soal          @relation(fields: [soalId], references: [id], onDelete: Cascade)
-  jawaban         String?
-  isCorrect       Boolean?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id               String         @id @default(cuid())
+  tryoutAttemptId  String
+  tryoutAttempt    TryoutAttempt  @relation(fields: [tryoutAttemptId], references: [id], onDelete: Cascade)
+  subtestAttemptId String
+  subtestAttempt   SubtestAttempt @relation(fields: [subtestAttemptId], references: [id], onDelete: Cascade)
+  soalId           String
+  soal             Soal           @relation(fields: [soalId], references: [id], onDelete: Cascade)
+  jawaban          String?
+  isCorrect        Boolean?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@unique([tryoutAttemptId, soalId])
   @@map("soal_attempt")
