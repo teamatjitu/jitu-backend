@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '@/prisma.service';
 import { SubmitAnswerDto } from './dto/submit-answer.dto';
 import { Prisma } from 'generated/prisma/client';
@@ -18,6 +22,35 @@ export class TryoutsService {
       throw new NotFoundException('Account not found for this user');
     }
 
+    // Check if tryout exists
+    const tryout = await this.prisma.tryout.findUnique({
+      where: { id: tryoutId },
+      select: { isClosed: true },
+    });
+
+    if (!tryout) {
+      throw new NotFoundException('Tryout not found');
+    }
+
+    if (tryout.isClosed) {
+      throw new BadRequestException('Tryout is closed');
+    }
+
+    // Check if user already has an active attempt
+    const existingAttempt = await this.prisma.tryoutAttempt.findFirst({
+      where: {
+        userId: userId,
+        tryoutId: tryoutId,
+        isFinished: false,
+      },
+    });
+
+    if (existingAttempt) {
+      throw new BadRequestException(
+        'You already have an active attempt for this tryout',
+      );
+    }
+
     const tryoutAttempt = await this.prisma.tryoutAttempt.create({
       data: {
         tryoutId: tryoutId,
@@ -32,42 +65,76 @@ export class TryoutsService {
   async startSubtest(tryoutAttemptId: string, subtestId: string) {
     const tryoutAttempt = await this.prisma.tryoutAttempt.findUnique({
       where: { id: tryoutAttemptId },
-      select: { tryoutId: true },
+      select: { tryoutId: true, isFinished: true },
     });
 
     if (!tryoutAttempt) {
       throw new NotFoundException('Tryout attempt not found');
     }
 
+    if (tryoutAttempt.isFinished) {
+      throw new BadRequestException('Tryout already finished');
+    }
+
+    const subtest = await this.prisma.subtest.findUnique({
+      where: { id: subtestId },
+    });
+
+    if (!subtest) {
+      throw new NotFoundException('Subtest not found');
+    }
+
+    // Validate subtest belongs to tryout
+    if (subtest.tryoutId !== tryoutAttempt.tryoutId) {
+      throw new BadRequestException('Subtest does not belong to this tryout');
+    }
+
+    // Check if subtest attempt already exists
+    const existingAttempt = await this.prisma.subtestAttempt.findUnique({
+      where: {
+        attemptId_subtestId: {
+          attemptId: tryoutAttemptId,
+          subtestId: subtestId,
+        },
+      },
+    });
+
+    if (existingAttempt) {
+      throw new BadRequestException('Subtest already started');
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + subtest.duration * 60000);
+
     const subtestAttempt = await this.prisma.subtestAttempt.create({
       data: {
         attemptId: tryoutAttemptId,
         subtestId,
+        startedAt: now,
+        expiresAt: expiresAt,
       },
     });
 
     return subtestAttempt;
   }
 
-  async getTryoutQuestions(attemptId: string) {
-    const tryoutAttempt = await this.prisma.tryoutAttempt.findUnique({
-      where: { id: attemptId },
-      select: { tryoutId: true },
-    });
-
-    if (!tryoutAttempt) {
-      throw new NotFoundException('Tryout attempt not found');
-    }
-
-    const tryoutWithSoal = await this.prisma.tryout.findUnique({
-      where: { id: tryoutAttempt.tryoutId },
+  async getSubtestQuestions(subtestAttemptId: string) {
+    const subtestAttempt = await this.prisma.subtestAttempt.findUnique({
+      where: { id: subtestAttemptId },
       include: {
-        soal: {
+        attempt: {
+          select: { isFinished: true },
+        },
+        subtest: {
           include: {
-            opsi: {
-              select: {
-                id: true,
-                teks: true,
+            soal: {
+              include: {
+                opsi: {
+                  select: {
+                    id: true,
+                    teks: true,
+                  },
+                },
               },
             },
           },
@@ -75,24 +142,72 @@ export class TryoutsService {
       },
     });
 
-    if (!tryoutWithSoal) {
-      throw new NotFoundException('Tryout data not found');
+    if (!subtestAttempt) {
+      throw new NotFoundException('Subtest attempt not found');
     }
 
-    return tryoutWithSoal;
+    if (subtestAttempt.attempt.isFinished) {
+      throw new BadRequestException('Tryout already finished');
+    }
+
+    // Check if the subtest has expired
+    if (subtestAttempt.expiresAt && new Date() > subtestAttempt.expiresAt) {
+      await this.finishSubtest(subtestAttemptId);
+      throw new BadRequestException('Subtest has expired');
+    }
+
+    if (subtestAttempt.isFinished) {
+      throw new BadRequestException('Subtest already finished');
+    }
+
+    return subtestAttempt.subtest;
   }
 
   async submitAnswer(
-    attemptId: string,
+    tryoutAttemptId: string,
     subtestAttemptId: string,
     submitAnswerDto: SubmitAnswerDto,
   ) {
+    // Validate tryout is not finished
+    const tryoutAttempt = await this.prisma.tryoutAttempt.findUnique({
+      where: { id: tryoutAttemptId },
+      select: { isFinished: true },
+    });
+
+    if (!tryoutAttempt) {
+      throw new NotFoundException('Tryout attempt not found');
+    }
+
+    if (tryoutAttempt.isFinished) {
+      throw new BadRequestException('Tryout already finished');
+    }
+
+    // Validate subtest attempt
+    const subtestAttempt = await this.prisma.subtestAttempt.findUnique({
+      where: { id: subtestAttemptId },
+      select: { isFinished: true, expiresAt: true },
+    });
+
+    if (!subtestAttempt) {
+      throw new NotFoundException('Subtest attempt not found');
+    }
+
+    if (subtestAttempt.isFinished) {
+      throw new BadRequestException('Subtest already finished');
+    }
+
+    // Check if subtest has expired
+    if (subtestAttempt.expiresAt && new Date() > subtestAttempt.expiresAt) {
+      await this.finishSubtest(subtestAttemptId);
+      throw new BadRequestException('Subtest has expired');
+    }
+
     const { soalId, jawaban } = submitAnswerDto;
 
     const soalAttempt = await this.prisma.soalAttempt.upsert({
       where: {
-        tryoutAttemptId_soalId: {
-          tryoutAttemptId: attemptId,
+        subtestAttemptId_soalId: {
+          subtestAttemptId: subtestAttemptId,
           soalId: soalId,
         },
       },
@@ -100,7 +215,7 @@ export class TryoutsService {
         jawaban: jawaban,
       },
       create: {
-        tryoutAttemptId: attemptId,
+        tryoutAttemptId,
         subtestAttemptId,
         soalId: soalId,
         jawaban: jawaban,
@@ -111,71 +226,158 @@ export class TryoutsService {
   }
 
   async finishSubtest(subtestAttemptId: string) {
-    const finishedSubtestAttempt = await this.prisma.subtestAttempt.update({
+    const subtestAttempt = await this.prisma.subtestAttempt.findUnique({
+      where: { id: subtestAttemptId },
+      include: {
+        attempt: {
+          select: {
+            isFinished: true,
+            id: true,
+          },
+        },
+      },
+    });
+
+    if (!subtestAttempt) {
+      throw new NotFoundException('Subtest attempt not found');
+    }
+
+    if (subtestAttempt.isFinished) {
+      throw new BadRequestException('Subtest already finished');
+    }
+
+    if (subtestAttempt.attempt.isFinished) {
+      throw new BadRequestException('Tryout already finished');
+    }
+
+    await this.prisma.subtestAttempt.update({
       where: { id: subtestAttemptId },
       data: {
         isFinished: true,
+        finishedAt: new Date(),
       },
     });
 
+    // Check if all subtests are finished and auto-finish tryout
+    await this.checkAndFinishTryout(subtestAttempt.attempt.id);
+
     return {
-      message: 'Tryout finished. Scoring in progress.',
-      subtestAttemptId: finishedSubtestAttempt.id,
+      success: true,
+      message: 'Subtest finished successfully',
     };
   }
 
-  async finishTryout(attemptId: string) {
-    const soalAttempts = await this.prisma.soalAttempt.findMany({
-      where: { tryoutAttemptId: attemptId },
-    });
-
-    const soalIds = soalAttempts.map((attempt) => attempt.soalId);
-
-    const correctOptions = await this.prisma.opsi.findMany({
-      where: {
-        soalId: { in: soalIds },
-        isCorrect: true,
-      },
-      select: {
-        id: true,
+  private async checkAndFinishTryout(tryoutAttemptId: string) {
+    const tryoutAttempt = await this.prisma.tryoutAttempt.findUnique({
+      where: { id: tryoutAttemptId },
+      include: {
+        subtestAttempt: {
+          select: { isFinished: true },
+        },
       },
     });
 
-    const correctOptionIds = new Set(
-      correctOptions.map((option) => option.id),
+    if (!tryoutAttempt || tryoutAttempt.isFinished) {
+      return;
+    }
+
+    // Check if all subtests are finished
+    const allFinished = tryoutAttempt.subtestAttempt.every(
+      (subtest) => subtest.isFinished === true,
     );
+
+    if (allFinished && tryoutAttempt.subtestAttempt.length > 0) {
+      await this.finishTryout(tryoutAttemptId);
+    }
+  }
+
+  async finishTryout(tryoutAttemptId: string) {
+    const tryoutAttempt = await this.prisma.tryoutAttempt.findUnique({
+      where: { id: tryoutAttemptId },
+      include: {
+        subtestAttempt: {
+          select: { isFinished: true, id: true },
+        },
+      },
+    });
+
+    if (!tryoutAttempt) {
+      throw new NotFoundException('Tryout attempt not found');
+    }
+
+    if (tryoutAttempt.isFinished) {
+      return {
+        success: true,
+        message: 'Tryout already finished',
+        rawScore: tryoutAttempt.rawScore || 0,
+      };
+    }
+
+    // Finish all unfinished subtests
+    const unfinishedSubtests = tryoutAttempt.subtestAttempt.filter(
+      (subtest) => !subtest.isFinished,
+    );
+
+    if (unfinishedSubtests.length > 0) {
+      await this.prisma.subtestAttempt.updateMany({
+        where: {
+          id: { in: unfinishedSubtests.map((s) => s.id) },
+        },
+        data: {
+          isFinished: true,
+          finishedAt: new Date(),
+        },
+      });
+    }
+
+    // Calculate raw score
+    const soalAttempts = await this.prisma.soalAttempt.findMany({
+      where: { tryoutAttemptId: tryoutAttemptId },
+      include: {
+        soal: {
+          include: {
+            opsi: {
+              where: { isCorrect: true },
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
 
     let totalCorrect = 0;
     const updatePromises: Prisma.PrismaPromise<any>[] = [];
 
     for (const attempt of soalAttempts) {
-      let isCorrect = false;
-      if (attempt.jawaban) {
-        isCorrect = correctOptionIds.has(attempt.jawaban);
-      }
+      const correctOptionId = attempt.soal.opsi[0]?.id;
+      const isCorrect = attempt.jawaban === correctOptionId;
+
       if (isCorrect) {
         totalCorrect++;
       }
-      const updatePromise = this.prisma.soalAttempt.update({
-        where: { id: attempt.id },
-        data: { isCorrect: isCorrect },
-      });
-      updatePromises.push(updatePromise);
+
+      updatePromises.push(
+        this.prisma.soalAttempt.update({
+          where: { id: attempt.id },
+          data: { isCorrect: isCorrect },
+        }),
+      );
     }
 
     await this.prisma.$transaction(updatePromises);
 
-    const finishedAttempt = await this.prisma.tryoutAttempt.update({
-      where: { id: attemptId },
+    await this.prisma.tryoutAttempt.update({
+      where: { id: tryoutAttemptId },
       data: {
         rawScore: totalCorrect,
         isFinished: true,
+        finishedAt: new Date(),
       },
     });
 
     return {
-      message: 'Tryout finished. Scoring in progress.',
-      attemptId: finishedAttempt.id,
+      success: true,
+      message: 'Tryout finished successfully',
       rawScore: totalCorrect,
     };
   }
@@ -218,15 +420,15 @@ export class TryoutsService {
       currentPage: page,
     };
   }
-  
+
   async getLeaderboard(tryoutId: string, paginationDto: PaginationDto) {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
     const totalAttempts = await this.prisma.tryoutAttempt.count({
-      where: { 
+      where: {
         tryoutId: tryoutId,
-        isFinished: true 
+        isFinished: true,
       },
     });
 
@@ -240,10 +442,7 @@ export class TryoutsService {
           select: { name: true, image: true },
         },
       },
-      orderBy: [
-        { scaledScore: 'desc' },
-        { createdAt: 'asc' }, 
-      ],
+      orderBy: [{ scaledScore: 'desc' }, { createdAt: 'asc' }],
       skip: skip,
       take: limit,
     });
@@ -261,6 +460,37 @@ export class TryoutsService {
       data: leaderboardEntries,
       totalPages: Math.ceil(totalAttempts / limit),
       currentPage: page,
+    };
+  }
+
+  async getRemainingTime(subtestAttemptId: string) {
+    const subtestAttempt = await this.prisma.subtestAttempt.findUnique({
+      where: { id: subtestAttemptId },
+      select: { expiresAt: true, isFinished: true },
+    });
+
+    if (!subtestAttempt) {
+      throw new NotFoundException('Subtest attempt not found');
+    }
+
+    const { expiresAt, isFinished } = subtestAttempt;
+
+    if (isFinished) {
+      return { remainingTime: 0 };
+    }
+
+    const now = new Date();
+
+    // Check subtest expiration
+    if (expiresAt && now > expiresAt) {
+      await this.finishSubtest(subtestAttemptId);
+      return { remainingTime: 0 };
+    }
+
+    const remainingTime = Math.max(0, expiresAt!.getTime() - now.getTime());
+
+    return {
+      remainingTime: Math.floor(remainingTime / 1000),
     };
   }
 
@@ -283,7 +513,7 @@ export class TryoutsService {
 
     let minWeightedScore = Infinity;
     let maxWeightedScore = -Infinity;
-    const attemptScores: any[] = [];
+    const attemptScores: { id: string; score: number }[] = [];
 
     for (const attempt of attempts) {
       let weightedScore = 0;
@@ -292,7 +522,7 @@ export class TryoutsService {
           weightedScore += soalBobot[soal.soalId] || 0;
         }
       }
-      
+
       attemptScores.push({ id: attempt.id, score: weightedScore });
       if (weightedScore < minWeightedScore) minWeightedScore = weightedScore;
       if (weightedScore > maxWeightedScore) maxWeightedScore = weightedScore;
@@ -306,7 +536,7 @@ export class TryoutsService {
       if (scale > 0) {
         scaledScore += ((attempt.score - minWeightedScore) / scale) * 600;
       }
-      
+
       const finalScore = Math.round(scaledScore);
 
       updatePromises.push(
@@ -316,7 +546,7 @@ export class TryoutsService {
         }),
       );
     }
-    
+
     await this.prisma.$transaction(updatePromises);
 
     return {
@@ -338,7 +568,7 @@ export class TryoutsService {
       const totalAttempts = await this.prisma.soalAttempt.count({
         where: { soalId: soal.id },
       });
-      
+
       if (totalAttempts === 0) {
         soalWeights[soal.id] = 1;
         continue;
@@ -352,13 +582,39 @@ export class TryoutsService {
       });
 
       const correctRatio = correctAttempts / totalAttempts;
-      
+
       soalWeights[soal.id] = 1 - correctRatio;
     }
-    
+
     return soalWeights;
   }
 
+  async getSubtestAttemptDetails(subtestAttemptId: string) {
+    const subtestAttempt = await this.prisma.subtestAttempt.findUnique({
+      where: { id: subtestAttemptId },
+      include: {
+        subtest: {
+          include: {
+            soal: {
+              include: {
+                opsi: true,
+                pembahasanSoal: true,
+              },
+            },
+          },
+        },
+        soalAttempt: {
+          include: {
+            soal: true,
+          },
+        },
+      },
+    });
 
+    if (!subtestAttempt) {
+      throw new NotFoundException('Subtest attempt not found');
+    }
 
+    return subtestAttempt;
+  }
 }

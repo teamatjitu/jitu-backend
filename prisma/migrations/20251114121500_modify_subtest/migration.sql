@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "subtest_attempt" ADD COLUMN     "finishedAt" TIMESTAMP(3),
+ADD COLUMN     "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
