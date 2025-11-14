@@ -2,8 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TryoutsController } from './tryouts.controller';
 import { TryoutsService } from './tryouts.service';
 
-const mockTryoutsService = {
-};
+const mockTryoutsService = {};
 
 describe('TryoutsController', () => {
   let controller: TryoutsController;

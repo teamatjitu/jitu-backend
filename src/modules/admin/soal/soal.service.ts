@@ -118,7 +118,8 @@ export class SoalService {
   }
 
   async update(id: string, updateSoalDto: UpdateSoalDto) {
-    const { opsi, pembahasanSoal, subtestType, tipeSoal, question } = updateSoalDto;
+    const { opsi, pembahasanSoal, subtestType, tipeSoal, question } =
+      updateSoalDto;
 
     // Check if soal exists
     const existingSoal = await this.prisma.soal.findUnique({

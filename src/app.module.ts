@@ -9,20 +9,10 @@ import { PrismaService } from './prisma.service';
 import { SoalModule } from './modules/admin/soal/soal.module';
 
 @Module({
-  imports: [
-    AuthModule.forRoot(auth), 
-    AdminModule,
-    TryoutsModule,
-    SoalModule,
-  ],
-  
-  controllers: [
-    AppController
-  ],
+  imports: [AuthModule.forRoot(auth), AdminModule, TryoutsModule, SoalModule],
 
-  providers: [
-    AppService, 
-    PrismaService,
-  ],
+  controllers: [AppController],
+
+  providers: [AppService, PrismaService],
 })
 export class AppModule {}

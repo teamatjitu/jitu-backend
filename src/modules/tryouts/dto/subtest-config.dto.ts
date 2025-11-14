@@ -1,7 +1,10 @@
 export interface SubtestConfig {
   name: string;
   type: 'PU' | 'PPU' | 'PBM' | 'PK' | 'LBI' | 'LBE' | 'PM';
-  kategori: 'TES_POTENSI_SKOLASTIK' | 'TES_LITERASI_BAHASA' | 'PENALARAN_MATEMATIKA';
+  kategori:
+    | 'TES_POTENSI_SKOLASTIK'
+    | 'TES_LITERASI_BAHASA'
+    | 'PENALARAN_MATEMATIKA';
   duration: number;
 }
 

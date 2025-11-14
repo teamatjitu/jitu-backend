@@ -26,11 +26,19 @@ export class SoalController {
   }
 
   @Get('tryout/:tryoutId/subtest/:subtestType')
-  @ApiOperation({ summary: 'Dapatkan soal berdasarkan tryout ID dan subtest type' })
+  @ApiOperation({
+    summary: 'Dapatkan soal berdasarkan tryout ID dan subtest type',
+  })
   @ApiParam({ name: 'tryoutId', description: 'ID tryout' })
-  @ApiParam({ name: 'subtestType', description: 'Tipe subtest (PU, PPU, PBM, PK, LBI, LBE, PM)' })
+  @ApiParam({
+    name: 'subtestType',
+    description: 'Tipe subtest (PU, PPU, PBM, PK, LBI, LBE, PM)',
+  })
   @ApiResponse({ status: 200, description: 'Berhasil mendapatkan soal' })
-  @ApiResponse({ status: 404, description: 'Tryout atau subtest tidak ditemukan' })
+  @ApiResponse({
+    status: 404,
+    description: 'Tryout atau subtest tidak ditemukan',
+  })
   async findByTryoutAndSubtest(
     @Param('tryoutId') tryoutId: string,
     @Param('subtestType') subtestType: string,

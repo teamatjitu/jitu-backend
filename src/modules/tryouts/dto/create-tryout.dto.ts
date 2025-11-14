@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsInt, IsBoolean, IsDateString, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsBoolean,
+  IsDateString,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateTryoutDto {
   @ApiProperty({ description: 'Tryout name' })
