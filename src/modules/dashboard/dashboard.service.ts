@@ -3,6 +3,12 @@ import { PrismaService } from '../../prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import * as streamifier from 'streamifier';
+import { UserStatsDto } from './dto/dashboard.dto';
+
+enum TryoutStatus {
+  IN_PROGRESS = 'IN_PROGRESS',
+  FINISHED = 'FINISHED',
+}
 
 @Injectable()
 export class DashboardService {
@@ -63,5 +69,50 @@ export class DashboardService {
         updatedAt: true,
       },
     });
+  }
+
+  async getUserStats(userId: string): Promise<UserStatsDto> {
+    const now = new Date();
+    const oneWeekAgo = new Date(now.setDate(now.getDate() - 7));
+
+    const [lastAttempt, bestScore, weeklyActivity, totalFinished] =
+      await Promise.all([
+        // last tryout score
+        this.prisma.tryOutAttempt.findFirst({
+          where: { userId, status: TryoutStatus.FINISHED },
+          orderBy: { finishedAt: 'desc' },
+          select: { totalScore: true },
+        }),
+
+        // best score
+        this.prisma.tryOutAttempt.aggregate({
+          where: { userId, status: TryoutStatus.FINISHED },
+          _max: { totalScore: true },
+        }),
+
+        //weekly activity
+        this.prisma.tryOutAttempt.count({
+          where: {
+            userId,
+            startedAt: { gte: oneWeekAgo },
+          },
+        }),
+
+        // totalFinished
+        this.prisma.tryOutAttempt.count({
+          where: { userId, status: TryoutStatus.FINISHED },
+        }),
+      ]);
+
+    return {
+      lastScore: lastAttempt?.totalScore
+        ? Math.round(lastAttempt.totalScore)
+        : 0,
+      personalBest: bestScore._max.totalScore
+        ? Math.round(bestScore._max.totalScore)
+        : 0,
+      weeklyActivity: weeklyActivity,
+      totalFinished: totalFinished,
+    };
   }
 }

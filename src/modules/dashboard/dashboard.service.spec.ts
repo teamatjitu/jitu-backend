@@ -4,6 +4,8 @@ import { PrismaService } from '../../prisma.service';
 import { v2 as cloudinary } from 'cloudinary';
 import * as streamifier from 'streamifier';
 import { BadRequestException } from '@nestjs/common';
+// Gunakan path relatif ke generated prisma client
+import { TryoutStatus } from '../../../generated/prisma/enums';
 
 jest.mock('cloudinary', () => ({
   v2: {
@@ -21,6 +23,11 @@ jest.mock('streamifier', () => ({
 const prismaMock = {
   user: {
     update: jest.fn(),
+  },
+  tryOutAttempt: {
+    findFirst: jest.fn(),
+    aggregate: jest.fn(),
+    count: jest.fn(),
   },
 };
 
@@ -79,7 +86,6 @@ describe('DashboardService', () => {
         },
       );
 
-      // Mock Streamifier: Return object with pipe
       (streamifier.createReadStream as jest.Mock).mockReturnValue({
         pipe: jest.fn(),
       });
@@ -111,7 +117,6 @@ describe('DashboardService', () => {
         buffer: Buffer.from('fake-image'),
       } as Express.Multer.File;
 
-      // Mock Cloudinary: Simulate Error
       (cloudinary.uploader.upload_stream as jest.Mock).mockImplementation(
         (options, callback) => {
           callback(new Error('Cloudinary Error'), null);
@@ -126,6 +131,65 @@ describe('DashboardService', () => {
       await expect(
         service.updateProfile(userId, payload, mockFile),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getUserStats', () => {
+    it('should return correct calculated stats when user has activity', async () => {
+      const userId = 'user-active';
+
+      // 1. Mock: User punya attempt terakhir dengan skor 750
+      prismaMock.tryOutAttempt.findFirst.mockResolvedValue({ totalScore: 750 });
+
+      // 2. Mock: Personal Best user adalah 800
+      prismaMock.tryOutAttempt.aggregate.mockResolvedValue({
+        _max: { totalScore: 800 },
+      });
+
+      // 3. Mock: Weekly Activity (count pertama) = 3
+      // 4. Mock: Total Finished (count kedua) = 5
+      prismaMock.tryOutAttempt.count
+        .mockResolvedValueOnce(3)
+        .mockResolvedValueOnce(5);
+
+      const result = await service.getUserStats(userId);
+
+      expect(result).toEqual({
+        lastScore: 750,
+        personalBest: 800,
+        weeklyActivity: 3,
+        totalFinished: 5,
+      });
+
+      expect(prismaMock.tryOutAttempt.findFirst).toHaveBeenCalledWith({
+        where: { userId, status: TryoutStatus.FINISHED },
+        orderBy: { finishedAt: 'desc' },
+        select: { totalScore: true },
+      });
+
+      expect(prismaMock.tryOutAttempt.aggregate).toHaveBeenCalledWith({
+        where: { userId, status: TryoutStatus.FINISHED },
+        _max: { totalScore: true },
+      });
+    });
+
+    it('should return zero stats for new user', async () => {
+      const userId = 'user-new';
+
+      prismaMock.tryOutAttempt.findFirst.mockResolvedValue(null);
+      prismaMock.tryOutAttempt.aggregate.mockResolvedValue({
+        _max: { totalScore: null },
+      });
+      prismaMock.tryOutAttempt.count.mockResolvedValue(0);
+
+      const result = await service.getUserStats(userId);
+
+      expect(result).toEqual({
+        lastScore: 0,
+        personalBest: 0,
+        weeklyActivity: 0,
+        totalFinished: 0,
+      });
     });
   });
 });

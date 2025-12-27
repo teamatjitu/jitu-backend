@@ -44,3 +44,10 @@ export class DashboardDataDto {
   subtests: SubtestDto[];
   menuItems: MenuItemDto[];
 }
+
+export class UserStatsDto {
+  lastScore: number;
+  personalBest: number;
+  weeklyActivity: number;
+  totalFinished: number;
+}
