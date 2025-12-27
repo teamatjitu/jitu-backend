@@ -16,15 +16,24 @@ datasource db {
 }
 
 model User {
-  id            String    @id
+  id            String  @id
   name          String
   email         String
-  emailVerified Boolean   @default(false)
+  emailVerified Boolean @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
+
+  currentStreak Int       @default(0)
+  lastDailyDate DateTime?
+  tokenBalance  Int       @default(0)
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  sessions          Session[]
+  accounts          Account[]
+  tokenTransactions TokenTransaction[]
+  unlockedSolutions UnlockedSolution[]
+  tryOutAttempts    TryOutAttempt[]
+  dailyLogs         DailyQuestionLog[]
 
   @@unique([email])
   @@map("user")
@@ -76,4 +85,109 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model TryOut {
+  id            String  @id @default(cuid())
+  title         String
+  description   String? @db.Text
+  solutionPrice Int     @default(0)
+
+  // REFERRAL LOGIC
+  isPublic     Boolean @default(true)
+  referralCode String? @unique // Required to see/join if not public
+
+  scheduledStart DateTime?
+  createdAt      DateTime  @default(now())
+
+  // Relations
+  subtests          Subtest[]
+  unlockedSolutions UnlockedSolution[]
+  attempts          TryOutAttempt[]
+}
+
+// --- 3. DAILY RANDOM QUESTION & STREAK ---
+model DailyQuestionLog {
+  id          String   @id @default(cuid())
+  userId      String
+  questionId  String
+  isCorrect   Boolean
+  completedAt DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@index([userId, completedAt], name: "daily_user_date_idx")
+}
+
+// --- 4. UTBK CORE STRUCTURE ---
+model Subtest {
+  id              String @id @default(cuid())
+  tryOutId        String @map("try_out_id")
+  name            String
+  durationMinutes Int    @map("duration_minutes")
+  order           Int
+
+  tryOut    TryOut     @relation(fields: [tryOutId], references: [id])
+  questions Question[]
+}
+
+model Question {
+  id            String  @id @default(cuid())
+  subtestId     String  @map("subtest_id")
+  type          String
+  imageUrl      String? @db.Text
+  narration     String? @db.Text
+  content       String? @db.Text
+  explanation   String? @db.Text
+  points        Int     @default(1)
+  correctAnswer String? @map("correct_answer_short_answer")
+
+  subtest   Subtest            @relation(fields: [subtestId], references: [id])
+  items     QuestionItem[]
+  dailyLogs DailyQuestionLog[]
+}
+
+model QuestionItem {
+  id         String  @id @default(cuid())
+  questionId String  @map("question_id")
+  content    String? @db.Text
+  isCorrect  Boolean @default(false) @map("is_correct")
+  order      Int
+
+  question Question @relation(fields: [questionId], references: [id])
+}
+
+// --- 5. TRANSACTIONS & ACCESS ---
+model TokenTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int
+  type        String
+  referenceId String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model UnlockedSolution {
+  id         String   @id @default(cuid())
+  userId     String
+  tryOutId   String
+  unlockedAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  tryOut TryOut @relation(fields: [tryOutId], references: [id])
+}
+
+model TryOutAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  tryOutId   String   @map("try_out_id")
+  totalScore Float    @map("total_score")
+  status     String
+  startedAt  DateTime @default(now()) @map("started_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  tryOut TryOut @relation(fields: [tryOutId], references: [id])
 }
