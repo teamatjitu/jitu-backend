@@ -15,6 +15,18 @@ datasource db {
   provider = "postgresql"
 }
 
+
+enum TryoutBatch {
+  SNBT
+  MANDIRI
+}
+
+enum TryoutStatus {
+  IN_PROGRESS
+  FINISHED
+  EXPIRED
+}
+
 model User {
   id            String  @id
   name          String
@@ -92,6 +104,7 @@ model TryOut {
   title         String
   description   String? @db.Text
   solutionPrice Int     @default(0)
+  code          Int     @default(autoincrement())
 
   // REFERRAL LOGIC
   isPublic     Boolean @default(true)
@@ -104,6 +117,8 @@ model TryOut {
   subtests          Subtest[]
   unlockedSolutions UnlockedSolution[]
   attempts          TryOutAttempt[]
+
+  batch             TryoutBatch
 }
 
 // --- 3. DAILY RANDOM QUESTION & STREAK ---
@@ -181,13 +196,34 @@ model UnlockedSolution {
 }
 
 model TryOutAttempt {
-  id         String   @id @default(cuid())
+  id         String     @id @default(cuid())
   userId     String
-  tryOutId   String   @map("try_out_id")
-  totalScore Float    @map("total_score")
+  tryOutId   String     @map("try_out_id")
+  totalScore Float      @map("total_score")
   status     String
-  startedAt  DateTime @default(now()) @map("started_at")
+  startedAt  DateTime   @default(now()) @map("started_at")
+  finishedAt DateTime?  @map("finished_at")
 
-  user   User   @relation(fields: [userId], references: [id])
-  tryOut TryOut @relation(fields: [tryOutId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+  tryOut     TryOut     @relation(fields: [tryOutId], references: [id])
+  answers    UserAnswer[] 
 }
+
+
+model UserAnswer {
+  id                  String   @id @default(cuid())
+  tryOutAttemptId     String   @map("tryout_attempt_id")
+  questionId          String   @map("question_id")
+  
+  // pilihan jawaban user (jika essay maka null)
+  questionItemId      String?  @map("question_item_id")
+
+  inputText           String?  @db.Text
+  isCorrect           Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  attempt        TryOutAttempt @relation(fields: [tryOutAttemptId], references: [id])
+  @@unique([tryOutAttemptId, questionId])
+}
+
