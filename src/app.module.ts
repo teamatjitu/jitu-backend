@@ -4,6 +4,11 @@ import { AppService } from './app.service';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from './lib/auth';
 import { ConfigModule } from '@nestjs/config';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { HistoryModule } from './modules/history/history.module';
+import { ReferralModule } from './modules/referral/referral.module';
+import { ShopModule } from './modules/shop/shop.module';
+import { TryoutModule } from './modules/tryout/tryout.module';
 
 @Module({
   imports: [
@@ -11,6 +16,11 @@ import { ConfigModule } from '@nestjs/config';
       envFilePath: '.env',
     }),
     AuthModule.forRoot({ auth }),
+    DashboardModule,
+    HistoryModule,
+    ReferralModule,
+    ShopModule,
+    TryoutModule,
   ],
   controllers: [AppController],
   providers: [AppService],
