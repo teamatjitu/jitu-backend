@@ -15,6 +15,12 @@ datasource db {
   provider = "postgresql"
 }
 
+
+enum TryoutBatch {
+  SNBT
+  MANDIRI
+}
+
 model User {
   id            String  @id
   name          String
@@ -92,6 +98,7 @@ model TryOut {
   title         String
   description   String? @db.Text
   solutionPrice Int     @default(0)
+  code          Int     @default(autoincrement())
 
   // REFERRAL LOGIC
   isPublic     Boolean @default(true)
@@ -104,6 +111,8 @@ model TryOut {
   subtests          Subtest[]
   unlockedSolutions UnlockedSolution[]
   attempts          TryOutAttempt[]
+
+  batch             TryoutBatch
 }
 
 // --- 3. DAILY RANDOM QUESTION & STREAK ---

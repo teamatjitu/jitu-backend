@@ -6,8 +6,8 @@ import { TryOutCardDto } from './dto/tryout.dto';
 export class TryoutController {
   constructor(private readonly tryoutService: TryoutService) {}
 
-  //   @Get()
-  //   async getAllTryouts(): Promise<TryOutCardDto[]> {
-  //     return this.tryoutService.getTryouts();
-  //   }
+  @Get()
+  async getAllTryouts(): Promise<TryOutCardDto[]> {
+    return this.tryoutService.getTryouts();
+  }
 }

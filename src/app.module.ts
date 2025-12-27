@@ -9,6 +9,7 @@ import { HistoryModule } from './modules/history/history.module';
 import { ReferralModule } from './modules/referral/referral.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { TryoutModule } from './modules/tryout/tryout.module';
+import { PrismaModule } from './prisma.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { TryoutModule } from './modules/tryout/tryout.module';
       envFilePath: '.env',
     }),
     AuthModule.forRoot({ auth }),
+    PrismaModule,
     DashboardModule,
     HistoryModule,
     ReferralModule,
