@@ -1,3 +1,5 @@
+import { IsNotEmpty, IsString } from 'class-validator';
+
 export class StatCardDto {
   label: string;
   value: string;
@@ -50,4 +52,29 @@ export class UserStatsDto {
   personalBest: number;
   weeklyActivity: number;
   totalFinished: number;
+}
+
+export class SubmitDailyAnswerDto {
+  @IsString()
+  @IsNotEmpty()
+  questionId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  answerId: string;
+}
+
+export class DailyQuestionDto {
+  id: string;
+  content: string;
+  options: {
+    id: string;
+    content: string;
+  }[];
+}
+
+export class DailyQuestionResponseDto {
+  isCompleted: boolean;
+  streak: number;
+  question: DailyQuestionDto | null;
 }

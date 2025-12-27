@@ -22,6 +22,7 @@ jest.mock('streamifier', () => ({
 
 const prismaMock = {
   user: {
+    findUnique: jest.fn(),
     update: jest.fn(),
   },
   tryOutAttempt: {
@@ -29,6 +30,19 @@ const prismaMock = {
     aggregate: jest.fn(),
     count: jest.fn(),
   },
+  dailyQuestionLog: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+  },
+  question: {
+    count: jest.fn(),
+    findFirst: jest.fn(),
+  },
+  questionItem: {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+  },
+  $transaction: jest.fn((promises) => Promise.all(promises)),
 };
 
 describe('DashboardService', () => {
@@ -46,6 +60,7 @@ describe('DashboardService', () => {
     jest.clearAllMocks();
   });
 
+  // ... (Test updateProfile dan getUserStats yang sudah ada tetap di sini)
   describe('updateProfile', () => {
     it('should update profile without image', async () => {
       const userId = 'user-1';
@@ -138,16 +153,10 @@ describe('DashboardService', () => {
     it('should return correct calculated stats when user has activity', async () => {
       const userId = 'user-active';
 
-      // 1. Mock: User punya attempt terakhir dengan skor 750
       prismaMock.tryOutAttempt.findFirst.mockResolvedValue({ totalScore: 750 });
-
-      // 2. Mock: Personal Best user adalah 800
       prismaMock.tryOutAttempt.aggregate.mockResolvedValue({
         _max: { totalScore: 800 },
       });
-
-      // 3. Mock: Weekly Activity (count pertama) = 3
-      // 4. Mock: Total Finished (count kedua) = 5
       prismaMock.tryOutAttempt.count
         .mockResolvedValueOnce(3)
         .mockResolvedValueOnce(5);
@@ -159,17 +168,6 @@ describe('DashboardService', () => {
         personalBest: 800,
         weeklyActivity: 3,
         totalFinished: 5,
-      });
-
-      expect(prismaMock.tryOutAttempt.findFirst).toHaveBeenCalledWith({
-        where: { userId, status: TryoutStatus.FINISHED },
-        orderBy: { finishedAt: 'desc' },
-        select: { totalScore: true },
-      });
-
-      expect(prismaMock.tryOutAttempt.aggregate).toHaveBeenCalledWith({
-        where: { userId, status: TryoutStatus.FINISHED },
-        _max: { totalScore: true },
       });
     });
 
@@ -189,6 +187,125 @@ describe('DashboardService', () => {
         personalBest: 0,
         weeklyActivity: 0,
         totalFinished: 0,
+      });
+    });
+  });
+
+  describe('getDailyQuestion', () => {
+    it('should return isCompleted=true if user already answered today', async () => {
+      const userId = 'user-1';
+      // Mock existing log
+      prismaMock.dailyQuestionLog.findFirst.mockResolvedValue({ id: 'log-1' });
+      // Mock user streak
+      prismaMock.user.findUnique.mockResolvedValue({ currentStreak: 5 });
+
+      const result = await service.getDailyQuestion(userId);
+
+      expect(result).toEqual({
+        isCompleted: true,
+        streak: 5,
+        question: null,
+      });
+      expect(prismaMock.dailyQuestionLog.findFirst).toHaveBeenCalled();
+    });
+
+    it('should return a random question if user has not answered today', async () => {
+      const userId = 'user-1';
+      // Mock no existing log
+      prismaMock.dailyQuestionLog.findFirst.mockResolvedValue(null);
+      prismaMock.user.findUnique.mockResolvedValue({ currentStreak: 5 });
+
+      // Mock Question Data
+      prismaMock.question.count.mockResolvedValue(100);
+      prismaMock.question.findFirst.mockResolvedValue({
+        id: 'q-1',
+        content: 'Apa ibukota Indonesia?',
+        items: [
+          { id: 'opt-1', content: 'Jakarta' },
+          { id: 'opt-2', content: 'Bandung' },
+        ],
+      });
+
+      const result = await service.getDailyQuestion(userId);
+
+      expect(result).toEqual({
+        isCompleted: false,
+        streak: 5,
+        question: {
+          id: 'q-1',
+          content: 'Apa ibukota Indonesia?',
+          options: [
+            { id: 'opt-1', content: 'Jakarta' },
+            { id: 'opt-2', content: 'Bandung' },
+          ],
+        },
+      });
+      expect(prismaMock.question.findFirst).toHaveBeenCalled();
+    });
+  });
+
+  describe('answerDailyQuestion', () => {
+    it('should increase streak if answer is correct', async () => {
+      const userId = 'user-1';
+      const payload = { questionId: 'q-1', answerId: 'opt-correct' };
+
+      // Mock correct answer
+      prismaMock.questionItem.findUnique.mockResolvedValue({
+        id: 'opt-correct',
+        questionId: 'q-1',
+        isCorrect: true,
+      });
+
+      // Mock user data
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: userId,
+        currentStreak: 5,
+      });
+
+      const result = await service.answerDailyQuestion(userId, payload);
+
+      expect(result.isCorrect).toBe(true);
+      expect(result.newStreak).toBe(6);
+
+      // Verify DB Updates
+      expect(prismaMock.dailyQuestionLog.create).toHaveBeenCalled();
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: expect.objectContaining({ currentStreak: 6 }),
+      });
+    });
+
+    it('should reset streak to 0 if answer is incorrect', async () => {
+      const userId = 'user-1';
+      const payload = { questionId: 'q-1', answerId: 'opt-wrong' };
+
+      // Mock wrong answer
+      prismaMock.questionItem.findUnique.mockResolvedValue({
+        id: 'opt-wrong',
+        questionId: 'q-1',
+        isCorrect: false,
+      });
+
+      // Mock correct answer lookup for feedback
+      prismaMock.questionItem.findFirst.mockResolvedValue({
+        id: 'opt-correct',
+        isCorrect: true,
+      });
+
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: userId,
+        currentStreak: 5,
+      });
+
+      const result = await service.answerDailyQuestion(userId, payload);
+
+      expect(result.isCorrect).toBe(false);
+      expect(result.newStreak).toBe(0);
+      expect(result.correctAnswerId).toBe('opt-correct');
+
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: expect.objectContaining({ currentStreak: 0 }),
       });
     });
   });

@@ -4,6 +4,13 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import * as streamifier from 'streamifier';
 import { UserStatsDto } from './dto/dashboard.dto';
+import {
+  DailyQuestionDto,
+  SubmitDailyAnswerDto,
+  DailyQuestionResponseDto,
+} from './dto/dashboard.dto';
+import { isISO4217CurrencyCode } from 'class-validator';
+import { un } from 'node_modules/better-auth/dist/index-COnelCGa.mjs';
 
 enum TryoutStatus {
   IN_PROGRESS = 'IN_PROGRESS',
@@ -14,9 +21,9 @@ enum TryoutStatus {
 export class DashboardService {
   constructor(private prisma: PrismaService) {
     cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME || '',
-      api_key: process.env.CLOUDINARY_API_KEY || '',
-      api_secret: process.env.CLOUDINARY_API_SECRET || '',
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
     });
   }
 
@@ -114,5 +121,121 @@ export class DashboardService {
       weeklyActivity: weeklyActivity,
       totalFinished: totalFinished,
     };
+  }
+
+  async getDailyQuestion(userId: string): Promise<DailyQuestionResponseDto> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const existingLog = await this.prisma.dailyQuestionLog.findFirst({
+      where: {
+        userId,
+        completedAt: { gte: today },
+      },
+    });
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { currentStreak: true, lastDailyDate: true },
+    });
+
+    if (existingLog) {
+      return {
+        isCompleted: true,
+        streak: user?.currentStreak || 0,
+        question: null,
+      };
+    }
+
+    const totalQuestion = await this.prisma.question.count();
+    const skip = Math.floor(Math.random() * totalQuestion);
+
+    const randomQuestion = await this.prisma.question.findFirst({
+      skip: skip,
+      include: {
+        items: true,
+      },
+    });
+
+    if (!randomQuestion) {
+      return {
+        isCompleted: false,
+        streak: user?.currentStreak || 0,
+        question: null,
+      };
+    }
+
+    return {
+      isCompleted: false,
+      streak: user?.currentStreak || 0,
+      question: {
+        id: randomQuestion.id,
+        content: randomQuestion.content || 'Soal Error!',
+        options: randomQuestion.items.map((item) => ({
+          id: item.id,
+          content: item.content || '',
+        })),
+      },
+    };
+  }
+
+  async answerDailyQuestion(
+    userId: string,
+    payload: SubmitDailyAnswerDto,
+  ): Promise<{
+    isCorrect: boolean;
+    newStreak: number;
+    correctAnswerId?: string;
+  }> {
+    const selectedItem = await this.prisma.questionItem.findUnique({
+      where: { id: payload.answerId },
+    });
+
+    if (!selectedItem) {
+      throw new BadRequestException('Jawaban tidak valid!');
+    }
+    const isCorrect = selectedItem.isCorrect;
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    let newStreak = user?.currentStreak || 0;
+    const lastDate = user?.lastDailyDate;
+
+    const now = new Date();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    if (isCorrect) {
+      newStreak += 1;
+    } else {
+      newStreak = 0;
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.dailyQuestionLog.create({
+        data: {
+          userId,
+          questionId: selectedItem.questionId,
+          isCorrect,
+          completedAt: now,
+        },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          currentStreak: newStreak,
+          lastDailyDate: now,
+        },
+      }),
+    ]);
+
+    let correctAnswerId: string | undefined = undefined;
+    if (!isCorrect) {
+      const correctItem = await this.prisma.questionItem.findFirst({
+        where: { questionId: selectedItem.questionId, isCorrect: true },
+      });
+      correctAnswerId = correctItem?.id;
+    }
+
+    return { isCorrect, newStreak, correctAnswerId };
   }
 }
