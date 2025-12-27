@@ -1,5 +1,5 @@
 export class TryOutCardDto {
-  id: number;
+  id: string;
   title: string;
   number: string;
   canEdit: boolean;
@@ -15,7 +15,7 @@ export class SubjectDto {
 }
 
 export class TryoutDetailDto {
-  id: number;
+  id: string;
   title: string;
   number: string;
   badge: string;
@@ -50,7 +50,7 @@ export class QuestionDto {
 export class SubtestExamDto {
   subtestId: number;
   subtestName: string;
-  tryoutId: number;
+  tryoutId: string;
   tryoutTitle: string;
   duration: number;
   questions: QuestionDto[];

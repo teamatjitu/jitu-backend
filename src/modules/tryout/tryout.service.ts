@@ -18,9 +18,9 @@ export class TryoutService {
     );
 
     return {
-      id: tryout.id, // number (bukan cuid)
+      id: tryout.id, // CUID
       title: tryout.title,
-      number: tryout.code.toString(),
+      number: tryout.code,
       badge: tryout.batch, // SNBT / MANDIRI
       participants: tryout.attempts?.length ?? 0,
       description: tryout.description ?? '',
@@ -53,7 +53,7 @@ export class TryoutService {
     });
 
     return tryouts.map((t) => ({
-      id: t.code,
+      id: t.id, // CUID
       title: t.title,
       number: t.code.toString(),
       canEdit: false,
@@ -75,6 +75,10 @@ export class TryoutService {
         unlockedSolutions: userId ? { where: { userId } } : false,
       },
     });
+
+    if (!tryout) {
+      throw new Error('Tryout not found');
+    }
 
     return this.mapTryoutToDto(tryout);
   }

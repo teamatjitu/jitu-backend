@@ -193,10 +193,28 @@ model TryOutAttempt {
   id         String   @id @default(cuid())
   userId     String
   tryOutId   String   @map("try_out_id")
-  totalScore Float    @map("total_score")
-  status     String
+  totalScore Float    @default(0) @map("total_score")
+  status     String   @default("IN_PROGRESS") // IN_PROGRESS, FINISHED, EXPIRED
   startedAt  DateTime @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
 
-  user   User   @relation(fields: [userId], references: [id])
-  tryOut TryOut @relation(fields: [tryOutId], references: [id])
+  user    User         @relation(fields: [userId], references: [id])
+  tryOut  TryOut       @relation(fields: [tryOutId], references: [id])
+  answers UserAnswer[] // Relasi ke jawaban detail
+}
+
+model UserAnswer {
+  id              String   @id @default(cuid())
+  tryOutAttemptId String   @map("try_out_attempt_id")
+  questionId      String   @map("question_id")
+  questionItemId  String?  @map("question_item_id") // ID Pilihan jawaban user (bisa null jika essay/kosong)
+  inputText       String?  @db.Text // Jawaban isian (jika ada)
+  isCorrect       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  attempt TryOutAttempt @relation(fields: [tryOutAttemptId], references: [id], onDelete: Cascade)
+  question Question      @relation(fields: [questionId], references: [id])
+
+  @@unique([tryOutAttemptId, questionId]) // Satu soal cuma boleh satu jawaban per attempt
 }

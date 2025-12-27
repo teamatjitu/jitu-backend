@@ -87,18 +87,19 @@ describe('TryoutService', () => {
       expect(prismaMock.tryOut.findMany).toHaveBeenCalledTimes(1);
       expect(result).toHaveLength(2);
 
+      // Verifikasi Item 1
       expect(result[0]).toEqual({
-        id: 1,
+        id: 'cku1tryout1', // Sekarang string CUID
         title: 'Try Out UTBK SNBT 1',
         number: '1',
         canEdit: false,
-        participants: 10,
+        participants: 10, // Mengambil dari _count.attempts
         badge: 'SNBT',
       });
 
       // Verifikasi Item 2
       expect(result[1]).toEqual({
-        id: 2,
+        id: 'cku1tryout2', // Sekarang string CUID
         title: 'Try Out UTBK SNBT 2',
         number: '2',
         canEdit: false,
@@ -110,7 +111,9 @@ describe('TryoutService', () => {
 
   describe('getTryoutById', () => {
     it('should return detailed tryout DTO', async () => {
-      prismaMock.tryOut.findUnique.mockResolvedValue(mockTryoutsComplete[0]);
+      // Ambil item pertama dari array mock sebagai target test
+      const targetTryout = mockTryoutsComplete[0];
+      prismaMock.tryOut.findUnique.mockResolvedValue(targetTryout);
 
       const result = await service.getTryoutById('cku1tryout1', 'user123');
 
@@ -128,15 +131,15 @@ describe('TryoutService', () => {
       });
 
       expect(result).toEqual({
-        id: 'cku1tryout1',
+        id: 'cku1tryout1', // CUID
         title: 'Try Out UTBK SNBT 1',
-        number: '1',
+        number: 1,
         badge: 'SNBT',
         participants: 0,
         description: 'Simulasi UTBK SNBT lengkap',
         duration: 75,
         totalQuestions: 5,
-        startDate: mockTryoutsComplete[0].scheduledStart.toISOString(),
+        startDate: targetTryout.scheduledStart.toISOString(),
         endDate: '',
         isRegistered: false,
         isFree: true,
