@@ -69,6 +69,16 @@ export class ExamService {
     questionId: string,
     questionItemId: string,
   ) {
+    const selectedItem = await this.prisma.questionItem.findUnique({
+      where: { id: questionItemId },
+    });
+
+    if (!selectedItem) {
+      throw new Error('Pilihan jawaban tidak valid / tidak ditemukan');
+    }
+
+    const isCorrect = selectedItem.isCorrect;
+
     return this.prisma.userAnswer.upsert({
       where: {
         tryOutAttemptId_questionId: {
@@ -78,12 +88,14 @@ export class ExamService {
       },
       update: {
         questionItemId: questionItemId,
+        isCorrect: isCorrect, // Update status benar/salah
         updatedAt: new Date(),
       },
       create: {
         tryOutAttemptId: attemptId,
         questionId: questionId,
         questionItemId: questionItemId,
+        isCorrect: isCorrect, // Simpan status benar/salah
       },
     });
   }

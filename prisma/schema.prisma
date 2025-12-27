@@ -214,6 +214,7 @@ model UserAnswer {
   id                  String   @id @default(cuid())
   tryOutAttemptId     String   @map("tryout_attempt_id")
   questionId          String   @map("question_id")
+  
   // pilihan jawaban user (jika essay maka null)
   questionItemId      String?  @map("question_item_id")
 

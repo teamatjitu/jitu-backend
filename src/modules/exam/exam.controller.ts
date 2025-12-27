@@ -1,7 +1,9 @@
 import { Controller, Get, Post, Body, Param, Sse } from '@nestjs/common';
 import { ExamService } from './exam.service';
 import { Observable } from 'rxjs';
+import { Public } from '@thallesp/nestjs-better-auth';
 
+@Public()
 @Controller('exam')
 export class ExamController {
   constructor(private readonly examService: ExamService) {}
@@ -31,5 +33,10 @@ export class ExamController {
       answerData.questionId,
       answerData.answerId,
     );
+  }
+
+  @Get('ping')
+  ping() {
+    return 'pong';
   }
 }

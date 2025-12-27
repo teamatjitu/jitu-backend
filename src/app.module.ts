@@ -17,7 +17,7 @@ import { ExamModule } from './modules/exam/exam.module';
     ConfigModule.forRoot({
       envFilePath: '.env',
     }),
-    AuthModule.forRoot({ auth }),
+    AuthModule.forRoot({ auth, global: false }),
     PrismaModule,
     DashboardModule,
     HistoryModule,
