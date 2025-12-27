@@ -10,6 +10,7 @@ import { ReferralModule } from './modules/referral/referral.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { TryoutModule } from './modules/tryout/tryout.module';
 import { PrismaModule } from './prisma.module';
+import { ExamModule } from './exam/exam.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { PrismaModule } from './prisma.module';
     ReferralModule,
     ShopModule,
     TryoutModule,
+    ExamModule,
   ],
   controllers: [AppController],
   providers: [AppService],
