@@ -10,7 +10,7 @@ import { ReferralModule } from './modules/referral/referral.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { TryoutModule } from './modules/tryout/tryout.module';
 import { PrismaModule } from './prisma.module';
-import { ExamModule } from './exam/exam.module';
+import { ExamModule } from './modules/exam/exam.module';
 
 @Module({
   imports: [

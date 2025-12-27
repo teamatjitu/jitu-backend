@@ -1,34 +1,35 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Sse } from '@nestjs/common';
 import { ExamService } from './exam.service';
-import { CreateExamDto } from './dto/create-exam.dto';
-import { UpdateExamDto } from './dto/update-exam.dto';
+import { Observable } from 'rxjs';
 
 @Controller('exam')
 export class ExamController {
   constructor(private readonly examService: ExamService) {}
 
-  @Post()
-  create(@Body() createExamDto: CreateExamDto) {
-    return this.examService.create(createExamDto);
+  @Post(':tryoutId/start')
+  async startExam(
+    @Param('tryoutId') tryoutId: string,
+    @Body('userId') userId: string,
+  ) {
+    return this.examService.startExam(tryoutId, userId);
   }
 
-  @Get()
-  findAll() {
-    return this.examService.findAll();
+  @Sse(':attemptId/stream')
+  streamExamStatus(
+    @Param('attemptId') attemptId: string,
+  ): Observable<MessageEvent> {
+    return this.examService.getExamStream(attemptId);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.examService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateExamDto: UpdateExamDto) {
-    return this.examService.update(+id, updateExamDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.examService.remove(+id);
+  @Post(':attemptId/answer')
+  async submitAnswer(
+    @Param('attemptId') attemptId: string,
+    @Body() answerData: { questionId: string; answerId: string },
+  ) {
+    return this.examService.saveAnswer(
+      attemptId,
+      answerData.questionId,
+      answerData.answerId,
+    );
   }
 }

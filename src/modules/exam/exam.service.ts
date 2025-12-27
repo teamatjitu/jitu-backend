@@ -1,6 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { CreateExamDto } from './dto/create-exam.dto';
-import { UpdateExamDto } from './dto/update-exam.dto';
 import { PrismaService } from '../../prisma.service';
 import { Observable, interval, map, switchMap, of } from 'rxjs';
 
