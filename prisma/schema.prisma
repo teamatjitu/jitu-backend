@@ -33,6 +33,7 @@ model User {
   email         String
   emailVerified Boolean @default(false)
   image         String?
+  target        String? @db.VarChar(100)
 
   currentStreak Int       @default(0)
   lastDailyDate DateTime?
