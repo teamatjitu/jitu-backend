@@ -1,5 +1,5 @@
 export class TryOutCardDto {
-  id: number;
+  id: string;
   title: string;
   number: string;
   canEdit: boolean;
