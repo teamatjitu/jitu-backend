@@ -1,5 +1,5 @@
 export class TryoutHistoryDto {
-  id: number;
+  id: string;
   title: string;
   date: string;
   score: number;
@@ -14,7 +14,8 @@ export class TryoutHistoryDto {
     ppu: number;
     pbm: number;
     pk: number;
-    literasiIndo: number;
-    literasiEng: number;
+    lbi: number;
+    lbe: number;
+    pm: number;
   };
 }
