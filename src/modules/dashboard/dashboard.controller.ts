@@ -16,11 +16,11 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { SubmitDailyAnswerDto, UserStatsDto } from './dto/dashboard.dto';
 
 @Controller('dashboard')
+@UseGuards(AuthGuard)
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Put('profile')
-  @UseGuards(AuthGuard)
   @UseInterceptors(FileInterceptor('image'))
   async updateProfile(
     @Body() payload: UpdateProfileDto,
@@ -31,19 +31,16 @@ export class DashboardController {
   }
 
   @Get('stats')
-  @UseGuards(AuthGuard)
   async getStats(@Session() session: UserSession): Promise<UserStatsDto> {
     return this.dashboardService.getUserStats(session.user.id);
   }
 
   @Get('daily-question')
-  @UseGuards(AuthGuard)
   async getDailyQuestion(@Session() session: UserSession) {
     return this.dashboardService.getDailyQuestion(session.user.id);
   }
 
   @Post('answer-question')
-  @UseGuards(AuthGuard)
   async answerDailyQuestion(
     @Session() session: UserSession,
     @Body() payload: SubmitDailyAnswerDto,
@@ -52,8 +49,12 @@ export class DashboardController {
   }
 
   @Get('score-stats')
-  @UseGuards(AuthGuard)
   async getTryoutsScore(@Session() session: UserSession) {
     return this.dashboardService.getScoreHistory(session.user.id);
+  }
+
+  @Get('active-to')
+  async getActiveTryouts(@Session() session: UserSession) {
+    return this.dashboardService.getActiveTryouts(session.user.id);
   }
 }

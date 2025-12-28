@@ -15,9 +15,9 @@ export class ScoreDataDto {
   ppu: number;
   pbm: number;
   pk: number;
-  literasiIndo: number;
-  literasiEng: number;
-  penalaranMath: number;
+  lbi: number;
+  lbe: number;
+  pm: number;
 }
 
 export class SubtestDto {
@@ -78,4 +78,15 @@ export class DailyQuestionResponseDto {
   isCompleted: boolean;
   streak: number;
   question: DailyQuestionDto | null;
+}
+
+export class ActiveTryoutDto {
+  id: string;
+  title: string;
+  code: number;
+  batch: string;
+  participants: number;
+  progress: number;
+  totalSubtests: number;
+  endDate: Date | null;
 }

@@ -22,9 +22,9 @@ enum TryoutBatch {
 }
 
 enum TryoutStatus {
+  NOT_STARTED
   IN_PROGRESS
   FINISHED
-  EXPIRED
 }
 
 enum SubtestName {

@@ -382,4 +382,61 @@ describe('DashboardService', () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe('getActiveTryouts', () => {
+    it('should return active tryouts with correct progress and participant count', async () => {
+      const userId = 'user-active-to';
+      const mockDate = new Date();
+
+      const mockActiveAttempts = [
+        {
+          tryOut: {
+            id: 'to-1',
+            title: 'Try Out SNBT 1',
+            code: 1,
+            batch: 'SNBT',
+            scheduledStart: mockDate,
+            subtests: [{ id: 'sub-1' }, { id: 'sub-2' }, { id: 'sub-3' }],
+            _count: { attempts: 150 },
+          },
+          answers: [
+            { question: { subtestId: 'sub-1' } },
+            { question: { subtestId: 'sub-1' } },
+            { question: { subtestId: 'sub-2' } },
+          ],
+        },
+      ];
+
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue(
+        mockActiveAttempts,
+      );
+
+      const result = await service.getActiveTryouts(userId);
+
+      expect(prismaMock.tryOutAttempt.findMany).toHaveBeenCalledWith({
+        where: { userId, status: 'IN_PROGRESS' },
+        include: expect.any(Object),
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        id: 'to-1',
+        title: 'Try Out SNBT 1',
+        code: 1,
+        batch: 'SNBT',
+        participants: 150,
+        progress: 2, // sub-1 and sub-2
+        totalSubtests: 3,
+        endDate: mockDate,
+      });
+    });
+
+    it('should return empty array if no active tryouts found', async () => {
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.getActiveTryouts('user-idle');
+
+      expect(result).toEqual([]);
+    });
+  });
 });

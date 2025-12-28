@@ -3,7 +3,11 @@ import { PrismaService } from '../../prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import * as streamifier from 'streamifier';
-import { ScoreDataDto, UserStatsDto } from './dto/dashboard.dto';
+import {
+  ActiveTryoutDto,
+  ScoreDataDto,
+  UserStatsDto,
+} from './dto/dashboard.dto';
 import {
   DailyQuestionDto,
   SubmitDailyAnswerDto,
@@ -301,6 +305,55 @@ export class DashboardService {
         to: `TO ${attempt.tryOut.code}`,
         total: Math.round(attempt.totalScore),
         ...scores,
+      };
+    });
+  }
+
+  async getActiveTryouts(userId: string): Promise<ActiveTryoutDto[]> {
+    const registeredTryouts = await this.prisma.tryOutAttempt.findMany({
+      where: {
+        userId,
+        status: 'IN_PROGRESS',
+      },
+      include: {
+        tryOut: {
+          include: {
+            subtests: {
+              select: { id: true },
+            },
+            _count: {
+              select: {
+                attempts: true,
+              },
+            },
+          },
+        },
+        answers: {
+          select: {
+            question: {
+              select: {
+                subtestId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return registeredTryouts.map((tryout) => {
+      const ansSubtestId = new Set(
+        tryout.answers.map((a) => a.question.subtestId),
+      );
+
+      return {
+        id: tryout.tryOut.id,
+        title: tryout.tryOut.title,
+        code: tryout.tryOut.code,
+        batch: tryout.tryOut.batch,
+        participants: tryout.tryOut._count.attempts,
+        progress: ansSubtestId.size,
+        totalSubtests: tryout.tryOut.subtests.length,
+        endDate: tryout.tryOut.scheduledStart,
       };
     });
   }
