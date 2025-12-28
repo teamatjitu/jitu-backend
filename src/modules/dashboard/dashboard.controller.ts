@@ -50,4 +50,10 @@ export class DashboardController {
   ) {
     return this.dashboardService.answerDailyQuestion(session.user.id, payload);
   }
+
+  @Get('score-stats')
+  @UseGuards(AuthGuard)
+  async getTryoutsScore(@Session() session: UserSession) {
+    return this.dashboardService.getScoreHistory(session.user.id);
+  }
 }

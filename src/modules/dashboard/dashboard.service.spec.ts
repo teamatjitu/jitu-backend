@@ -29,6 +29,7 @@ const prismaMock = {
     findFirst: jest.fn(),
     aggregate: jest.fn(),
     count: jest.fn(),
+    findMany: jest.fn(),
   },
   dailyQuestionLog: {
     findFirst: jest.fn(),
@@ -307,6 +308,78 @@ describe('DashboardService', () => {
         where: { id: userId },
         data: expect.objectContaining({ currentStreak: 0 }),
       });
+    });
+  });
+
+  describe('getScoreHistory', () => {
+    it('should return score history with correct subtest aggregation', async () => {
+      const userId = 'user-test';
+      const mockAttempts = [
+        {
+          totalScore: 500,
+          finishedAt: new Date(),
+          tryOut: { code: 1 },
+          answers: [
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PU' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PPU' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PBM' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PK' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'LBI' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'LBE' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PM' } },
+            },
+          ],
+        },
+      ];
+
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue(
+        mockAttempts,
+      );
+
+      const result = await service.getScoreHistory(userId);
+
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          to: 'TO 1',
+          total: 500,
+          pu: 10,
+          ppu: 10,
+          pbm: 10,
+          pk: 10,
+
+          lbi: 10,
+          lbe: 10,
+          pm: 10,
+        }),
+      );
+    });
+
+    it('should return empty array if no finished attempts found', async () => {
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.getScoreHistory('user-no-history');
+
+      expect(result).toEqual([]);
     });
   });
 });

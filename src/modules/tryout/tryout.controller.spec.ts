@@ -17,7 +17,9 @@ describe('TryoutController', () => {
     controller = module.get<TryoutController>(TryoutController);
   });
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-  });
+  describe('getAllTryouts', () => {
+    it('should be defined', () => {
+      expect(controller).toBeDefined();
+    });
+  })
 });

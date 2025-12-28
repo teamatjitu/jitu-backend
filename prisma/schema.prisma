@@ -27,6 +27,16 @@ enum TryoutStatus {
   EXPIRED
 }
 
+enum SubtestName {
+  PU
+  PPU
+  PBM
+  PK
+  LBI
+  LBE
+  PM
+}
+
 model User {
   id            String  @id
   name          String
@@ -140,7 +150,7 @@ model DailyQuestionLog {
 model Subtest {
   id              String @id @default(cuid())
   tryOutId        String @map("try_out_id")
-  name            String
+  name            SubtestName
   durationMinutes Int    @map("duration_minutes")
   order           Int
 
@@ -162,6 +172,8 @@ model Question {
   subtest   Subtest            @relation(fields: [subtestId], references: [id])
   items     QuestionItem[]
   dailyLogs DailyQuestionLog[]
+
+  userAnswers UserAnswer[]
 }
 
 model QuestionItem {
@@ -214,7 +226,7 @@ model TryOutAttempt {
 model UserAnswer {
   id                  String   @id @default(cuid())
   tryOutAttemptId     String   @map("tryout_attempt_id")
-  questionId          String   @map("question_id")
+  questionId          String   @map("question_id") 
   
   // pilihan jawaban user (jika essay maka null)
   questionItemId      String?  @map("question_item_id")
@@ -224,6 +236,7 @@ model UserAnswer {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
+  question       Question      @relation(fields: [questionId], references: [id])
   attempt        TryOutAttempt @relation(fields: [tryOutAttemptId], references: [id])
   @@unique([tryOutAttemptId, questionId])
 }

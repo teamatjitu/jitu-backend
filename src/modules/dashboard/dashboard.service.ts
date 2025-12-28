@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import * as streamifier from 'streamifier';
-import { UserStatsDto } from './dto/dashboard.dto';
+import { ScoreDataDto, UserStatsDto } from './dto/dashboard.dto';
 import {
   DailyQuestionDto,
   SubmitDailyAnswerDto,
@@ -237,5 +237,71 @@ export class DashboardService {
     }
 
     return { isCorrect, newStreak, correctAnswerId };
+  }
+
+  async getScoreHistory(userId: string): Promise<ScoreDataDto[]> {
+    const attempts = await this.prisma.tryOutAttempt.findMany({
+      where: {
+        userId,
+        status: 'FINISHED',
+      },
+      orderBy: {
+        finishedAt: 'asc',
+      },
+      include: {
+        tryOut: {
+          select: {
+            code: true,
+          },
+        },
+        answers: {
+          include: {
+            question: {
+              select: {
+                points: true,
+                subtest: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return attempts.map((attempt) => {
+      const scores = {
+        pu: 0,
+        ppu: 0,
+        pbm: 0,
+        pk: 0,
+        lbi: 0,
+        lbe: 0,
+        pm: 0,
+      };
+
+      attempt.answers.forEach((answer) => {
+        if (answer.isCorrect) {
+          const subtestName = answer.question.subtest.name;
+          const points = answer.question.points;
+
+          if (subtestName === 'PU') scores.pu += points;
+          if (subtestName === 'PPU') scores.ppu += points;
+          if (subtestName === 'PBM') scores.pbm += points;
+          if (subtestName === 'PK') scores.pk += points;
+          if (subtestName === 'LBI') scores.lbi += points;
+          if (subtestName === 'LBE') scores.lbe += points;
+          if (subtestName === 'PM') scores.pm += points;
+        }
+      });
+
+      return {
+        to: `TO ${attempt.tryOut.code}`,
+        total: Math.round(attempt.totalScore),
+        ...scores,
+      };
+    });
   }
 }

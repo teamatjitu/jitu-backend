@@ -17,6 +17,7 @@ export class ScoreDataDto {
   pk: number;
   literasiIndo: number;
   literasiEng: number;
+  penalaranMath: number;
 }
 
 export class SubtestDto {
