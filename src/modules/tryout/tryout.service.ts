@@ -82,4 +82,34 @@ export class TryoutService {
 
     return this.mapTryoutToDto(tryout);
   }
+
+  async getSubtestQuestions(tryOutId: string, subtestOrder: number) {
+    const subtest = await this.prisma.subtest.findFirst({
+      where: { tryOutId, order: subtestOrder },
+      include: {
+        tryOut: { select: { title: true } },
+        questions: {
+          include: { items: { orderBy: { order: 'asc' } } },
+        },
+      },
+    });
+
+    if (!subtest) {
+      throw new Error('Subtest not found');
+    }
+
+    return {
+      subtestId: subtest.order,
+      subtestName: subtest.name,
+      tryoutId: tryOutId,
+      tryoutTitle: subtest.tryOut.title,
+      duration: subtest.durationMinutes,
+      questions: subtest.questions.map((q) => ({
+        id: q.id,
+        questionText: q.content,
+        options: q.items.map((i) => i.content),
+        optionIds: q.items.map((i) => i.id),
+      })),
+    };
+  }
 }

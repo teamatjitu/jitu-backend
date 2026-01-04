@@ -1,6 +1,8 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { TryoutService } from './tryout.service';
 import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
+import { AuthGuard, Session } from '@thallesp/nestjs-better-auth';
+import type { UserSession } from '@thallesp/nestjs-better-auth';
 
 @Controller('tryout')
 export class TryoutController {
@@ -12,9 +14,20 @@ export class TryoutController {
   }
 
   @Get(':id')
-  async getTryoutById(@Param('id') id: string): Promise<TryoutDetailDto> {
-    // TODO: Ambil userId dari Auth Guard nanti
-    const userId = 'user-dummy-123'; 
-    return this.tryoutService.getTryoutById(id, userId);
+  @UseGuards(AuthGuard)
+  async getTryoutById(
+    @Param('id') id: string,
+    @Session() session: UserSession,
+  ): Promise<TryoutDetailDto> {
+    return this.tryoutService.getTryoutById(id, session.user.id);
+  }
+
+  @Get(':id/exam/:subtestId')
+  @UseGuards(AuthGuard)
+  async getTryoutExam(
+    @Param('id') id: string,
+    @Param('subtestId') subtestId: string,
+  ) {
+    return this.tryoutService.getSubtestQuestions(id, parseInt(subtestId));
   }
 }
