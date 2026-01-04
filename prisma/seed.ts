@@ -45,7 +45,7 @@ async function main() {
       subtests: {
         create: [
           {
-            name: 'Penalaran Umum',
+            name: 'PU',
             durationMinutes: 30,
             order: 1,
             questions: {
