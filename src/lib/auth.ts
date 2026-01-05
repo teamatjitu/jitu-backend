@@ -14,10 +14,7 @@ const prisma = new PrismaClient({
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
-  trustedOrigins: [
-    'http://localhost:5173',
-    'https://jitu-backend-staging.up.railway.app',
-  ],
+  trustedOrigins: ['http://localhost:5173', process.env.CORS_ORIGIN as string],
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
@@ -32,7 +29,9 @@ export const auth = betterAuth({
   },
   advanced: {
     defaultCookieAttributes: {
-      sameSite: process.env.BETTER_AUTH_URL?.startsWith('https') ? 'none' : 'lax',
+      sameSite: process.env.BETTER_AUTH_URL?.startsWith('https')
+        ? 'none'
+        : 'lax',
       secure: process.env.BETTER_AUTH_URL?.startsWith('https'),
       httpOnly: true,
     },
