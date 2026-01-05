@@ -14,7 +14,7 @@ const prisma = new PrismaClient({
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
-  trustedOrigins: ['http://localhost:5173', 'https://jitu-frontend.vercel.app'],
+  // trustedOrigins: ['http://localhost:5173', 'https://jitu-frontend.vercel.app'],
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
@@ -27,13 +27,7 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
-  // advanced: {
-  //   defaultCookieAttributes: {
-  //     sameSite: process.env.BETTER_AUTH_URL?.startsWith('https')
-  //       ? 'none'
-  //       : 'lax',
-  //     secure: process.env.BETTER_AUTH_URL?.startsWith('https'),
-  //     httpOnly: true,
-  //   },
-  // },
+  advanced: {
+    disableOriginCheck: true,
+  },
 });
