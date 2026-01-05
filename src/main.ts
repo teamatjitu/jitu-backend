@@ -8,6 +8,9 @@ async function bootstrap() {
     bodyParser: false,
   });
 
+  // Trust proxy is required for cookies/auth to work correctly behind Railway/load balancers
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   app.use((req, res, next) => {
     if (req.originalUrl?.startsWith('/api/auth')) {
       next();
