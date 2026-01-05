@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { PrismaClient } from '../../generated/prisma/client';
@@ -27,11 +28,9 @@ export const auth = betterAuth({
     },
   },
   advanced: {
-    disableCSRFCheck: true,
-    disableOriginCheck: true,
     defaultCookieAttributes: {
-      sameSite: 'none',
-      secure: true,
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
     },
   },
