@@ -5,6 +5,7 @@ import {
   Post,
   Session,
   UseGuards,
+  Body
 } from '@nestjs/common';
 import { AuthGuard } from '@thallesp/nestjs-better-auth';
 import type { UserSession } from '@thallesp/nestjs-better-auth';
@@ -36,9 +37,9 @@ export class ShopController {
     );
 
     // Karena cuma simulasi, transaksinya keresolve setelah 3 detik
-    setTimeout(() => {
-      this.shopService.setPaid(res.id);
-    }, 3000);
+    // setTimeout(() => {
+    //   this.shopService.setPaid(res.id);
+    // }, 3000);
 
     return res;
   }
@@ -47,4 +48,11 @@ export class ShopController {
   checkTransactionStatus(@Param('transactionId') transactionId: string) {
     return this.shopService.checkTransactionStatus(transactionId);
   }
-}
+
+  @Post('webhook')
+  async handlePaymentWebhook(@Body() body: {transactionId: string}) {
+    if (!body.transactionId) {
+      throw new BadRequestException('transactionId is required');
+    }
+    return this.shopService.setPaid(body.transactionId);
+  } 
