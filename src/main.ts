@@ -11,17 +11,6 @@ async function bootstrap() {
   // Trust proxy is required for cookies/auth to work correctly behind Railway/load balancers
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
-  app.use((req, res, next) => {
-    if (req.originalUrl?.startsWith('/api/auth')) {
-      next();
-    } else {
-      json({ limit: '10mb' })(req, res, (err) => {
-        if (err) return next(err);
-        urlencoded({ extended: true, limit: '10mb' })(req, res, next);
-      });
-    }
-  });
-
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -30,7 +19,7 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: ['https://jitu-frontend.vercel.app', 'http://localhost:5173'],
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

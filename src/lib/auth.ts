@@ -27,13 +27,13 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
-  advanced: {
-    defaultCookieAttributes: {
-      sameSite: process.env.BETTER_AUTH_URL?.startsWith('https')
-        ? 'none'
-        : 'lax',
-      secure: process.env.BETTER_AUTH_URL?.startsWith('https'),
-      httpOnly: true,
-    },
-  },
+  // advanced: {
+  //   defaultCookieAttributes: {
+  //     sameSite: process.env.BETTER_AUTH_URL?.startsWith('https')
+  //       ? 'none'
+  //       : 'lax',
+  //     secure: process.env.BETTER_AUTH_URL?.startsWith('https'),
+  //     httpOnly: true,
+  //   },
+  // },
 });
