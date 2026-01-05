@@ -11,6 +11,8 @@ import { ShopModule } from './modules/shop/shop.module';
 import { TryoutModule } from './modules/tryout/tryout.module';
 import { PrismaModule } from './prisma.module';
 import { ExamModule } from './modules/exam/exam.module';
+import { AdminModule } from './admin/admin.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -26,6 +28,7 @@ import { ExamModule } from './modules/exam/exam.module';
     ShopModule,
     TryoutModule,
     ExamModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
