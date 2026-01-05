@@ -29,5 +29,8 @@ export const auth = betterAuth({
   },
   advanced: {
     disableOriginCheck: true,
+    defaultCookieAttributes: {
+      sameSite: 'None',
+    },
   },
 });
