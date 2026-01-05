@@ -31,10 +31,9 @@ export const auth = betterAuth({
     },
   },
   advanced: {
-    skipStateCookieCheck: true,
     defaultCookieAttributes: {
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.BETTER_AUTH_URL?.startsWith('https') ? 'none' : 'lax',
+      secure: process.env.BETTER_AUTH_URL?.startsWith('https'),
       httpOnly: true,
     },
   },
