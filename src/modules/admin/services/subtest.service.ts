@@ -88,8 +88,10 @@ export class AdminSubtestService {
   async getSubtestById(id: string) {
     const subtest = await this.prisma.subtest.findUnique({
       where: { id },
-      include: {
-        select: { id: true, name: true, durationMinutes: true },
+      select: {
+        id: true,
+        name: true,
+        durationMinutes: true,
         _count: {
           select: { questions: true },
         },

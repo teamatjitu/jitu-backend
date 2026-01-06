@@ -8,12 +8,27 @@ export class AdminService {
   async getDashboardStats() {
     const totalTryout = await this.prisma.tryOut.count();
     const totalActiveTryout = await this.prisma.tryOut.count({
-      where: { scheduledStart: { lte: new Date() } },
+      where: {
+        scheduledStart: { lte: new Date() },
+        scheduledEnd: { gte: new Date() },
+      },
     });
     const totalUpcomingTryout = await this.prisma.tryOut.count({
-      where: { scheduledStart: { gt: new Date() } },
+      where: {
+        scheduledStart: { gt: new Date() },
+      },
+    });
+    const totalEndedTryout = await this.prisma.tryOut.count({
+      where: {
+        scheduledEnd: { lt: new Date() },
+      },
     });
 
-    return { totalTryout, totalActiveTryout, totalUpcomingTryout };
+    return {
+      totalTryout,
+      totalActiveTryout,
+      totalUpcomingTryout,
+      totalEndedTryout,
+    };
   }
 }

@@ -10,7 +10,14 @@ export class AdminTryoutService {
 
   async getTryouts() {
     return this.prisma.tryOut.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        code: true,
+        title: true,
+        solutionPrice: true,
+        releaseDate: true,
+        status: true,
+      },
     });
   }
 
