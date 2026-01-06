@@ -1,8 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma.service';
-import { CreateTryoutDto } from '../dto/create-tryout.dto';
-import { UpdateTryoutDto } from '../dto/update-tryout.dto';
-import { NotFoundError } from 'rxjs';
 
 @Injectable()
 export class AdminService {
