@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AdminService } from './admin.service';
-import { PrismaService } from '../../prisma.service';
-import { CreateTryoutDto } from './dto/create-tryout.dto';
-import { UpdateTryoutDto } from './dto/update-tryout.dto';
+import { AdminTryoutService } from '../services/tryout.service';
+import { PrismaService } from '../../../prisma.service';
+import { CreateTryoutDto } from '../dto/create-tryout.dto';
+import { UpdateTryoutDto } from '../dto/update-tryout.dto';
 import { NotFoundException } from '@nestjs/common';
 
 // Redefine enums locally to avoid Prisma client resolution issues in tests
@@ -18,7 +18,7 @@ enum TryoutStatus {
 }
 
 describe('AdminService', () => {
-  let service: AdminService;
+  let tryoutService: AdminTryoutService;
   let prisma: PrismaService;
 
   // Mock Prisma Service
@@ -36,7 +36,7 @@ describe('AdminService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        AdminService,
+        AdminTryoutService,
         {
           provide: PrismaService,
           useValue: mockPrismaService,
@@ -44,7 +44,7 @@ describe('AdminService', () => {
       ],
     }).compile();
 
-    service = module.get<AdminService>(AdminService);
+    tryoutService = module.get<AdminTryoutService>(AdminTryoutService);
     prisma = module.get<PrismaService>(PrismaService);
   });
 
@@ -53,28 +53,7 @@ describe('AdminService', () => {
   });
 
   it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
-  describe('getDashboardStats', () => {
-    it('should return dashboard statistics correctly', async () => {
-      // Arrange
-      mockPrismaService.tryOut.count
-        .mockResolvedValueOnce(10) // total
-        .mockResolvedValueOnce(5) // active
-        .mockResolvedValueOnce(5); // upcoming
-
-      // Act
-      const result = await service.getDashboardStats();
-
-      // Assert
-      expect(result).toEqual({
-        totalTryout: 10,
-        totalActiveTryout: 5,
-        totalUpcomingTryout: 5,
-      });
-      expect(prisma.tryOut.count).toHaveBeenCalledTimes(3);
-    });
+    expect(tryoutService).toBeDefined();
   });
 
   describe('getTryouts', () => {
@@ -87,7 +66,7 @@ describe('AdminService', () => {
       mockPrismaService.tryOut.findMany.mockResolvedValue(mockTryouts);
 
       // Act
-      const result = await service.getTryouts();
+      const result = await tryoutService.getTryouts();
 
       // Assert
       expect(result).toEqual(mockTryouts);
@@ -125,7 +104,7 @@ describe('AdminService', () => {
       mockPrismaService.tryOut.create.mockResolvedValue(expectedResult);
 
       // Act
-      const result = await service.createTryout(dto);
+      const result = await tryoutService.createTryout(dto);
 
       // Assert
       expect(prisma.tryOut.create).toHaveBeenCalledWith(
@@ -154,7 +133,7 @@ describe('AdminService', () => {
       mockPrismaService.tryOut.create.mockResolvedValue(expectedResult);
 
       // Act
-      const result = await service.createTryout(dto);
+      const result = await tryoutService.createTryout(dto);
 
       // Assert
       expect(prisma.tryOut.create).toHaveBeenCalledWith(
@@ -181,7 +160,7 @@ describe('AdminService', () => {
 
       // Act & Assert
       await expect(
-        service.updateTryout('non-existent-id', updateDto),
+        tryoutService.updateTryout('non-existent-id', updateDto),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -192,7 +171,7 @@ describe('AdminService', () => {
       mockPrismaService.tryOut.update.mockResolvedValue(expectedResult);
 
       // Act
-      const result = await service.updateTryout('1', updateDto);
+      const result = await tryoutService.updateTryout('1', updateDto);
 
       // Assert
       expect(prisma.tryOut.update).toHaveBeenCalledWith(
@@ -216,7 +195,7 @@ describe('AdminService', () => {
       mockPrismaService.tryOut.update.mockResolvedValue({ id: '1' });
 
       // Act
-      await service.updateTryout('1', dateDto);
+      await tryoutService.updateTryout('1', dateDto);
 
       // Assert
       expect(prisma.tryOut.update).toHaveBeenCalledWith(
@@ -235,9 +214,9 @@ describe('AdminService', () => {
       mockPrismaService.tryOut.findUnique.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(service.deleteTryout('non-existent-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        tryoutService.deleteTryout('non-existent-id'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should delete and return tryout info if exists', async () => {
@@ -247,7 +226,7 @@ describe('AdminService', () => {
       mockPrismaService.tryOut.delete.mockResolvedValue(mockTryout);
 
       // Act
-      const result = await service.deleteTryout('1');
+      const result = await tryoutService.deleteTryout('1');
 
       // Assert
       expect(prisma.tryOut.delete).toHaveBeenCalledWith({
