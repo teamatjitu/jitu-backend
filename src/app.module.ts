@@ -18,7 +18,7 @@ import { ExamModule } from './modules/exam/exam.module';
       envFilePath: '.env',
       isGlobal: true,
     }),
-    AuthModule.forRoot({ auth }),
+    AuthModule.forRoot({ auth, disableGlobalAuthGuard: true }),
     PrismaModule,
     DashboardModule,
     HistoryModule,
