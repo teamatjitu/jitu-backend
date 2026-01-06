@@ -18,7 +18,6 @@ import { CreateTryoutDto } from './dto/create-tryout.dto';
 import { UpdateTryoutDto } from './dto/update-tryout.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
-import { CreateSubtestDto } from './dto/create-subtest.dto';
 
 @Controller('admin')
 export class AdminController {
@@ -65,7 +64,7 @@ export class AdminController {
   }
 
   // --- SUBTEST ---
-  @Post('subtests:/:tryoutId')
+  @Post('subtests/:tryoutId')
   createSubtest(@Param('tryoutId') tryoutId: string) {
     return this.subtestService.createUtbkSubtests(tryoutId);
   }
