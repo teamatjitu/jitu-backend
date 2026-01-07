@@ -6,7 +6,7 @@
 
 generator client {
   provider = "prisma-client"
-  // output   = "../generated/prisma"
+  output   = "../generated/prisma"
   moduleFormat = "cjs"
 }
 
@@ -67,7 +67,7 @@ model User {
   unlockedSolutions UnlockedSolution[]
   tryOutAttempts    TryOutAttempt[]
   dailyLogs         DailyQuestionLog[]
-  Role              Role               @default(USER) 
+  role              Role               @default(USER) 
 
   @@unique([email])
   @@map("user")

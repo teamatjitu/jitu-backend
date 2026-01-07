@@ -18,6 +18,8 @@ import { CreateTryoutDto } from './dto/create-tryout.dto';
 import { UpdateTryoutDto } from './dto/update-tryout.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
+import { AdminUserService } from './services/user.service';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('admin')
 export class AdminController {
@@ -26,6 +28,7 @@ export class AdminController {
     private readonly tryoutService: AdminTryoutService,
     private readonly subtestService: AdminSubtestService,
     private readonly questionService: AdminQuestionService,
+    private readonly userService: AdminUserService,
   ) {}
 
   // --- DASHBOARD ---
@@ -110,5 +113,20 @@ export class AdminController {
     const url =
       await this.questionService.uploadQuestionImageToCloudinary(file);
     return { url };
+  }
+
+  @Get('user')
+  getAllUsers() {
+    return this.userService.getAllUser();
+  }
+
+  @Patch('user/:id')
+  updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    return this.userService.updateUser(updateUserDto, id);
+  }
+
+  @Delete('user/:id')
+  removeUser(@Param('id') id: string) {
+    return this.userService.deleteUser(id);
   }
 }
