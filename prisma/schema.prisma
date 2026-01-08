@@ -5,8 +5,8 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../generated/prisma"
+  provider = "prisma-client"
+  output   = "../generated/prisma"
   moduleFormat = "cjs"
 }
 
@@ -46,13 +46,6 @@ enum QuestionType {
   BENAR_SALAH
 }
 
-enum PaymentStatus {
-  PENDING
-  CONFIRMED
-  REJECTED
-  CANCELLED
-}
-
 model User {
   id            String  @id
   name          String
@@ -73,8 +66,7 @@ model User {
   unlockedSolutions UnlockedSolution[]
   tryOutAttempts    TryOutAttempt[]
   dailyLogs         DailyQuestionLog[]
-  role              Role               @default(USER)
-  payments Payment[]
+  role              Role               @default(USER) 
 
   @@unique([email])
   @@map("user")
@@ -144,7 +136,7 @@ model TryOut {
   releaseDate    DateTime
   createdAt      DateTime  @default(now())
 
-  status TryoutStatus @default(NOT_STARTED)
+  status         TryoutStatus @default(NOT_STARTED)
 
   // Relations
   subtests          Subtest[]
@@ -181,15 +173,15 @@ model Subtest {
 }
 
 model Question {
-  id            String       @id @default(cuid())
-  subtestId     String       @map("subtest_id")
+  id            String  @id @default(cuid())
+  subtestId     String  @map("subtest_id")
   type          QuestionType
-  imageUrl      String?      @db.Text
-  narration     String?      @db.Text
-  content       String?      @db.Text
-  explanation   String?      @db.Text
-  points        Int          @default(1)
-  correctAnswer String?      @map("correct_answer_short_answer")
+  imageUrl      String? @db.Text
+  narration     String? @db.Text
+  content       String? @db.Text
+  explanation   String? @db.Text
+  points        Int     @default(1)
+  correctAnswer String? @map("correct_answer_short_answer")
 
   subtest   Subtest            @relation(fields: [subtestId], references: [id])
   items     QuestionItem[]
