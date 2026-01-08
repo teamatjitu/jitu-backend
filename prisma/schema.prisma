@@ -48,6 +48,7 @@ enum QuestionType {
 
 enum PaymentStatus {
   CONFIRMED
+  PENDING
   DECLINED
   CANCELLED
 }
@@ -74,8 +75,10 @@ model User {
   dailyLogs         DailyQuestionLog[]
   role              Role               @default(USER) 
 
+
   @@unique([email])
   @@map("user")
+  payments Payment[]
 }
 
 model Session {
@@ -233,13 +236,13 @@ model TokenPackage {
 
 model Payment {
   id             String @id @default(cuid())
-  userId         String
+  userId         String @unique
   tokenPackageId String
 
   amount         Int
   tokenAmount    Int
 
-  status         PaymentStatus @default(PENDING)
+  status         PaymentStatus 
   paymentMethod  String @default("QRIS_STATIC")
 
 
