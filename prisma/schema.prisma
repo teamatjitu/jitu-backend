@@ -46,6 +46,12 @@ enum QuestionType {
   BENAR_SALAH
 }
 
+enum PaymentStatus {
+  CONFIRMED
+  DECLINED
+  CANCELLED
+}
+
 model User {
   id            String  @id
   name          String
@@ -243,8 +249,6 @@ model Payment {
   user            User @relation(fields: [userId], references: [id])
   tokenPackage    TokenPackage @relation(fields: [tokenPackageId], references: [id])
 
-  @@index([userId])
-  @@index([status])
 }
 
 model UnlockedSolution {
