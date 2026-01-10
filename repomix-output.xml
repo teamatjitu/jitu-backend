@@ -1,0 +1,1643 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+prisma/
+  migrations/
+    20251209053635_init/
+      migration.sql
+    20251227070826_first_update/
+      migration.sql
+    migration_lock.toml
+  schema.prisma
+src/
+  lib/
+    auth.ts
+  modules/
+    dashboard/
+      dto/
+        dashboard.dto.ts
+      dashboard.controller.spec.ts
+      dashboard.controller.ts
+      dashboard.module.ts
+      dashboard.service.spec.ts
+      dashboard.service.ts
+    history/
+      dto/
+        history.dto.ts
+      history.controller.spec.ts
+      history.controller.ts
+      history.module.ts
+      history.service.spec.ts
+      history.service.ts
+    referral/
+      dto/
+        referral.dto.ts
+      referral.controller.spec.ts
+      referral.controller.ts
+      referral.module.ts
+      referral.service.spec.ts
+      referral.service.ts
+    shop/
+      dto/
+        shop.dto.ts
+      shop.controller.spec.ts
+      shop.controller.ts
+      shop.module.ts
+      shop.service.spec.ts
+      shop.service.ts
+    tryout/
+      dto/
+        tryout.dto.ts
+      tryout.controller.spec.ts
+      tryout.controller.ts
+      tryout.module.ts
+      tryout.service.spec.ts
+      tryout.service.ts
+  app.controller.spec.ts
+  app.controller.ts
+  app.module.ts
+  app.service.ts
+  main.ts
+  prisma.module.ts
+  prisma.service.ts
+test/
+  app.e2e-spec.ts
+  jest-e2e.json
+.env.example
+.gitignore
+.prettierrc
+eslint.config.mjs
+nest-cli.json
+package.json
+prisma.config.ts
+README.md
+tsconfig.build.json
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="src/prisma.module.ts">
+// src/prisma.module.ts
+import { Global, Module } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
+
+@Global()
+@Module({
+  providers: [PrismaService],
+  exports: [PrismaService],
+})
+export class PrismaModule {}
+</file>
+
+<file path="prisma/migrations/20251209053635_init/migration.sql">
+-- CreateTable
+CREATE TABLE "user" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "emailVerified" BOOLEAN NOT NULL DEFAULT false,
+    "image" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "user_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "session" (
+    "id" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "token" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "ipAddress" TEXT,
+    "userAgent" TEXT,
+    "userId" TEXT NOT NULL,
+
+    CONSTRAINT "session_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "account" (
+    "id" TEXT NOT NULL,
+    "accountId" TEXT NOT NULL,
+    "providerId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "accessToken" TEXT,
+    "refreshToken" TEXT,
+    "idToken" TEXT,
+    "accessTokenExpiresAt" TIMESTAMP(3),
+    "refreshTokenExpiresAt" TIMESTAMP(3),
+    "scope" TEXT,
+    "password" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "account_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "verification" (
+    "id" TEXT NOT NULL,
+    "identifier" TEXT NOT NULL,
+    "value" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "verification_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "user_email_key" ON "user"("email");
+
+-- CreateIndex
+CREATE INDEX "session_userId_idx" ON "session"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "session_token_key" ON "session"("token");
+
+-- CreateIndex
+CREATE INDEX "account_userId_idx" ON "account"("userId");
+
+-- CreateIndex
+CREATE INDEX "verification_identifier_idx" ON "verification"("identifier");
+
+-- AddForeignKey
+ALTER TABLE "session" ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "account" ADD CONSTRAINT "account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+</file>
+
+<file path="prisma/migrations/20251227070826_first_update/migration.sql">
+-- AlterTable
+ALTER TABLE "user" ADD COLUMN     "currentStreak" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "lastDailyDate" TIMESTAMP(3),
+ADD COLUMN     "tokenBalance" INTEGER NOT NULL DEFAULT 0;
+
+-- CreateTable
+CREATE TABLE "TryOut" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "solutionPrice" INTEGER NOT NULL DEFAULT 0,
+    "isPublic" BOOLEAN NOT NULL DEFAULT true,
+    "referralCode" TEXT,
+    "scheduledStart" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TryOut_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "DailyQuestionLog" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "questionId" TEXT NOT NULL,
+    "isCorrect" BOOLEAN NOT NULL,
+    "completedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DailyQuestionLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Subtest" (
+    "id" TEXT NOT NULL,
+    "try_out_id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "duration_minutes" INTEGER NOT NULL,
+    "order" INTEGER NOT NULL,
+
+    CONSTRAINT "Subtest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Question" (
+    "id" TEXT NOT NULL,
+    "subtest_id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "imageUrl" TEXT,
+    "narration" TEXT,
+    "content" TEXT,
+    "explanation" TEXT,
+    "points" INTEGER NOT NULL DEFAULT 1,
+    "correct_answer_short_answer" TEXT,
+
+    CONSTRAINT "Question_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "QuestionItem" (
+    "id" TEXT NOT NULL,
+    "question_id" TEXT NOT NULL,
+    "content" TEXT,
+    "is_correct" BOOLEAN NOT NULL DEFAULT false,
+    "order" INTEGER NOT NULL,
+
+    CONSTRAINT "QuestionItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TokenTransaction" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "type" TEXT NOT NULL,
+    "referenceId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TokenTransaction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UnlockedSolution" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tryOutId" TEXT NOT NULL,
+    "unlockedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "UnlockedSolution_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TryOutAttempt" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "try_out_id" TEXT NOT NULL,
+    "total_score" DOUBLE PRECISION NOT NULL,
+    "status" TEXT NOT NULL,
+    "started_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TryOutAttempt_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TryOut_referralCode_key" ON "TryOut"("referralCode");
+
+-- CreateIndex
+CREATE INDEX "daily_user_date_idx" ON "DailyQuestionLog"("userId", "completedAt");
+
+-- AddForeignKey
+ALTER TABLE "DailyQuestionLog" ADD CONSTRAINT "DailyQuestionLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DailyQuestionLog" ADD CONSTRAINT "DailyQuestionLog_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Subtest" ADD CONSTRAINT "Subtest_try_out_id_fkey" FOREIGN KEY ("try_out_id") REFERENCES "TryOut"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Question" ADD CONSTRAINT "Question_subtest_id_fkey" FOREIGN KEY ("subtest_id") REFERENCES "Subtest"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "QuestionItem" ADD CONSTRAINT "QuestionItem_question_id_fkey" FOREIGN KEY ("question_id") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TokenTransaction" ADD CONSTRAINT "TokenTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UnlockedSolution" ADD CONSTRAINT "UnlockedSolution_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UnlockedSolution" ADD CONSTRAINT "UnlockedSolution_tryOutId_fkey" FOREIGN KEY ("tryOutId") REFERENCES "TryOut"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TryOutAttempt" ADD CONSTRAINT "TryOutAttempt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TryOutAttempt" ADD CONSTRAINT "TryOutAttempt_try_out_id_fkey" FOREIGN KEY ("try_out_id") REFERENCES "TryOut"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+</file>
+
+<file path="prisma/migrations/migration_lock.toml">
+# Please do not edit this file manually
+# It should be added in your version-control system (e.g., Git)
+provider = "postgresql"
+</file>
+
+<file path="src/modules/dashboard/dto/dashboard.dto.ts">
+export class StatCardDto {
+  label: string;
+  value: string;
+  color?: string;
+  bgColor?: string;
+  suffix?: string;
+}
+
+export class ScoreDataDto {
+  to: string;
+  total: number;
+  pu: number;
+  ppu: number;
+  pbm: number;
+  pk: number;
+  literasiIndo: number;
+  literasiEng: number;
+}
+
+export class SubtestDto {
+  id: string;
+  label: string;
+  color: string;
+  hoverColor: string;
+}
+
+export class MenuItemDto {
+  label: string;
+  description: string;
+  color?: string;
+  bgColor?: string;
+  action?: string;
+  items?: {
+    label: string;
+    description?: string;
+    toggle?: boolean;
+    link?: boolean;
+  }[];
+}
+
+export class DashboardDataDto {
+  stats: StatCardDto[];
+  scoreHistory: ScoreDataDto[];
+  subtests: SubtestDto[];
+  menuItems: MenuItemDto[];
+}
+</file>
+
+<file path="src/modules/dashboard/dashboard.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { DashboardController } from './dashboard.controller';
+
+describe('DashboardController', () => {
+  let controller: DashboardController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [DashboardController],
+    }).compile();
+
+    controller = module.get<DashboardController>(DashboardController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/dashboard/dashboard.controller.ts">
+import { Controller } from '@nestjs/common';
+
+@Controller('dashboard')
+export class DashboardController {}
+</file>
+
+<file path="src/modules/dashboard/dashboard.module.ts">
+import { Module } from '@nestjs/common';
+import { DashboardController } from './dashboard.controller';
+import { DashboardService } from './dashboard.service';
+
+@Module({
+  controllers: [DashboardController],
+  providers: [DashboardService]
+})
+export class DashboardModule {}
+</file>
+
+<file path="src/modules/dashboard/dashboard.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { DashboardService } from './dashboard.service';
+
+describe('DashboardService', () => {
+  let service: DashboardService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [DashboardService],
+    }).compile();
+
+    service = module.get<DashboardService>(DashboardService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/dashboard/dashboard.service.ts">
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class DashboardService {}
+</file>
+
+<file path="src/modules/history/dto/history.dto.ts">
+export class TryoutHistoryDto {
+  id: number;
+  title: string;
+  date: string;
+  score: number;
+  maxScore: number;
+  duration: string;
+  questionsAnswered: number;
+  totalQuestions: number;
+  category: string;
+  status: string;
+  breakdown: {
+    pu: number;
+    ppu: number;
+    pbm: number;
+    pk: number;
+    literasiIndo: number;
+    literasiEng: number;
+  };
+}
+</file>
+
+<file path="src/modules/history/history.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { HistoryController } from './history.controller';
+
+describe('HistoryController', () => {
+  let controller: HistoryController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [HistoryController],
+    }).compile();
+
+    controller = module.get<HistoryController>(HistoryController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/history/history.controller.ts">
+import { Controller } from '@nestjs/common';
+
+@Controller('history')
+export class HistoryController {}
+</file>
+
+<file path="src/modules/history/history.module.ts">
+import { Module } from '@nestjs/common';
+import { HistoryController } from './history.controller';
+import { HistoryService } from './history.service';
+
+@Module({
+  controllers: [HistoryController],
+  providers: [HistoryService]
+})
+export class HistoryModule {}
+</file>
+
+<file path="src/modules/history/history.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { HistoryService } from './history.service';
+
+describe('HistoryService', () => {
+  let service: HistoryService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [HistoryService],
+    }).compile();
+
+    service = module.get<HistoryService>(HistoryService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/history/history.service.ts">
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class HistoryService {}
+</file>
+
+<file path="src/modules/referral/dto/referral.dto.ts">
+export class ReferralCheckResultDto {
+  exists: boolean;
+  message: string;
+  ownerName?: string;
+  benefits?: string[];
+}
+</file>
+
+<file path="src/modules/referral/referral.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { ReferralController } from './referral.controller';
+
+describe('ReferralController', () => {
+  let controller: ReferralController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [ReferralController],
+    }).compile();
+
+    controller = module.get<ReferralController>(ReferralController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/referral/referral.controller.ts">
+import { Controller } from '@nestjs/common';
+
+@Controller('referral')
+export class ReferralController {}
+</file>
+
+<file path="src/modules/referral/referral.module.ts">
+import { Module } from '@nestjs/common';
+import { ReferralController } from './referral.controller';
+import { ReferralService } from './referral.service';
+
+@Module({
+  controllers: [ReferralController],
+  providers: [ReferralService]
+})
+export class ReferralModule {}
+</file>
+
+<file path="src/modules/referral/referral.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { ReferralService } from './referral.service';
+
+describe('ReferralService', () => {
+  let service: ReferralService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [ReferralService],
+    }).compile();
+
+    service = module.get<ReferralService>(ReferralService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/referral/referral.service.ts">
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class ReferralService {}
+</file>
+
+<file path="src/modules/shop/dto/shop.dto.ts">
+export class TokenPackageDto {
+  id: number;
+  tokenAmount: number;
+  title: string;
+  subtitle: string;
+  originalPrice: number;
+  discount: number;
+  finalPrice: number;
+  savings: number;
+  pricePerToken: string;
+  categoryBg: string;
+}
+</file>
+
+<file path="src/modules/shop/shop.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { ShopController } from './shop.controller';
+
+describe('ShopController', () => {
+  let controller: ShopController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [ShopController],
+    }).compile();
+
+    controller = module.get<ShopController>(ShopController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/shop/shop.controller.ts">
+import { Controller } from '@nestjs/common';
+
+@Controller('shop')
+export class ShopController {}
+</file>
+
+<file path="src/modules/shop/shop.module.ts">
+import { Module } from '@nestjs/common';
+import { ShopController } from './shop.controller';
+import { ShopService } from './shop.service';
+
+@Module({
+  controllers: [ShopController],
+  providers: [ShopService]
+})
+export class ShopModule {}
+</file>
+
+<file path="src/modules/shop/shop.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { ShopService } from './shop.service';
+
+describe('ShopService', () => {
+  let service: ShopService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [ShopService],
+    }).compile();
+
+    service = module.get<ShopService>(ShopService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/shop/shop.service.ts">
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class ShopService {}
+</file>
+
+<file path="src/modules/tryout/tryout.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { TryoutController } from './tryout.controller';
+
+describe('TryoutController', () => {
+  let controller: TryoutController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [TryoutController],
+    }).compile();
+
+    controller = module.get<TryoutController>(TryoutController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/tryout/tryout.module.ts">
+import { Module } from '@nestjs/common';
+import { TryoutController } from './tryout.controller';
+import { TryoutService } from './tryout.service';
+
+@Module({
+  controllers: [TryoutController],
+  providers: [TryoutService],
+})
+export class TryoutModule {}
+</file>
+
+<file path="src/modules/tryout/tryout.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { TryoutService } from './tryout.service';
+
+describe('TryoutService', () => {
+  let service: TryoutService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [TryoutService],
+    }).compile();
+
+    service = module.get<TryoutService>(TryoutService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/app.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+describe('AppController', () => {
+  let appController: AppController;
+
+  beforeEach(async () => {
+    const app: TestingModule = await Test.createTestingModule({
+      controllers: [AppController],
+      providers: [AppService],
+    }).compile();
+
+    appController = app.get<AppController>(AppController);
+  });
+
+  describe('root', () => {
+    it('should return "Hello World!"', () => {
+      expect(appController.getHello()).toBe('Hello World!');
+    });
+  });
+});
+</file>
+
+<file path="src/app.controller.ts">
+import { Controller, Get } from '@nestjs/common';
+import { AppService } from './app.service';
+
+@Controller()
+export class AppController {
+  constructor(private readonly appService: AppService) {}
+
+  @Get()
+  getHello(): string {
+    return this.appService.getHello();
+  }
+}
+</file>
+
+<file path="src/app.service.ts">
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class AppService {
+  getHello(): string {
+    return 'Hello World!';
+  }
+}
+</file>
+
+<file path="src/prisma.service.ts">
+import { Injectable } from '@nestjs/common';
+import { PrismaClient } from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+@Injectable()
+export class PrismaService extends PrismaClient {
+  constructor() {
+    const adapter = new PrismaPg({
+      connectionString: process.env.DATABASE_URL as string,
+    });
+
+    super({ adapter });
+  }
+}
+</file>
+
+<file path="test/app.e2e-spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
+import { App } from 'supertest/types';
+import { AppModule } from './../src/app.module';
+
+describe('AppController (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeEach(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  it('/ (GET)', () => {
+    return request(app.getHttpServer())
+      .get('/')
+      .expect(200)
+      .expect('Hello World!');
+  });
+});
+</file>
+
+<file path="test/jest-e2e.json">
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  }
+}
+</file>
+
+<file path=".gitignore">
+# compiled output
+/dist
+/node_modules
+/build
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+
+# Tests
+/coverage
+/.nyc_output
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# temp directory
+.temp
+.tmp
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+/generated/prisma
+</file>
+
+<file path=".prettierrc">
+{
+  "singleQuote": true,
+  "trailingComma": "all"
+}
+</file>
+
+<file path="eslint.config.mjs">
+// @ts-check
+import eslint from '@eslint/js';
+import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
+
+export default tseslint.config(
+  {
+    ignores: ['eslint.config.mjs'],
+  },
+  eslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
+  eslintPluginPrettierRecommended,
+  {
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.jest,
+      },
+      sourceType: 'commonjs',
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-floating-promises': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn'
+    },
+  },
+);
+</file>
+
+<file path="nest-cli.json">
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true
+  }
+}
+</file>
+
+<file path="README.md">
+<p align="center">
+  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+</p>
+
+[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
+[circleci-url]: https://circleci.com/gh/nestjs/nest
+
+  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
+    <p align="center">
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
+<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
+<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
+<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
+<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
+  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
+    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
+  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+</p>
+  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
+  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+
+## Description
+
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+
+## Project setup
+
+```bash
+$ pnpm install
+```
+
+## Compile and run the project
+
+```bash
+# development
+$ pnpm run start
+
+# watch mode
+$ pnpm run start:dev
+
+# production mode
+$ pnpm run start:prod
+```
+
+## Run tests
+
+```bash
+# unit tests
+$ pnpm run test
+
+# e2e tests
+$ pnpm run test:e2e
+
+# test coverage
+$ pnpm run test:cov
+```
+
+## Deployment
+
+When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+
+If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+
+```bash
+$ pnpm install -g @nestjs/mau
+$ mau deploy
+```
+
+With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+
+## Resources
+
+Check out a few resources that may come in handy when working with NestJS:
+
+- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
+- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
+- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
+- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
+- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
+- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
+- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
+- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+
+## Support
+
+Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+
+## Stay in touch
+
+- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
+- Website - [https://nestjs.com](https://nestjs.com/)
+- Twitter - [@nestframework](https://twitter.com/nestframework)
+
+## License
+
+Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+</file>
+
+<file path="tsconfig.build.json">
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+}
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "noFallthroughCasesInSwitch": false
+  }
+}
+</file>
+
+<file path="src/modules/tryout/dto/tryout.dto.ts">
+export class TryOutCardDto {
+  id: string;
+  title: string;
+  number: string;
+  canEdit: boolean;
+  participants: number;
+  badge: string;
+}
+
+export class SubjectDto {
+  id: number;
+  title: string;
+  gradient: string;
+  count: number;
+}
+
+export class TryoutDetailDto {
+  id: number;
+  title: string;
+  number: string;
+  badge: string;
+  participants: number;
+  description: string;
+  duration: number;
+  totalQuestions: number;
+  startDate: string;
+  endDate: string;
+  isRegistered: boolean;
+  isFree: boolean;
+  tokenCost?: number;
+  categories: {
+    id: number;
+    name: string;
+    questionCount: number;
+    duration: number;
+    isCompleted: boolean;
+  }[];
+  benefits: string[];
+  requirements: string[];
+}
+
+export class QuestionDto {
+  id: number;
+  questionText: string;
+  options: string[];
+  correctAnswer?: number;
+  solution?: string;
+}
+
+export class SubtestExamDto {
+  subtestId: number;
+  subtestName: string;
+  tryoutId: number;
+  tryoutTitle: string;
+  duration: number;
+  questions: QuestionDto[];
+}
+</file>
+
+<file path="src/modules/tryout/tryout.controller.ts">
+import { Controller } from '@nestjs/common';
+import { TryoutService } from './tryout.service';
+
+@Controller('tryout')
+export class TryoutController {
+  constructor(private readonly tryoutService: TryoutService) {}
+
+  //   @Get()
+  //   async getAllTryouts(): Promise<TryOutCardDto[]> {
+  //     return this.tryoutService.getTryouts();
+  //   }
+}
+</file>
+
+<file path="src/modules/tryout/tryout.service.ts">
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from 'src/prisma.service';
+
+@Injectable()
+export class TryoutService {
+  constructor(private prisma: PrismaService) {}
+
+  //   async getTryouts(): Promise<TryOutCardDto[]> {
+  //     const tryouts = await this.prisma.tryOut.findMany({
+  //       include: {
+  //         _count: {
+  //           select: { attempts: true },
+  //         },
+  //       },
+  //     });
+
+  //     return tryouts.map((t) => ({
+  //       id: parseInt(t.id),
+  //       title: t.title,
+  //       number: t.id,
+  //       canEdit: false,
+  //       participants: t._count.attempts,
+  //       badge: 'SNBT',
+  //     }));
+  //   }
+}
+</file>
+
+<file path="prisma.config.ts">
+// This file was generated by Prisma and assumes you have installed the following:
+// npm install --save-dev prisma dotenv
+import 'dotenv/config';
+import { defineConfig, env } from 'prisma/config';
+
+export default defineConfig({
+  schema: 'prisma/schema.prisma',
+  migrations: {
+    path: 'prisma/migrations',
+  },
+  datasource: {
+    url: env('DATABASE_URL'),
+  },
+});
+</file>
+
+<file path="prisma/schema.prisma">
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String  @id
+  name          String
+  email         String
+  emailVerified Boolean @default(false)
+  image         String?
+
+  currentStreak Int       @default(0)
+  lastDailyDate DateTime?
+  tokenBalance  Int       @default(0)
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  sessions          Session[]
+  accounts          Account[]
+  tokenTransactions TokenTransaction[]
+  unlockedSolutions UnlockedSolution[]
+  tryOutAttempts    TryOutAttempt[]
+  dailyLogs         DailyQuestionLog[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model TryOut {
+  id            String  @id @default(cuid())
+  title         String
+  description   String? @db.Text
+  solutionPrice Int     @default(0)
+
+  // REFERRAL LOGIC
+  isPublic     Boolean @default(true)
+  referralCode String? @unique // Required to see/join if not public
+
+  scheduledStart DateTime?
+  createdAt      DateTime  @default(now())
+
+  // Relations
+  subtests          Subtest[]
+  unlockedSolutions UnlockedSolution[]
+  attempts          TryOutAttempt[]
+}
+
+// --- 3. DAILY RANDOM QUESTION & STREAK ---
+model DailyQuestionLog {
+  id          String   @id @default(cuid())
+  userId      String
+  questionId  String
+  isCorrect   Boolean
+  completedAt DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@index([userId, completedAt], name: "daily_user_date_idx")
+}
+
+// --- 4. UTBK CORE STRUCTURE ---
+model Subtest {
+  id              String @id @default(cuid())
+  tryOutId        String @map("try_out_id")
+  name            String
+  durationMinutes Int    @map("duration_minutes")
+  order           Int
+
+  tryOut    TryOut     @relation(fields: [tryOutId], references: [id])
+  questions Question[]
+}
+
+model Question {
+  id            String  @id @default(cuid())
+  subtestId     String  @map("subtest_id")
+  type          String
+  imageUrl      String? @db.Text
+  narration     String? @db.Text
+  content       String? @db.Text
+  explanation   String? @db.Text
+  points        Int     @default(1)
+  correctAnswer String? @map("correct_answer_short_answer")
+
+  subtest   Subtest            @relation(fields: [subtestId], references: [id])
+  items     QuestionItem[]
+  dailyLogs DailyQuestionLog[]
+}
+
+model QuestionItem {
+  id         String  @id @default(cuid())
+  questionId String  @map("question_id")
+  content    String? @db.Text
+  isCorrect  Boolean @default(false) @map("is_correct")
+  order      Int
+
+  question Question @relation(fields: [questionId], references: [id])
+}
+
+// --- 5. TRANSACTIONS & ACCESS ---
+model TokenTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int
+  type        String
+  referenceId String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model UnlockedSolution {
+  id         String   @id @default(cuid())
+  userId     String
+  tryOutId   String
+  unlockedAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  tryOut TryOut @relation(fields: [tryOutId], references: [id])
+}
+
+model TryOutAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  tryOutId   String   @map("try_out_id")
+  totalScore Float    @map("total_score")
+  status     String
+  startedAt  DateTime @default(now()) @map("started_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  tryOut TryOut @relation(fields: [tryOutId], references: [id])
+}
+</file>
+
+<file path="src/app.module.ts">
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { AuthModule } from '@thallesp/nestjs-better-auth';
+import { auth } from './lib/auth';
+import { ConfigModule } from '@nestjs/config';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { HistoryModule } from './modules/history/history.module';
+import { ReferralModule } from './modules/referral/referral.module';
+import { ShopModule } from './modules/shop/shop.module';
+import { TryoutModule } from './modules/tryout/tryout.module';
+import { PrismaModule } from './prisma.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      envFilePath: '.env',
+    }),
+    AuthModule.forRoot({ auth }),
+    DashboardModule,
+    HistoryModule,
+    ReferralModule,
+    ShopModule,
+    TryoutModule,
+    PrismaModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+</file>
+
+<file path="package.json">
+{
+  "name": "jituptn-backend",
+  "version": "0.0.1",
+  "description": "",
+  "author": "",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "nest build --env-file .env",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start --env-file .env",
+    "start:dev": "nest start --env-file .env --watch",
+    "start:debug": "nest start --env-file .env --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/platform-express": "^11.0.1",
+    "@prisma/adapter-pg": "^7.1.0",
+    "@prisma/client": "^7.1.0",
+    "@thallesp/nestjs-better-auth": "^2.2.0",
+    "better-auth": "^1.4.5",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "dotenv": "^17.2.3",
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "@eslint/js": "^9.18.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.1",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.19.1",
+    "@types/pg": "^8.15.6",
+    "@types/supertest": "^6.0.2",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
+    "globals": "^16.0.0",
+    "jest": "^30.0.0",
+    "prettier": "^3.4.2",
+    "prisma": "^7.1.0",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
+  }
+}
+</file>
+
+<file path="src/lib/auth.ts">
+import { betterAuth } from 'better-auth';
+import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { PrismaClient } from '../../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL as string,
+});
+
+const prisma = new PrismaClient({
+  adapter,
+});
+
+export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL,
+  trustedOrigins: ['http://localhost:5173'],
+  database: prismaAdapter(prisma, {
+    provider: 'postgresql',
+  }),
+  emailAndPassword: {
+    enabled: true,
+  },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+    },
+  },
+  advanced: {
+    disableCSRFCheck: true,
+    disableOriginCheck: true,
+  },
+});
+</file>
+
+<file path="src/main.ts">
+import { NestFactory, Reflector } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: false,
+  });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    }),
+  );
+
+  app.enableCors({
+    origin: ['http://localhost:5173'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
+  app.setGlobalPrefix('api');
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  await app.listen(process.env.PORT ?? 3000);
+}
+bootstrap();
+</file>
+
+</files>

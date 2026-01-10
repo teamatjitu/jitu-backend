@@ -4,6 +4,6 @@ import { TryoutService } from './tryout.service';
 
 @Module({
   controllers: [TryoutController],
-  providers: [TryoutService]
+  providers: [TryoutService],
 })
 export class TryoutModule {}
