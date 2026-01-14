@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma.service';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { TopupTokenDto } from '../dto/topup-token.dto';
 import * as bcrypt from 'bcryptjs';
+import { Prisma, Role } from '../../../../generated/prisma/client';
 
 @Injectable()
 export class AdminUserService {
@@ -36,10 +37,25 @@ export class AdminUserService {
     });
   }
 
-  async getAllUser(page = 1, limit = 10) {
+  async getAllUser(page = 1, limit = 10, search?: string, role?: string) {
     const skip = (page - 1) * limit;
+
+    const where: Prisma.UserWhereInput = {};
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (role) {
+      where.role = role as Role;
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
+        where,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -53,7 +69,7 @@ export class AdminUserService {
           target: true,
         },
       }),
-      this.prisma.user.count(),
+      this.prisma.user.count({ where }),
     ]);
 
     return {
