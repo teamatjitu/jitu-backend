@@ -14,7 +14,7 @@ export class AdminTryoutService {
       this.prisma.tryOut.findMany({
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' }, // Changed to desc for newest first
+        orderBy: { createdAt: 'asc' }, // Changed to desc for newest first
         select: {
           id: true,
           code: true,
