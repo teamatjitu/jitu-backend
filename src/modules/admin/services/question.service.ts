@@ -67,6 +67,7 @@ export class AdminQuestionService {
         content: true,
         points: true,
         explanation: true,
+        items: true,
       },
     });
   }

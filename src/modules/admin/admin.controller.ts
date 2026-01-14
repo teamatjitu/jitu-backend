@@ -8,6 +8,7 @@ import {
   Delete,
   UseInterceptors,
   UploadedFile,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AdminService } from './services/admin.service';
@@ -39,8 +40,11 @@ export class AdminController {
 
   // --- TRYOUT ---
   @Get('tryouts')
-  getTryouts() {
-    return this.tryoutService.getTryouts();
+  getTryouts(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.tryoutService.getTryouts(Number(page), Number(limit));
   }
 
   @Post('tryouts')

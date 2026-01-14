@@ -8,18 +8,33 @@ import { NotFoundException } from '@nestjs/common';
 export class AdminTryoutService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getTryouts() {
-    return this.prisma.tryOut.findMany({
-      orderBy: { createdAt: 'asc' },
-      select: {
-        id: true,
-        code: true,
-        title: true,
-        solutionPrice: true,
-        releaseDate: true,
-        status: true,
+  async getTryouts(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.tryOut.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' }, // Changed to desc for newest first
+        select: {
+          id: true,
+          code: true,
+          title: true,
+          solutionPrice: true,
+          releaseDate: true,
+          status: true,
+        },
+      }),
+      this.prisma.tryOut.count(),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
       },
-    });
+    };
   }
 
   async getTryoutById(id: string) {
