@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma.service';
 import { CreateSubtestDto } from '../dto/create-subtest.dto';
-// import { SubtestName } from 'generated/prisma/enums';
+import { UpdateSubtestDto } from '../dto/update-subtest.dto';
 
 enum SubtestName {
   PU = 'PU',
@@ -18,7 +18,6 @@ export class AdminSubtestService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createUtbkSubtests(tryOutId: string) {
-    // assign subtest by default (kalau nambah test mandiri harus diubah)
     const utbkSubtests = [
       { name: SubtestName.PU, duration: 30, order: 1 },
       { name: SubtestName.PPU, duration: 15, order: 2 },
@@ -41,7 +40,6 @@ export class AdminSubtestService {
     });
   }
 
-  // fungsi buat bikin subtest satu persatu, sekarang ga kepake
   async createSubtest(dto: CreateSubtestDto) {
     const tryout = await this.prisma.tryOut.findUnique({
       where: { id: dto.tryoutId },
@@ -82,6 +80,24 @@ export class AdminSubtestService {
 
     return await this.prisma.subtest.delete({
       where: { id },
+    });
+  }
+
+  async updateSubtest(id: string, dto: UpdateSubtestDto) {
+    const existingSubtest = await this.prisma.subtest.findUnique({
+      where: { id },
+    });
+
+    if (!existingSubtest)
+      throw new NotFoundException('Subtest tidak ditemukan');
+
+    return await this.prisma.subtest.update({
+      where: { id },
+      data: {
+        durationMinutes: dto.durationMinutes,
+        order: dto.order,
+        name: dto.name as any,
+      },
     });
   }
 

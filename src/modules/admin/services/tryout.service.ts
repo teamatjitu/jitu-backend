@@ -69,6 +69,28 @@ export class AdminTryoutService {
     });
   }
 
+  async getTryoutPreview(id: string) {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+      include: {
+        subtests: {
+          orderBy: { order: 'asc' },
+          include: {
+            questions: {
+              orderBy: { id: 'asc' },
+              include: {
+                items: { orderBy: { order: 'asc' } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!tryout) throw new NotFoundException('Tryout tidak ditemukan');
+    return tryout;
+  }
+
   async createTryout(dto: CreateTryoutDto) {
     const start = new Date(dto.scheduledStart);
     const end = new Date(dto.scheduledEnd);
