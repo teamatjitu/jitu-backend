@@ -4,6 +4,7 @@ import {
   TryoutBatch,
   QuestionType,
   Role,
+  PaymentStatus,
 } from '../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
@@ -19,16 +20,47 @@ async function main() {
   console.log('🌱 Seeding database...');
 
   // ===============================
-  // 1. CLEANUP (Optional - be careful in prod)
+  // 1. CREATE TOKEN PACKAGES
   // ===============================
-  // await prisma.tryOutAttempt.deleteMany();
-  // await prisma.tokenTransaction.deleteMany();
-  // await prisma.user.deleteMany({ where: { email: { contains: 'test' } } });
+  const pkg1 = await prisma.tokenPackage.upsert({
+    where: { id: 'pkg-1' },
+    update: {},
+    create: {
+      id: 'pkg-1',
+      name: 'Paket Hemat',
+      tokenAmount: 20,
+      price: 15000,
+    },
+  });
+
+  const pkg2 = await prisma.tokenPackage.upsert({
+    where: { id: 'pkg-2' },
+    update: {},
+    create: {
+      id: 'pkg-2',
+      name: 'Paket Populer',
+      tokenAmount: 50,
+      price: 35000,
+    },
+  });
+
+  const pkg3 = await prisma.tokenPackage.upsert({
+    where: { id: 'pkg-3' },
+    update: {},
+    create: {
+      id: 'pkg-3',
+      name: 'Paket Sultan',
+      tokenAmount: 150,
+      price: 100000,
+    },
+  });
+
+  console.log('✅ Token packages seeded');
 
   // ===============================
   // 2. CREATE USERS
   // ===============================
-  const userSiswa = await prisma.user.upsert({
+  const userSiswa1 = await prisma.user.upsert({
     where: { email: 'siswa_test@example.com' },
     update: {},
     create: {
@@ -39,6 +71,32 @@ async function main() {
       tokenBalance: 50,
       emailVerified: true,
       target: 'ITB - Teknik Informatika',
+    },
+  });
+
+  const userSiswa2 = await prisma.user.upsert({
+    where: { email: 'siswa_2@example.com' },
+    update: {},
+    create: {
+      id: 'user-siswa-2-id',
+      name: 'Budi Santoso',
+      email: 'siswa_2@example.com',
+      role: Role.USER,
+      tokenBalance: 0,
+      emailVerified: true,
+    },
+  });
+
+  const userSiswa3 = await prisma.user.upsert({
+    where: { email: 'siswa_3@example.com' },
+    update: {},
+    create: {
+      id: 'user-siswa-3-id',
+      name: 'Ani Wijaya',
+      email: 'siswa_3@example.com',
+      role: Role.USER,
+      tokenBalance: 10,
+      emailVerified: true,
     },
   });
 
@@ -55,34 +113,62 @@ async function main() {
     },
   });
 
-  console.log('✅ Users seeded:', userSiswa.name, userAdmin.name);
+  console.log('✅ Users seeded');
 
   // ===============================
-  // 3. CREATE TOKEN TRANSACTIONS
+  // 3. CREATE PAYMENTS
   // ===============================
-  await prisma.tokenTransaction.createMany({
-    data: [
-      {
-        userId: userSiswa.id,
-        amount: 100,
-        type: 'TOPUP',
-        referenceId: 'ORDER-001',
-      },
-      {
-        userId: userSiswa.id,
-        amount: -50,
-        type: 'PURCHASE',
-        referenceId: 'TO-BUNDLE-A',
-      },
-    ],
+  // Note: userId is @unique in Payment schema, so 1 payment per user for now
+  
+  await prisma.payment.upsert({
+    where: { userId: userSiswa1.id },
+    update: {},
+    create: {
+      userId: userSiswa1.id,
+      tokenPackageId: pkg2.id,
+      amount: pkg2.price,
+      tokenAmount: pkg2.tokenAmount,
+      status: PaymentStatus.CONFIRMED,
+      paymentMethod: 'QRIS_STATIC',
+    },
   });
-  console.log('✅ Token transactions seeded');
+
+  await prisma.payment.upsert({
+    where: { userId: userSiswa2.id },
+    update: {},
+    create: {
+      userId: userSiswa2.id,
+      tokenPackageId: pkg1.id,
+      amount: pkg1.price,
+      tokenAmount: pkg1.tokenAmount,
+      status: PaymentStatus.PENDING,
+      paymentMethod: 'MANUAL_TRANSFER',
+    },
+  });
+
+  await prisma.payment.upsert({
+    where: { userId: userSiswa3.id },
+    update: {},
+    create: {
+      userId: userSiswa3.id,
+      tokenPackageId: pkg3.id,
+      amount: pkg3.price,
+      tokenAmount: pkg3.tokenAmount,
+      status: PaymentStatus.DECLINED,
+      paymentMethod: 'QRIS_STATIC',
+    },
+  });
+
+  console.log('✅ Payments seeded');
 
   // ===============================
   // 4. CREATE TRYOUTS & QUESTIONS
   // ===============================
-  const tryout1 = await prisma.tryOut.create({
-    data: {
+  const tryout1 = await prisma.tryOut.upsert({
+    where: { id: 'tryout-1' },
+    update: {},
+    create: {
+      id: 'tryout-1',
       title: 'Tryout Simulasi Reset (In Progress)',
       description: 'Tryout ini sedang dikerjakan user untuk dites reset.',
       batch: TryoutBatch.SNBT,
@@ -90,7 +176,7 @@ async function main() {
       solutionPrice: 0,
       releaseDate: new Date(),
       scheduledStart: new Date(),
-      scheduledEnd: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000), // +7 days
+      scheduledEnd: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
       status: 'IN_PROGRESS',
       subtests: {
         create: [
@@ -117,58 +203,28 @@ async function main() {
         ],
       },
     },
-    include: { subtests: { include: { questions: true } } },
-  });
-
-  const tryout2 = await prisma.tryOut.create({
-    data: {
-      title: 'Tryout Selesai (Finished)',
-      description: 'Tryout ini sudah selesai dikerjakan.',
-      batch: TryoutBatch.SNBT,
-      isPublic: true,
-      solutionPrice: 0,
-      releaseDate: new Date(),
-      scheduledStart: new Date(),
-      scheduledEnd: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
-      status: 'IN_PROGRESS',
-    },
   });
 
   console.log('✅ Tryouts seeded');
 
   // ===============================
-  // 5. CREATE ATTEMPTS (PENGERJAAN)
+  // 5. CREATE ATTEMPTS
   // ===============================
-  
-  // Attempt 1: IN_PROGRESS (Untuk di-reset)
-  await prisma.tryOutAttempt.create({
-    data: {
-      userId: userSiswa.id,
-      tryOutId: tryout1.id,
-      status: 'IN_PROGRESS',
-      totalScore: 0,
-      startedAt: new Date(),
-      answers: {
-        create: {
-          questionId: tryout1.subtests[0].questions[0].id,
-          isCorrect: true,
-          inputText: '2',
-        },
-      },
-    },
+  const existingAttempt = await prisma.tryOutAttempt.findFirst({
+    where: { userId: userSiswa1.id, tryOutId: tryout1.id }
   });
 
-  // Attempt 2: FINISHED (History)
-  await prisma.tryOutAttempt.create({
-    data: {
-      userId: userSiswa.id,
-      tryOutId: tryout2.id,
-      status: 'FINISHED',
-      totalScore: 850,
-      startedAt: new Date(new Date().getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
-      finishedAt: new Date(new Date().getTime() - 1 * 60 * 60 * 1000), // 1 hour ago
-    },
-  });
+  if (!existingAttempt) {
+    await prisma.tryOutAttempt.create({
+      data: {
+        userId: userSiswa1.id,
+        tryOutId: tryout1.id,
+        status: 'IN_PROGRESS',
+        totalScore: 0,
+        startedAt: new Date(),
+      },
+    });
+  }
 
   console.log('✅ User attempts seeded');
   console.log('🌱 Seeding finished successfully.');

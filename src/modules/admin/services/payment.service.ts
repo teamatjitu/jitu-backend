@@ -1,0 +1,155 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+import { PaymentStatus, Prisma } from '../../../../generated/prisma/client';
+
+@Injectable()
+export class AdminPaymentService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getAllPayments(
+    page = 1,
+    limit = 10,
+    status?: PaymentStatus,
+    search?: string,
+  ) {
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.PaymentWhereInput = {};
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (search) {
+      where.user = {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.payment.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+          tokenPackage: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      }),
+      this.prisma.payment.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getPaymentStats() {
+    const [totalRevenue, totalSuccess, totalPending] = await Promise.all([
+      this.prisma.payment.aggregate({
+        where: { status: PaymentStatus.CONFIRMED },
+        _sum: { amount: true },
+      }),
+      this.prisma.payment.count({
+        where: { status: PaymentStatus.CONFIRMED },
+      }),
+      this.prisma.payment.count({
+        where: { status: PaymentStatus.PENDING },
+      }),
+    ]);
+
+    return {
+      totalRevenue: totalRevenue._sum.amount || 0,
+      totalSuccess,
+      totalPending,
+    };
+  }
+
+  async confirmPayment(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Data pembayaran tidak ditemukan');
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException(
+        'Hanya pembayaran berstatus PENDING yang bisa dikonfirmasi',
+      );
+    }
+
+    // CRITICAL: Database Transaction
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Update Status Payment
+      const updatedPayment = await tx.payment.update({
+        where: { id: paymentId },
+        data: { status: PaymentStatus.CONFIRMED },
+      });
+
+      // 2. Tambah Token User
+      await tx.user.update({
+        where: { id: payment.userId },
+        data: {
+          tokenBalance: { increment: payment.tokenAmount },
+        },
+      });
+
+      // 3. Catat di Riwayat Transaksi Token
+      await tx.tokenTransaction.create({
+        data: {
+          userId: payment.userId,
+          amount: payment.tokenAmount,
+          type: 'TOPUP',
+          referenceId: `PAYMENT_ID: ${paymentId}`,
+        },
+      });
+
+      return updatedPayment;
+    });
+  }
+
+  async rejectPayment(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Data pembayaran tidak ditemukan');
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException(
+        'Hanya pembayaran berstatus PENDING yang bisa ditolak',
+      );
+    }
+
+    return await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: PaymentStatus.DECLINED },
+    });
+  }
+}

@@ -22,6 +22,10 @@ import { UpdateQuestionDto } from './dto/update-question.dto';
 import { AdminUserService } from './services/user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { TopupTokenDto } from './dto/topup-token.dto';
+import { AdminPaymentService } from './services/payment.service';
+import { AdminPackageService } from './services/package.service';
+import { CreatePackageDto, UpdatePackageDto } from './dto/package.dto';
+import { PaymentStatus } from 'generated/prisma/client';
 
 @Controller('admin')
 export class AdminController {
@@ -31,6 +35,8 @@ export class AdminController {
     private readonly subtestService: AdminSubtestService,
     private readonly questionService: AdminQuestionService,
     private readonly userService: AdminUserService,
+    private readonly paymentService: AdminPaymentService,
+    private readonly packageService: AdminPackageService,
   ) {}
 
   // --- DASHBOARD ---
@@ -147,7 +153,11 @@ export class AdminController {
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
   ) {
-    return this.userService.getUserTransactions(id, Number(page), Number(limit));
+    return this.userService.getUserTransactions(
+      id,
+      Number(page),
+      Number(limit),
+    );
   }
 
   @Get('user/:id/tryouts')
@@ -180,5 +190,61 @@ export class AdminController {
   @Delete('user/:id')
   removeUser(@Param('id') id: string) {
     return this.userService.deleteUser(id);
+  }
+
+  @Get('payments')
+  getPayments(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('status') status?: PaymentStatus,
+    @Query('search') search?: string,
+  ) {
+    return this.paymentService.getAllPayments(
+      Number(page),
+      Number(limit),
+      status,
+      search,
+    );
+  }
+
+  @Get('payments/stats')
+  getPaymentStats() {
+    return this.paymentService.getPaymentStats();
+  }
+
+  @Patch('payments/:id/confirm')
+  confirmPayment(@Param('id') id: string) {
+    return this.paymentService.confirmPayment(id);
+  }
+
+  @Patch('payments/:id/reject')
+  rejectPayment(@Param('id') id: string) {
+    return this.paymentService.rejectPayment(id);
+  }
+
+  // --- PACKAGE / SHOP ---
+  @Get('shop/packages')
+  getPackages() {
+    return this.packageService.getAllPackages();
+  }
+
+  @Post('shop/packages')
+  createPackage(@Body() dto: CreatePackageDto) {
+    return this.packageService.createPackage(dto);
+  }
+
+  @Patch('shop/packages/:id')
+  updatePackage(@Param('id') id: string, @Body() dto: UpdatePackageDto) {
+    return this.packageService.updatePackage(id, dto);
+  }
+
+  @Patch('shop/packages/:id/status')
+  togglePackageStatus(@Param('id') id: string) {
+    return this.packageService.togglePackageStatus(id);
+  }
+
+  @Delete('shop/packages/:id')
+  deletePackage(@Param('id') id: string) {
+    return this.packageService.deletePackage(id);
   }
 }
