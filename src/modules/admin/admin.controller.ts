@@ -21,6 +21,7 @@ import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { AdminUserService } from './services/user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { TopupTokenDto } from './dto/topup-token.dto';
 
 @Controller('admin')
 export class AdminController {
@@ -119,14 +120,54 @@ export class AdminController {
     return { url };
   }
 
+  // --- USER ---
   @Get('user')
-  getAllUsers() {
-    return this.userService.getAllUser();
+  getAllUsers(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.userService.getAllUser(Number(page), Number(limit));
+  }
+
+  @Get('user/:id')
+  getUserById(@Param('id') id: string) {
+    return this.userService.getUserById(id);
+  }
+
+  @Get('user/:id/transactions')
+  getUserTransactions(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.userService.getUserTransactions(id, Number(page), Number(limit));
+  }
+
+  @Get('user/:id/tryouts')
+  getUserTryouts(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.userService.getUserTryouts(id, Number(page), Number(limit));
   }
 
   @Patch('user/:id')
   updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.userService.updateUser(updateUserDto, id);
+  }
+
+  @Post('user/:id/token')
+  manualTokenAdjustment(
+    @Param('id') id: string,
+    @Body() topupTokenDto: TopupTokenDto,
+  ) {
+    return this.userService.manualTokenAdjustment(id, topupTokenDto);
+  }
+
+  @Delete('user/attempt/:id')
+  resetUserAttempt(@Param('id') id: string) {
+    return this.userService.resetUserTryoutAttempt(id);
   }
 
   @Delete('user/:id')

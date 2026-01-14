@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma.service';
 
 @Injectable()
@@ -24,11 +24,22 @@ export class AdminService {
       },
     });
 
+    const totalUser = await this.prisma.user.count();
+    const activeUser = await this.prisma.user.count({
+      where: { emailVerified: true },
+    });
+    const totalAdmin = await this.prisma.user.count({
+      where: { role: 'ADMIN' },
+    });
+
     return {
       totalTryout,
       totalActiveTryout,
       totalUpcomingTryout,
       totalEndedTryout,
+      totalUser,
+      activeUser,
+      totalAdmin,
     };
   }
 }
