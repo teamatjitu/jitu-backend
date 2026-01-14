@@ -31,11 +31,15 @@ export class AdminQuestionService {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: 'jitu-soal',
-          resource_type: 'auto',
+          resource_type: 'image',
         },
         (error, result) => {
-          if (error) return reject(error);
+          if (error) {
+            console.error('Cloudinary Upload Error:', error); // DEBUG LOG
+            return reject(error);
+          }
           if (!result || !result.secure_url) {
+            console.error('Cloudinary Result Empty:', result); // DEBUG LOG
             return reject(
               new Error('Gagal mengupload gambar ke Cloudinary: Result kosong'),
             );
@@ -61,6 +65,8 @@ export class AdminQuestionService {
         type: true,
         imageUrl: true,
         content: true,
+        points: true,
+        explanation: true,
       },
     });
   }
@@ -94,8 +100,8 @@ export class AdminQuestionService {
 
   async createQuestion(dto: CreateQuestionDto, subtestId: string) {
     if (
-      dto.type === 'PILIHAN_GANDA' ||
-      (dto.type === 'BENAR_SALAH' && (!dto.items || dto.items.length === 0))
+      (dto.type === 'PILIHAN_GANDA' || dto.type === 'BENAR_SALAH') &&
+      (!dto.items || dto.items.length === 0)
     ) {
       throw new NotFoundException(
         'Pilihan jawaban harus diinput untuk tipe soal ini!',
@@ -111,6 +117,7 @@ export class AdminQuestionService {
         content: dto.content,
         explanation: dto.explanation,
         correctAnswer: dto.correctAnswer,
+        points: dto.points ?? 1,
         items: {
           create: dto.items?.map((item) => ({
             content: item.content,
@@ -126,6 +133,11 @@ export class AdminQuestionService {
   }
 
   async deleteQuestion(id: string) {
+    // Manually delete related items first to avoid foreign key constraint errors
+    await this.prisma.questionItem.deleteMany({
+      where: { questionId: id },
+    });
+
     return await this.prisma.question.delete({
       where: { id },
     });
@@ -136,6 +148,13 @@ export class AdminQuestionService {
       this.validateQuestionData(dto.type, dto.items, dto.correctAnswer);
     }
 
+    // Delete existing items first to avoid duplicates
+    if (dto.items) {
+      await this.prisma.questionItem.deleteMany({
+        where: { questionId: id },
+      });
+    }
+
     return await this.prisma.question.update({
       where: { id },
       data: {
@@ -143,6 +162,7 @@ export class AdminQuestionService {
         content: dto.content,
         explanation: dto.explanation,
         correctAnswer: dto.correctAnswer,
+        points: dto.points,
         items: {
           create: dto.items?.map((item) => ({
             content: item.content,
