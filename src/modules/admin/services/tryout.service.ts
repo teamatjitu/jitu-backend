@@ -22,6 +22,8 @@ export class AdminTryoutService {
           solutionPrice: true,
           releaseDate: true,
           status: true,
+          isPublic: true,
+          referralCode: true,
         },
       }),
       this.prisma.tryOut.count(),
@@ -62,6 +64,8 @@ export class AdminTryoutService {
         scheduledEnd: new Date(dto.scheduledEnd),
         scheduledStart: scheduledDate,
         status: status,
+        isPublic: dto.isPublic ?? true,
+        referralCode: dto.referralCode,
       },
 
       select: {
@@ -95,6 +99,8 @@ export class AdminTryoutService {
         scheduledEnd: dto.scheduledEnd && new Date(dto.scheduledEnd),
         releaseDate: dto.releaseDate && new Date(dto.releaseDate),
         description: dto.description,
+        isPublic: dto.isPublic,
+        referralCode: dto.referralCode,
       },
       select: {
         id: true,
