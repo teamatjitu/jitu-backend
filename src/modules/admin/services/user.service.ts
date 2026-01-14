@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { TopupTokenDto } from '../dto/topup-token.dto';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AdminUserService {
@@ -154,14 +155,28 @@ export class AdminUserService {
       throw new NotFoundException('User tidak ditemukan');
     }
 
-    return await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        name: dto.name,
-        role: dto.role,
-        image: dto.image,
-        tokenBalance: dto.tokenBalance,
-      },
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Update Password if provided
+      if (dto.password) {
+        const hashedPassword = await bcrypt.hash(dto.password, 10);
+        // Better-auth usually stores password in Account table
+        // We update the primary account (or any password account)
+        await tx.account.updateMany({
+          where: { userId: userId, providerId: 'credential' }, // Assuming credential provider
+          data: { password: hashedPassword },
+        });
+      }
+
+      // 2. Update User data
+      return await tx.user.update({
+        where: { id: userId },
+        data: {
+          name: dto.name,
+          role: dto.role,
+          image: dto.image,
+          tokenBalance: dto.tokenBalance,
+        },
+      });
     });
   }
 
