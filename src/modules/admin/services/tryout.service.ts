@@ -12,6 +12,7 @@ export class AdminTryoutService {
     return this.prisma.tryOut.findMany({
       orderBy: { createdAt: 'asc' },
       select: {
+        id: true,
         code: true,
         title: true,
         solutionPrice: true,

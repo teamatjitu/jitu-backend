@@ -4,6 +4,7 @@ import { AdminController } from './admin.controller';
 import { AdminTryoutService } from './services/tryout.service';
 import { AdminSubtestService } from './services/subtest.service';
 import { AdminQuestionService } from './services/question.service';
+import { AdminUserService } from './services/user.service';
 
 @Module({
   controllers: [AdminController],
@@ -12,6 +13,7 @@ import { AdminQuestionService } from './services/question.service';
     AdminTryoutService,
     AdminSubtestService,
     AdminQuestionService,
+    AdminUserService,
   ],
 })
 export class AdminModule {}
