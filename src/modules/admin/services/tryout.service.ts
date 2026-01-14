@@ -8,17 +8,59 @@ import { NotFoundException } from '@nestjs/common';
 export class AdminTryoutService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getTryouts() {
-    return this.prisma.tryOut.findMany({
-      orderBy: { createdAt: 'asc' },
-      select: {
-        code: true,
-        title: true,
-        solutionPrice: true,
-        releaseDate: true,
-        status: true,
-      },
+  async getTryouts(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const now = new Date();
+
+    const [data, total] = await Promise.all([
+      this.prisma.tryOut.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          code: true,
+          title: true,
+          solutionPrice: true,
+          releaseDate: true,
+          scheduledStart: true,
+          scheduledEnd: true,
+          status: true,
+          isPublic: true,
+          referralCode: true,
+        },
+      }),
+      this.prisma.tryOut.count(),
+    ]);
+
+    // Calculate dynamic status based on time
+    const formattedData = data.map((item) => {
+      let currentStatus = item.status;
+
+      if (item.scheduledStart && item.scheduledEnd) {
+        if (now < item.scheduledStart) {
+          currentStatus = 'NOT_STARTED';
+        } else if (now >= item.scheduledStart && now <= item.scheduledEnd) {
+          currentStatus = 'IN_PROGRESS';
+        } else if (now > item.scheduledEnd) {
+          currentStatus = 'FINISHED';
+        }
+      }
+
+      return {
+        ...item,
+        status: currentStatus,
+      };
     });
+
+    return {
+      data: formattedData,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
+      },
+    };
   }
 
   async getTryoutById(id: string) {
@@ -28,11 +70,14 @@ export class AdminTryoutService {
   }
 
   async createTryout(dto: CreateTryoutDto) {
-    const scheduledDate = new Date(dto.scheduledStart);
+    const start = new Date(dto.scheduledStart);
+    const end = new Date(dto.scheduledEnd);
     const now = new Date();
 
-    let status: 'NOT_STARTED' | 'IN_PROGRESS' = 'NOT_STARTED';
-    if (scheduledDate <= now) {
+    let status: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED' = 'NOT_STARTED';
+    if (now > end) {
+      status = 'FINISHED';
+    } else if (now >= start) {
       status = 'IN_PROGRESS';
     }
 
@@ -43,9 +88,11 @@ export class AdminTryoutService {
         solutionPrice: dto.solutionPrice,
         batch: dto.batch,
         releaseDate: new Date(dto.releaseDate),
-        scheduledEnd: new Date(dto.scheduledEnd),
-        scheduledStart: scheduledDate,
+        scheduledStart: start,
+        scheduledEnd: end,
         status: status,
+        isPublic: dto.isPublic ?? true,
+        referralCode: dto.referralCode || null,
       },
 
       select: {
@@ -63,11 +110,29 @@ export class AdminTryoutService {
   async updateTryout(id: string, dto: UpdateTryoutDto) {
     const existingTryout = await this.prisma.tryOut.findUnique({
       where: { id },
-      select: { id: true },
     });
 
     if (!existingTryout) {
       throw new NotFoundException('Tryout tidak ditemukan');
+    }
+
+    const start = dto.scheduledStart
+      ? new Date(dto.scheduledStart)
+      : existingTryout.scheduledStart;
+    const end = dto.scheduledEnd
+      ? new Date(dto.scheduledEnd)
+      : existingTryout.scheduledEnd;
+    const now = new Date();
+
+    let newStatus = existingTryout.status;
+    if (start && end) {
+      if (now > end) {
+        newStatus = 'FINISHED';
+      } else if (now >= start) {
+        newStatus = 'IN_PROGRESS';
+      } else {
+        newStatus = 'NOT_STARTED';
+      }
     }
 
     return await this.prisma.tryOut.update({
@@ -75,10 +140,13 @@ export class AdminTryoutService {
       data: {
         title: dto.title,
         solutionPrice: dto.solutionPrice,
-        scheduledStart: dto.scheduledStart && new Date(dto.scheduledStart),
-        scheduledEnd: dto.scheduledEnd && new Date(dto.scheduledEnd),
+        scheduledStart: start,
+        scheduledEnd: end,
         releaseDate: dto.releaseDate && new Date(dto.releaseDate),
         description: dto.description,
+        isPublic: dto.isPublic,
+        referralCode: dto.referralCode || null,
+        status: newStatus,
       },
       select: {
         id: true,
