@@ -26,6 +26,7 @@ import { AdminPaymentService } from './services/payment.service';
 import { AdminPackageService } from './services/package.service';
 import { CreatePackageDto, UpdatePackageDto } from './dto/package.dto';
 import { AdminDailyService } from './services/daily.service';
+import { AdminTryoutResultService } from './services/result.service';
 import { PaymentStatus } from 'generated/prisma/enums';
 
 @Controller('admin')
@@ -39,6 +40,7 @@ export class AdminController {
     private readonly paymentService: AdminPaymentService,
     private readonly packageService: AdminPackageService,
     private readonly dailyService: AdminDailyService,
+    private readonly resultService: AdminTryoutResultService,
   ) {}
 
   // --- DASHBOARD ---
@@ -254,5 +256,25 @@ export class AdminController {
   @Get('daily/today')
   getTodayDailyQuestion() {
     return this.dailyService.getTodayQuestion();
+  }
+
+  // --- RESULTS / LEADERBOARD ---
+  @Get('tryouts/:id/leaderboard')
+  getTryoutLeaderboard(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '50',
+  ) {
+    return this.resultService.getLeaderboard(id, Number(page), Number(limit));
+  }
+
+  @Get('tryouts/:id/stats')
+  getTryoutStats(@Param('id') id: string) {
+    return this.resultService.getTryoutStats(id);
+  }
+
+  @Get('tryouts/:id/export')
+  exportTryoutResults(@Param('id') id: string) {
+    return this.resultService.exportResults(id);
   }
 }
