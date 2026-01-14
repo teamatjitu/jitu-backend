@@ -125,8 +125,15 @@ export class AdminController {
   getAllUsers(
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
+    @Query('search') search?: string,
+    @Query('role') role?: string,
   ) {
-    return this.userService.getAllUser(Number(page), Number(limit));
+    return this.userService.getAllUser(
+      Number(page),
+      Number(limit),
+      search,
+      role,
+    );
   }
 
   @Get('user/:id')

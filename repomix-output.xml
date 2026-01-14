@@ -56,6 +56,7 @@ src/
         create-question.dto.ts
         create-subtest.dto.ts
         create-tryout.dto.ts
+        topup-token.dto.ts
         update-question.dto.ts
         update-tryout.dto.ts
         update-user.dto.ts
@@ -455,57 +456,6 @@ ALTER TABLE "UserAnswer" ADD CONSTRAINT "UserAnswer_tryout_attempt_id_fkey" FORE
 provider = "postgresql"
 </file>
 
-<file path="src/modules/admin/dto/create-question.dto.ts">
-import {
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsInt,
-  IsArray,
-  ValidateNested,
-} from 'class-validator';
-import { QuestionType } from 'generated/prisma/enums';
-import { Type } from 'class-transformer';
-
-export class CreateQuestionItemDto {
-  @IsString()
-  @IsNotEmpty()
-  content: string;
-
-  @IsOptional()
-  isCorrect?: boolean;
-
-  @IsInt()
-  order: number;
-}
-
-export class CreateQuestionDto {
-  @IsEnum(QuestionType)
-  type: QuestionType;
-
-  @IsString()
-  @IsNotEmpty()
-  content: string;
-
-  @IsString()
-  @IsOptional()
-  explanation?: string;
-
-  // kalau isian singkat wajib diisi
-  @IsString()
-  @IsOptional()
-  correctAnswer?: string;
-
-  // wajib jika BS atau PG
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CreateQuestionItemDto)
-  @IsOptional()
-  items?: CreateQuestionItemDto[];
-}
-</file>
-
 <file path="src/modules/admin/dto/create-subtest.dto.ts">
 import { IsString, IsInt, IsEnum } from 'class-validator';
 import { SubtestName } from 'generated/prisma/enums';
@@ -561,6 +511,20 @@ export class CreateTryoutDto {
 }
 </file>
 
+<file path="src/modules/admin/dto/topup-token.dto.ts">
+import { IsInt, IsNotEmpty, IsString } from 'class-validator';
+
+export class TopupTokenDto {
+  @IsInt()
+  @IsNotEmpty()
+  amount: number;
+
+  @IsString()
+  @IsNotEmpty()
+  description: string;
+}
+</file>
+
 <file path="src/modules/admin/dto/update-question.dto.ts">
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateQuestionDto } from './create-question.dto';
@@ -596,265 +560,6 @@ export class UpdateTryoutDto {
   @IsString()
   @IsOptional()
   description?: string;
-}
-</file>
-
-<file path="src/modules/admin/dto/update-user.dto.ts">
-import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
-import { Role } from 'generated/prisma/enums';
-
-export class UpdateUserDto {
-  @IsString()
-  @IsOptional()
-  name?: string;
-
-  @IsString()
-  @IsOptional()
-  image?: string;
-
-  @IsEnum(Role)
-  @IsOptional()
-  role?: Role;
-
-  @IsOptional()
-  @IsInt()
-  tokenBalance?: number;
-}
-</file>
-
-<file path="src/modules/admin/services/question.service.ts">
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { PrismaService } from '../../../prisma.service';
-import { ConfigService } from '@nestjs/config';
-import { v2 as cloudinary } from 'cloudinary';
-import streamifier from 'streamifier';
-import { CreateQuestionDto } from '../dto/create-question.dto';
-import { UpdateQuestionDto } from '../dto/update-question.dto';
-import { QuestionType } from 'generated/prisma/client';
-
-@Injectable()
-export class AdminQuestionService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly configService: ConfigService,
-  ) {
-    cloudinary.config({
-      cloud_name: this.configService.get('CLOUDINARY_NAME'),
-      api_key: this.configService.get('CLOUDINARY_API_KEY'),
-      api_secret: this.configService.get('CLOUDINARY_API_SECRET'),
-    });
-  }
-
-  async uploadQuestionImageToCloudinary(
-    file: Express.Multer.File,
-  ): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: 'jitu-soal',
-          resource_type: 'auto',
-        },
-        (error, result) => {
-          if (error) return reject(error);
-          if (!result || !result.secure_url) {
-            return reject(
-              new Error('Gagal mengupload gambar ke Cloudinary: Result kosong'),
-            );
-          }
-          resolve(result.secure_url);
-        },
-      );
-      streamifier.createReadStream(file.buffer).pipe(uploadStream);
-    });
-  }
-
-  async getQuestionBySubtestId(subtestId: string) {
-    const subtest = await this.prisma.subtest.findUnique({
-      where: { id: subtestId },
-    });
-
-    if (!subtest) throw new NotFoundException('Subtest Not Found');
-
-    return await this.prisma.question.findMany({
-      where: { subtestId },
-      select: {
-        id: true,
-        type: true,
-        imageUrl: true,
-        content: true,
-      },
-    });
-  }
-
-  private validateQuestionData(
-    type: QuestionType,
-    items?: { isCorrect?: boolean }[],
-    correctAnswer?: string,
-  ) {
-    if (type === 'ISIAN_SINGKAT') {
-      if (!correctAnswer || correctAnswer.trim() === '') {
-        throw new BadRequestException(
-          'Soal Isian Singkat wajib memiliki Kunci Jawaban (correctAnswer).',
-        );
-      }
-    } else if (type === 'PILIHAN_GANDA' || type === 'BENAR_SALAH') {
-      if (!items || items.length === 0) {
-        throw new BadRequestException(
-          'Soal Pilihan Ganda/Benar Salah wajib memiliki opsi jawaban.',
-        );
-      }
-
-      const correctCount = items.filter((i) => i.isCorrect === true).length;
-      if (correctCount !== 1) {
-        throw new BadRequestException(
-          `Soal ${type} harus memiliki TEPAT SATU jawaban benar. Ditemukan: ${correctCount}.`,
-        );
-      }
-    }
-  }
-
-  async createQuestion(dto: CreateQuestionDto, subtestId: string) {
-    if (
-      dto.type === 'PILIHAN_GANDA' ||
-      (dto.type === 'BENAR_SALAH' && (!dto.items || dto.items.length === 0))
-    ) {
-      throw new NotFoundException(
-        'Pilihan jawaban harus diinput untuk tipe soal ini!',
-      );
-    }
-
-    this.validateQuestionData(dto.type, dto.items, dto.correctAnswer);
-
-    return await this.prisma.question.create({
-      data: {
-        subtestId: subtestId,
-        type: dto.type,
-        content: dto.content,
-        explanation: dto.explanation,
-        correctAnswer: dto.correctAnswer,
-        items: {
-          create: dto.items?.map((item) => ({
-            content: item.content,
-            isCorrect: item.isCorrect,
-            order: item.order,
-          })),
-        },
-      },
-      include: {
-        items: true,
-      },
-    });
-  }
-
-  async deleteQuestion(id: string) {
-    return await this.prisma.question.delete({
-      where: { id },
-    });
-  }
-
-  async updateQuestion(dto: UpdateQuestionDto, id: string) {
-    if (dto.type) {
-      this.validateQuestionData(dto.type, dto.items, dto.correctAnswer);
-    }
-
-    return await this.prisma.question.update({
-      where: { id },
-      data: {
-        type: dto.type,
-        content: dto.content,
-        explanation: dto.explanation,
-        correctAnswer: dto.correctAnswer,
-        items: {
-          create: dto.items?.map((item) => ({
-            content: item.content,
-            isCorrect: item.isCorrect,
-            order: item.order,
-          })),
-        },
-      },
-      include: {
-        items: true,
-      },
-    });
-  }
-}
-</file>
-
-<file path="src/modules/admin/services/user.service.ts">
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
-import { UpdateUserDto } from '../dto/update-user.dto';
-
-@Injectable()
-export class AdminUserService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async getAllUser() {
-    return await this.prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        tokenBalance: true,
-        tokenTransactions: true,
-      },
-    });
-  }
-
-  async getUserById(userId: string) {
-    return await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        name: true,
-        email: true,
-        image: true,
-        role: true,
-        tokenBalance: true,
-        tokenTransactions: true,
-      },
-    });
-  }
-
-  async updateUser(dto: UpdateUserDto, userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User tidak ditemukan');
-    }
-
-    return await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        name: dto.name,
-        role: dto.role,
-        image: dto.image,
-        tokenBalance: dto.tokenBalance,
-      },
-    });
-  }
-
-  async deleteUser(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User tidak ditemukan');
-    }
-
-    return await this.prisma.user.delete({
-      where: { id: userId },
-    });
-  }
 }
 </file>
 
@@ -2133,119 +1838,85 @@ Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
 }
 </file>
 
-<file path="src/modules/admin/services/tryout.service.ts">
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma.service';
-import { CreateTryoutDto } from '../dto/create-tryout.dto';
-import { UpdateTryoutDto } from '../dto/update-tryout.dto';
-import { NotFoundException } from '@nestjs/common';
+<file path="src/modules/admin/dto/create-question.dto.ts">
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsInt,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
+import { QuestionType } from 'generated/prisma/enums';
+import { Type } from 'class-transformer';
 
-@Injectable()
-export class AdminTryoutService {
-  constructor(private readonly prisma: PrismaService) {}
+export class CreateQuestionItemDto {
+  @IsString()
+  @IsNotEmpty()
+  content: string;
 
-  async getTryouts() {
-    return this.prisma.tryOut.findMany({
-      orderBy: { createdAt: 'asc' },
-      select: {
-        code: true,
-        title: true,
-        solutionPrice: true,
-        releaseDate: true,
-        status: true,
-      },
-    });
-  }
+  @IsOptional()
+  isCorrect?: boolean;
 
-  async getTryoutById(id: string) {
-    return this.prisma.tryOut.findUnique({
-      where: { id },
-    });
-  }
+  @IsInt()
+  order: number;
+}
 
-  async createTryout(dto: CreateTryoutDto) {
-    const scheduledDate = new Date(dto.scheduledStart);
-    const now = new Date();
+export class CreateQuestionDto {
+  @IsEnum(QuestionType)
+  type: QuestionType;
 
-    let status: 'NOT_STARTED' | 'IN_PROGRESS' = 'NOT_STARTED';
-    if (scheduledDate <= now) {
-      status = 'IN_PROGRESS';
-    }
+  @IsString()
+  @IsNotEmpty()
+  content: string;
 
-    return await this.prisma.tryOut.create({
-      data: {
-        title: dto.title,
-        description: dto.description,
-        solutionPrice: dto.solutionPrice,
-        batch: dto.batch,
-        releaseDate: new Date(dto.releaseDate),
-        scheduledEnd: new Date(dto.scheduledEnd),
-        scheduledStart: scheduledDate,
-        status: status,
-      },
+  @IsString()
+  @IsOptional()
+  explanation?: string;
 
-      select: {
-        id: true,
-        code: true,
-        title: true,
-        scheduledStart: true,
-        releaseDate: true,
-        scheduledEnd: true,
-        createdAt: true,
-      },
-    });
-  }
+  @IsInt()
+  @IsOptional()
+  points?: number;
 
-  async updateTryout(id: string, dto: UpdateTryoutDto) {
-    const existingTryout = await this.prisma.tryOut.findUnique({
-      where: { id },
-      select: { id: true },
-    });
+  // kalau isian singkat wajib diisi
+  @IsString()
+  @IsOptional()
+  correctAnswer?: string;
 
-    if (!existingTryout) {
-      throw new NotFoundException('Tryout tidak ditemukan');
-    }
+  // wajib jika BS atau PG
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateQuestionItemDto)
+  @IsOptional()
+  items?: CreateQuestionItemDto[];
+}
+</file>
 
-    return await this.prisma.tryOut.update({
-      where: { id },
-      data: {
-        title: dto.title,
-        solutionPrice: dto.solutionPrice,
-        scheduledStart: dto.scheduledStart && new Date(dto.scheduledStart),
-        scheduledEnd: dto.scheduledEnd && new Date(dto.scheduledEnd),
-        releaseDate: dto.releaseDate && new Date(dto.releaseDate),
-        description: dto.description,
-      },
-      select: {
-        id: true,
-        code: true,
-        title: true,
-        scheduledStart: true,
-        releaseDate: true,
-        scheduledEnd: true,
-        createdAt: true,
-      },
-    });
-  }
+<file path="src/modules/admin/dto/update-user.dto.ts">
+import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import { Role } from 'generated/prisma/enums';
 
-  async deleteTryout(id: string) {
-    const existingTryout = await this.prisma.tryOut.findUnique({
-      where: { id },
-      select: { id: true },
-    });
+export class UpdateUserDto {
+  @IsString()
+  @IsOptional()
+  name?: string;
 
-    if (!existingTryout) {
-      throw new NotFoundException('Tryout tidak ditemukan');
-    }
+  @IsString()
+  @IsOptional()
+  image?: string;
 
-    return await this.prisma.tryOut.delete({
-      where: { id },
-      select: {
-        id: true,
-        title: true,
-      },
-    });
-  }
+  @IsEnum(Role)
+  @IsOptional()
+  role?: Role;
+
+  @IsOptional()
+  @IsInt()
+  tokenBalance?: number;
+
+  @IsString()
+  @IsOptional()
+  password?: string;
 }
 </file>
 
@@ -2895,39 +2566,185 @@ import { TryoutService } from './tryout.service';
 export class TryoutModule {}
 </file>
 
-<file path="src/modules/admin/services/admin.service.ts">
-import { Injectable, NotFoundException } from '@nestjs/common';
+<file path="src/modules/admin/services/question.service.ts">
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma.service';
+import { ConfigService } from '@nestjs/config';
+import { v2 as cloudinary } from 'cloudinary';
+import streamifier from 'streamifier';
+import { CreateQuestionDto } from '../dto/create-question.dto';
+import { UpdateQuestionDto } from '../dto/update-question.dto';
+import { QuestionType } from 'generated/prisma/client';
 
 @Injectable()
-export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+export class AdminQuestionService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {
+    cloudinary.config({
+      cloud_name: this.configService.get('CLOUDINARY_NAME'),
+      api_key: this.configService.get('CLOUDINARY_API_KEY'),
+      api_secret: this.configService.get('CLOUDINARY_API_SECRET'),
+    });
+  }
 
-  async getDashboardStats() {
-    const totalTryout = await this.prisma.tryOut.count();
-    const totalActiveTryout = await this.prisma.tryOut.count({
-      where: {
-        scheduledStart: { lte: new Date() },
-        scheduledEnd: { gte: new Date() },
-      },
+  async uploadQuestionImageToCloudinary(
+    file: Express.Multer.File,
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'jitu-soal',
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error) {
+            console.error('Cloudinary Upload Error:', error); // DEBUG LOG
+            return reject(error);
+          }
+          if (!result || !result.secure_url) {
+            console.error('Cloudinary Result Empty:', result); // DEBUG LOG
+            return reject(
+              new Error('Gagal mengupload gambar ke Cloudinary: Result kosong'),
+            );
+          }
+          resolve(result.secure_url);
+        },
+      );
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
     });
-    const totalUpcomingTryout = await this.prisma.tryOut.count({
-      where: {
-        scheduledStart: { gt: new Date() },
-      },
-    });
-    const totalEndedTryout = await this.prisma.tryOut.count({
-      where: {
-        scheduledEnd: { lt: new Date() },
-      },
+  }
+
+  async getQuestionBySubtestId(subtestId: string) {
+    const subtest = await this.prisma.subtest.findUnique({
+      where: { id: subtestId },
     });
 
-    return {
-      totalTryout,
-      totalActiveTryout,
-      totalUpcomingTryout,
-      totalEndedTryout,
-    };
+    if (!subtest) throw new NotFoundException('Subtest Not Found');
+
+    return await this.prisma.question.findMany({
+      where: { subtestId },
+      select: {
+        id: true,
+        type: true,
+        imageUrl: true,
+        content: true,
+        points: true,
+        explanation: true,
+        items: true,
+      },
+    });
+  }
+
+  private validateQuestionData(
+    type: QuestionType,
+    items?: { isCorrect?: boolean }[],
+    correctAnswer?: string,
+  ) {
+    if (type === 'ISIAN_SINGKAT') {
+      if (!correctAnswer || correctAnswer.trim() === '') {
+        throw new BadRequestException(
+          'Soal Isian Singkat wajib memiliki Kunci Jawaban (correctAnswer).',
+        );
+      }
+    } else if (type === 'PILIHAN_GANDA' || type === 'BENAR_SALAH') {
+      if (!items || items.length === 0) {
+        throw new BadRequestException(
+          'Soal Pilihan Ganda/Benar Salah wajib memiliki opsi jawaban.',
+        );
+      }
+
+      const correctCount = items.filter((i) => i.isCorrect === true).length;
+      if (correctCount !== 1) {
+        throw new BadRequestException(
+          `Soal ${type} harus memiliki TEPAT SATU jawaban benar. Ditemukan: ${correctCount}.`,
+        );
+      }
+    }
+  }
+
+  async createQuestion(dto: CreateQuestionDto, subtestId: string) {
+    if (
+      (dto.type === 'PILIHAN_GANDA' || dto.type === 'BENAR_SALAH') &&
+      (!dto.items || dto.items.length === 0)
+    ) {
+      throw new NotFoundException(
+        'Pilihan jawaban harus diinput untuk tipe soal ini!',
+      );
+    }
+
+    this.validateQuestionData(dto.type, dto.items, dto.correctAnswer);
+
+    return await this.prisma.question.create({
+      data: {
+        subtestId: subtestId,
+        type: dto.type,
+        content: dto.content,
+        explanation: dto.explanation,
+        correctAnswer: dto.correctAnswer,
+        points: dto.points ?? 1,
+        items: {
+          create: dto.items?.map((item) => ({
+            content: item.content,
+            isCorrect: item.isCorrect,
+            order: item.order,
+          })),
+        },
+      },
+      include: {
+        items: true,
+      },
+    });
+  }
+
+  async deleteQuestion(id: string) {
+    // Manually delete related items first to avoid foreign key constraint errors
+    await this.prisma.questionItem.deleteMany({
+      where: { questionId: id },
+    });
+
+    return await this.prisma.question.delete({
+      where: { id },
+    });
+  }
+
+  async updateQuestion(dto: UpdateQuestionDto, id: string) {
+    if (dto.type) {
+      this.validateQuestionData(dto.type, dto.items, dto.correctAnswer);
+    }
+
+    // Delete existing items first to avoid duplicates
+    if (dto.items) {
+      await this.prisma.questionItem.deleteMany({
+        where: { questionId: id },
+      });
+    }
+
+    return await this.prisma.question.update({
+      where: { id },
+      data: {
+        type: dto.type,
+        content: dto.content,
+        explanation: dto.explanation,
+        correctAnswer: dto.correctAnswer,
+        points: dto.points,
+        items: {
+          create: dto.items?.map((item) => ({
+            content: item.content,
+            isCorrect: item.isCorrect,
+            order: item.order,
+          })),
+        },
+      },
+      include: {
+        items: true,
+      },
+    });
   }
 }
 </file>
@@ -3036,6 +2853,206 @@ export class AdminSubtestService {
     if (!subtest) throw new NotFoundException('Subtest Not Found');
 
     return subtest;
+  }
+}
+</file>
+
+<file path="src/modules/admin/services/user.service.ts">
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from 'src/prisma.service';
+import { UpdateUserDto } from '../dto/update-user.dto';
+import { TopupTokenDto } from '../dto/topup-token.dto';
+import * as bcrypt from 'bcryptjs';
+
+@Injectable()
+export class AdminUserService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async manualTokenAdjustment(userId: string, dto: TopupTokenDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      await tx.tokenTransaction.create({
+        data: {
+          userId,
+          amount: dto.amount,
+          type: 'MANUAL_ADJUSTMENT',
+          referenceId: `ADMIN: ${dto.description}`,
+        },
+      });
+
+      return await tx.user.update({
+        where: { id: userId },
+        data: {
+          tokenBalance: { increment: dto.amount },
+        },
+      });
+    });
+  }
+
+  async getAllUser(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.user.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          createdAt: true,
+          tokenBalance: true,
+          target: true,
+        },
+      }),
+      this.prisma.user.count(),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getUserById(userId: string) {
+    return await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        role: true,
+        tokenBalance: true,
+        target: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async getUserTransactions(userId: string, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.tokenTransaction.findMany({
+        where: { userId },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.tokenTransaction.count({ where: { userId } }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, lastPage: Math.ceil(total / limit) },
+    };
+  }
+
+  async getUserTryouts(userId: string, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.tryOutAttempt.findMany({
+        where: { userId },
+        skip,
+        take: limit,
+        orderBy: { startedAt: 'desc' },
+        include: {
+          tryOut: {
+            select: { title: true },
+          },
+        },
+      }),
+      this.prisma.tryOutAttempt.count({ where: { userId } }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, lastPage: Math.ceil(total / limit) },
+    };
+  }
+
+  async resetUserTryoutAttempt(attemptId: string) {
+    const attempt = await this.prisma.tryOutAttempt.findUnique({
+      where: { id: attemptId },
+    });
+
+    if (!attempt) {
+      throw new NotFoundException('Data pengerjaan tryout tidak ditemukan');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      // Hapus semua jawaban user terkait attempt ini
+      await tx.userAnswer.deleteMany({
+        where: { tryOutAttemptId: attemptId },
+      });
+
+      // Hapus data attempt
+      return await tx.tryOutAttempt.delete({
+        where: { id: attemptId },
+      });
+    });
+  }
+
+  async updateUser(dto: UpdateUserDto, userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Update Password if provided
+      if (dto.password) {
+        const hashedPassword = await bcrypt.hash(dto.password, 10);
+        // Better-auth usually stores password in Account table
+        // We update the primary account (or any password account)
+        await tx.account.updateMany({
+          where: { userId: userId, providerId: 'credential' }, // Assuming credential provider
+          data: { password: hashedPassword },
+        });
+      }
+
+      // 2. Update User data
+      return await tx.user.update({
+        where: { id: userId },
+        data: {
+          name: dto.name,
+          role: dto.role,
+          image: dto.image,
+          tokenBalance: dto.tokenBalance,
+        },
+      });
+    });
+  }
+
+  async deleteUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    return await this.prisma.user.delete({
+      where: { id: userId },
+    });
   }
 }
 </file>
@@ -3559,185 +3576,184 @@ describe('TryoutService', () => {
 });
 </file>
 
-<file path="prisma/seed.ts">
-import {
-  PrismaClient,
-  SubtestName,
-  TryoutBatch,
-  TryoutStatus,
-  QuestionType,
-} from '../generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
-import * as dotenv from 'dotenv';
+<file path="src/modules/admin/services/admin.service.ts">
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
 
-dotenv.config();
-const connectionString = `${process.env.DATABASE_URL}`;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+@Injectable()
+export class AdminService {
+  constructor(private readonly prisma: PrismaService) {}
 
-async function main() {
-  console.log('🌱 Seeding database...');
-
-  // ===============================
-  // TRYOUT 1
-  // ===============================
-  const tryout1 = await prisma.tryOut.create({
-    data: {
-      title: 'Tryout UTBK SNBT 1',
-      description: 'Simulasi UTBK SNBT lengkap',
-      batch: TryoutBatch.SNBT,
-      isPublic: true,
-      solutionPrice: 10000,
-      releaseDate: new Date('2025-01-01T00:00:00Z'),
-      scheduledStart: new Date('2025-02-02T08:00:00Z'),
-      scheduledEnd: new Date('2025-03-02T12:00:00Z'),
-
-      subtests: {
-        create: [
-          {
-            name: SubtestName.PU,
-            durationMinutes: 60,
-            order: 1,
-            questions: {
-              create: [
-                {
-                  type: QuestionType.PILIHAN_GANDA,
-                  content: 'Manakah pernyataan yang benar?',
-                  explanation: 'Jawaban A adalah yang paling tepat.',
-                  points: 1,
-                  items: {
-                    create: [
-                      { content: 'A', isCorrect: true, order: 1 },
-                      { content: 'B', isCorrect: false, order: 2 },
-                      { content: 'C', isCorrect: false, order: 3 },
-                      { content: 'D', isCorrect: false, order: 4 },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-          {
-            name: SubtestName.PBM,
-            durationMinutes: 45,
-            order: 2,
-            questions: {
-              create: [
-                {
-                  type: QuestionType.ISIAN_SINGKAT,
-                  content: '2 + 2 = ?',
-                  correctAnswer: '4',
-                  points: 1,
-                },
-              ],
-            },
-          },
-        ],
+  async getDashboardStats() {
+    const totalTryout = await this.prisma.tryOut.count();
+    const totalActiveTryout = await this.prisma.tryOut.count({
+      where: {
+        scheduledStart: { lte: new Date() },
+        scheduledEnd: { gte: new Date() },
       },
-    },
-    include: {
-      subtests: {
-        include: {
-          questions: {
-            include: {
-              items: true,
-            },
-          },
-        },
+    });
+    const totalUpcomingTryout = await this.prisma.tryOut.count({
+      where: {
+        scheduledStart: { gt: new Date() },
       },
-    },
-  });
-
-  // ===============================
-  // TRYOUT 2
-  // ===============================
-  const tryout2 = await prisma.tryOut.create({
-    data: {
-      title: 'Tryout UTBK SNBT 2',
-      description: 'Tryout lanjutan dengan tingkat kesulitan sedang',
-      batch: TryoutBatch.SNBT,
-      isPublic: true,
-      solutionPrice: 15000,
-      releaseDate: new Date('2025-02-01T00:00:00Z'),
-      scheduledStart: new Date('2025-02-02T08:00:00Z'),
-      scheduledEnd: new Date('2025-02-02T12:00:00Z'),
-
-      subtests: {
-        create: [
-          {
-            name: SubtestName.PPU,
-            durationMinutes: 50,
-            order: 1,
-            questions: {
-              create: [
-                {
-                  type: QuestionType.BENAR_SALAH,
-                  content: 'Indonesia berada di Asia Tenggara.',
-                  points: 1,
-                  items: {
-                    create: [
-                      { content: 'Benar', isCorrect: true, order: 1 },
-                      { content: 'Salah', isCorrect: false, order: 2 },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
+    });
+    const totalEndedTryout = await this.prisma.tryOut.count({
+      where: {
+        scheduledEnd: { lt: new Date() },
       },
-    },
-    include: {
-      subtests: {
-        include: {
-          questions: true,
-        },
-      },
-    },
-  });
+    });
 
-  // ===============================
-  // DAILY QUESTION SAMPLE
-  // ===============================
-  const dailyQuestion = tryout1.subtests[0].questions[0];
+    const totalUser = await this.prisma.user.count();
+    const activeUser = await this.prisma.user.count({
+      where: { emailVerified: true },
+    });
+    const totalAdmin = await this.prisma.user.count({
+      where: { role: 'ADMIN' },
+    });
 
-  console.log('✅ Daily question seeded:', dailyQuestion.id);
-
-  console.log('🌱 Seeding finished successfully.');
+    return {
+      totalTryout,
+      totalActiveTryout,
+      totalUpcomingTryout,
+      totalEndedTryout,
+      totalUser,
+      activeUser,
+      totalAdmin,
+    };
+  }
 }
-
-main()
-  .catch((e) => {
-    console.error('❌ Seeding failed:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
 </file>
 
-<file path="src/modules/admin/admin.module.ts">
-import { Module } from '@nestjs/common';
-import { AdminService } from './services/admin.service';
-import { AdminController } from './admin.controller';
-import { AdminTryoutService } from './services/tryout.service';
-import { AdminSubtestService } from './services/subtest.service';
-import { AdminQuestionService } from './services/question.service';
-import { AdminUserService } from './services/user.service';
+<file path="src/modules/admin/services/tryout.service.ts">
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+import { CreateTryoutDto } from '../dto/create-tryout.dto';
+import { UpdateTryoutDto } from '../dto/update-tryout.dto';
+import { NotFoundException } from '@nestjs/common';
 
-@Module({
-  controllers: [AdminController],
-  providers: [
-    AdminService,
-    AdminTryoutService,
-    AdminSubtestService,
-    AdminQuestionService,
-    AdminUserService,
-  ],
-})
-export class AdminModule {}
+@Injectable()
+export class AdminTryoutService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getTryouts(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.tryOut.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' }, // Changed to desc for newest first
+        select: {
+          id: true,
+          code: true,
+          title: true,
+          solutionPrice: true,
+          releaseDate: true,
+          status: true,
+        },
+      }),
+      this.prisma.tryOut.count(),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getTryoutById(id: string) {
+    return this.prisma.tryOut.findUnique({
+      where: { id },
+    });
+  }
+
+  async createTryout(dto: CreateTryoutDto) {
+    const scheduledDate = new Date(dto.scheduledStart);
+    const now = new Date();
+
+    let status: 'NOT_STARTED' | 'IN_PROGRESS' = 'NOT_STARTED';
+    if (scheduledDate <= now) {
+      status = 'IN_PROGRESS';
+    }
+
+    return await this.prisma.tryOut.create({
+      data: {
+        title: dto.title,
+        description: dto.description,
+        solutionPrice: dto.solutionPrice,
+        batch: dto.batch,
+        releaseDate: new Date(dto.releaseDate),
+        scheduledEnd: new Date(dto.scheduledEnd),
+        scheduledStart: scheduledDate,
+        status: status,
+      },
+
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        scheduledStart: true,
+        releaseDate: true,
+        scheduledEnd: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async updateTryout(id: string, dto: UpdateTryoutDto) {
+    const existingTryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existingTryout) {
+      throw new NotFoundException('Tryout tidak ditemukan');
+    }
+
+    return await this.prisma.tryOut.update({
+      where: { id },
+      data: {
+        title: dto.title,
+        solutionPrice: dto.solutionPrice,
+        scheduledStart: dto.scheduledStart && new Date(dto.scheduledStart),
+        scheduledEnd: dto.scheduledEnd && new Date(dto.scheduledEnd),
+        releaseDate: dto.releaseDate && new Date(dto.releaseDate),
+        description: dto.description,
+      },
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        scheduledStart: true,
+        releaseDate: true,
+        scheduledEnd: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async deleteTryout(id: string) {
+    const existingTryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existingTryout) {
+      throw new NotFoundException('Tryout tidak ditemukan');
+    }
+
+    return await this.prisma.tryOut.delete({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+      },
+    });
+  }
+}
 </file>
 
 <file path="src/modules/shop/shop.controller.ts">
@@ -3884,139 +3900,213 @@ CLOUDINARY_API_SECRET=
 CORS_ORIGIN=http://localhost:5173
 </file>
 
-<file path="src/modules/admin/admin.controller.ts">
+<file path="prisma/seed.ts">
 import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  UseInterceptors,
-  UploadedFile,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+  PrismaClient,
+  SubtestName,
+  TryoutBatch,
+  QuestionType,
+  Role,
+} from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+const connectionString = `${process.env.DATABASE_URL}`;
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+async function main() {
+  console.log('🌱 Seeding database...');
+
+  // ===============================
+  // 1. CLEANUP (Optional - be careful in prod)
+  // ===============================
+  // await prisma.tryOutAttempt.deleteMany();
+  // await prisma.tokenTransaction.deleteMany();
+  // await prisma.user.deleteMany({ where: { email: { contains: 'test' } } });
+
+  // ===============================
+  // 2. CREATE USERS
+  // ===============================
+  const userSiswa = await prisma.user.upsert({
+    where: { email: 'siswa_test@example.com' },
+    update: {},
+    create: {
+      id: 'user-siswa-test-id',
+      name: 'Siswa Teladan',
+      email: 'siswa_test@example.com',
+      role: Role.USER,
+      tokenBalance: 50,
+      emailVerified: true,
+      target: 'ITB - Teknik Informatika',
+    },
+  });
+
+  const userAdmin = await prisma.user.upsert({
+    where: { email: 'admin_test@example.com' },
+    update: { role: Role.ADMIN },
+    create: {
+      id: 'user-admin-test-id',
+      name: 'Admin Jitu',
+      email: 'admin_test@example.com',
+      role: Role.ADMIN,
+      tokenBalance: 9999,
+      emailVerified: true,
+    },
+  });
+
+  console.log('✅ Users seeded:', userSiswa.name, userAdmin.name);
+
+  // ===============================
+  // 3. CREATE TOKEN TRANSACTIONS
+  // ===============================
+  await prisma.tokenTransaction.createMany({
+    data: [
+      {
+        userId: userSiswa.id,
+        amount: 100,
+        type: 'TOPUP',
+        referenceId: 'ORDER-001',
+      },
+      {
+        userId: userSiswa.id,
+        amount: -50,
+        type: 'PURCHASE',
+        referenceId: 'TO-BUNDLE-A',
+      },
+    ],
+  });
+  console.log('✅ Token transactions seeded');
+
+  // ===============================
+  // 4. CREATE TRYOUTS & QUESTIONS
+  // ===============================
+  const tryout1 = await prisma.tryOut.create({
+    data: {
+      title: 'Tryout Simulasi Reset (In Progress)',
+      description: 'Tryout ini sedang dikerjakan user untuk dites reset.',
+      batch: TryoutBatch.SNBT,
+      isPublic: true,
+      solutionPrice: 0,
+      releaseDate: new Date(),
+      scheduledStart: new Date(),
+      scheduledEnd: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000), // +7 days
+      status: 'IN_PROGRESS',
+      subtests: {
+        create: [
+          {
+            name: SubtestName.PU,
+            durationMinutes: 30,
+            order: 1,
+            questions: {
+              create: [
+                {
+                  type: QuestionType.PILIHAN_GANDA,
+                  content: '1 + 1 = ?',
+                  points: 10,
+                  items: {
+                    create: [
+                      { content: '2', isCorrect: true, order: 1 },
+                      { content: '3', isCorrect: false, order: 2 },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    include: { subtests: { include: { questions: true } } },
+  });
+
+  const tryout2 = await prisma.tryOut.create({
+    data: {
+      title: 'Tryout Selesai (Finished)',
+      description: 'Tryout ini sudah selesai dikerjakan.',
+      batch: TryoutBatch.SNBT,
+      isPublic: true,
+      solutionPrice: 0,
+      releaseDate: new Date(),
+      scheduledStart: new Date(),
+      scheduledEnd: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
+      status: 'IN_PROGRESS',
+    },
+  });
+
+  console.log('✅ Tryouts seeded');
+
+  // ===============================
+  // 5. CREATE ATTEMPTS (PENGERJAAN)
+  // ===============================
+  
+  // Attempt 1: IN_PROGRESS (Untuk di-reset)
+  await prisma.tryOutAttempt.create({
+    data: {
+      userId: userSiswa.id,
+      tryOutId: tryout1.id,
+      status: 'IN_PROGRESS',
+      totalScore: 0,
+      startedAt: new Date(),
+      answers: {
+        create: {
+          questionId: tryout1.subtests[0].questions[0].id,
+          isCorrect: true,
+          inputText: '2',
+        },
+      },
+    },
+  });
+
+  // Attempt 2: FINISHED (History)
+  await prisma.tryOutAttempt.create({
+    data: {
+      userId: userSiswa.id,
+      tryOutId: tryout2.id,
+      status: 'FINISHED',
+      totalScore: 850,
+      startedAt: new Date(new Date().getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
+      finishedAt: new Date(new Date().getTime() - 1 * 60 * 60 * 1000), // 1 hour ago
+    },
+  });
+
+  console.log('✅ User attempts seeded');
+  console.log('🌱 Seeding finished successfully.');
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Seeding failed:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+</file>
+
+<file path="src/modules/admin/admin.module.ts">
+import { Module } from '@nestjs/common';
 import { AdminService } from './services/admin.service';
+import { AdminController } from './admin.controller';
 import { AdminTryoutService } from './services/tryout.service';
 import { AdminSubtestService } from './services/subtest.service';
 import { AdminQuestionService } from './services/question.service';
-import { CreateTryoutDto } from './dto/create-tryout.dto';
-import { UpdateTryoutDto } from './dto/update-tryout.dto';
-import { CreateQuestionDto } from './dto/create-question.dto';
-import { UpdateQuestionDto } from './dto/update-question.dto';
 import { AdminUserService } from './services/user.service';
-import { UpdateUserDto } from './dto/update-user.dto';
 
-@Controller('admin')
-export class AdminController {
-  constructor(
-    private readonly adminService: AdminService,
-    private readonly tryoutService: AdminTryoutService,
-    private readonly subtestService: AdminSubtestService,
-    private readonly questionService: AdminQuestionService,
-    private readonly userService: AdminUserService,
-  ) {}
-
-  // --- DASHBOARD ---
-  @Get('stats')
-  getDashboardStats() {
-    return this.adminService.getDashboardStats();
-  }
-
-  // --- TRYOUT ---
-  @Get('tryouts')
-  getTryouts() {
-    return this.tryoutService.getTryouts();
-  }
-
-  @Post('tryouts')
-  async createTryout(@Body() createTryoutDto: CreateTryoutDto) {
-    return this.tryoutService.createTryout(createTryoutDto);
-  }
-
-  @Get('tryouts/:id')
-  getTryoutById(@Param('id') id: string) {
-    return this.tryoutService.getTryoutById(id);
-  }
-
-  @Patch('tryouts/:id')
-  updateTryout(
-    @Param('id') id: string,
-    @Body() updateTryoutDto: UpdateTryoutDto,
-  ) {
-    return this.tryoutService.updateTryout(id, updateTryoutDto);
-  }
-
-  @Delete('tryouts/:id')
-  deleteTryout(@Param('id') id: string) {
-    return this.tryoutService.deleteTryout(id);
-  }
-
-  // --- SUBTEST ---
-  @Post('subtests/:tryoutId')
-  createSubtest(@Param('tryoutId') tryoutId: string) {
-    return this.subtestService.createUtbkSubtests(tryoutId);
-  }
-
-  @Get('tryouts/:tryoutId/subtests')
-  getSubtestsByTryout(@Param('tryoutId') tryoutId: string) {
-    return this.subtestService.getSubtestsByTryoutId(tryoutId);
-  }
-
-  @Get('subtests/:id')
-  getSubtestById(@Param('id') id: string) {
-    return this.subtestService.getSubtestById(id);
-  }
-
-  // --- QUESTION ---
-  @Get('subtests/:subtestId/questions')
-  getQuestionsBySubtest(@Param('subtestId') subtestId: string) {
-    return this.questionService.getQuestionBySubtestId(subtestId);
-  }
-
-  @Post('subtests/:subtestId/questions')
-  createQuestion(
-    @Param('subtestId') subtestId: string,
-    @Body() dto: CreateQuestionDto,
-  ) {
-    return this.questionService.createQuestion(dto, subtestId);
-  }
-
-  @Patch('questions/:id')
-  updateQuestion(@Param('id') id: string, @Body() dto: UpdateQuestionDto) {
-    return this.questionService.updateQuestion(dto, id);
-  }
-
-  @Delete('questions/:id')
-  deleteQuestion(@Param('id') id: string) {
-    return this.questionService.deleteQuestion(id);
-  }
-
-  // --- UPLOAD ---
-  @Post('upload')
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadImage(@UploadedFile() file: Express.Multer.File) {
-    const url =
-      await this.questionService.uploadQuestionImageToCloudinary(file);
-    return { url };
-  }
-
-  @Get('user')
-  getAllUsers() {
-    return this.userService.getAllUser();
-  }
-
-  @Patch('user/:id')
-  updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.updateUser(updateUserDto, id);
-  }
-
-  @Delete('user/:id')
-  removeUser(@Param('id') id: string) {
-    return this.userService.deleteUser(id);
-  }
-}
+@Module({
+  controllers: [AdminController],
+  providers: [
+    AdminService,
+    AdminTryoutService,
+    AdminSubtestService,
+    AdminQuestionService,
+    AdminUserService,
+  ],
+})
+export class AdminModule {}
 </file>
 
 <file path="src/modules/dashboard/dto/dashboard.dto.ts">
@@ -5139,6 +5229,224 @@ export class DashboardService {
 }
 </file>
 
+<file path="src/modules/admin/admin.controller.ts">
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseInterceptors,
+  UploadedFile,
+  Query,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { AdminService } from './services/admin.service';
+import { AdminTryoutService } from './services/tryout.service';
+import { AdminSubtestService } from './services/subtest.service';
+import { AdminQuestionService } from './services/question.service';
+import { CreateTryoutDto } from './dto/create-tryout.dto';
+import { UpdateTryoutDto } from './dto/update-tryout.dto';
+import { CreateQuestionDto } from './dto/create-question.dto';
+import { UpdateQuestionDto } from './dto/update-question.dto';
+import { AdminUserService } from './services/user.service';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { TopupTokenDto } from './dto/topup-token.dto';
+
+@Controller('admin')
+export class AdminController {
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly tryoutService: AdminTryoutService,
+    private readonly subtestService: AdminSubtestService,
+    private readonly questionService: AdminQuestionService,
+    private readonly userService: AdminUserService,
+  ) {}
+
+  // --- DASHBOARD ---
+  @Get('stats')
+  getDashboardStats() {
+    return this.adminService.getDashboardStats();
+  }
+
+  // --- TRYOUT ---
+  @Get('tryouts')
+  getTryouts(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.tryoutService.getTryouts(Number(page), Number(limit));
+  }
+
+  @Post('tryouts')
+  async createTryout(@Body() createTryoutDto: CreateTryoutDto) {
+    return this.tryoutService.createTryout(createTryoutDto);
+  }
+
+  @Get('tryouts/:id')
+  getTryoutById(@Param('id') id: string) {
+    return this.tryoutService.getTryoutById(id);
+  }
+
+  @Patch('tryouts/:id')
+  updateTryout(
+    @Param('id') id: string,
+    @Body() updateTryoutDto: UpdateTryoutDto,
+  ) {
+    return this.tryoutService.updateTryout(id, updateTryoutDto);
+  }
+
+  @Delete('tryouts/:id')
+  deleteTryout(@Param('id') id: string) {
+    return this.tryoutService.deleteTryout(id);
+  }
+
+  // --- SUBTEST ---
+  @Post('subtests/:tryoutId')
+  createSubtest(@Param('tryoutId') tryoutId: string) {
+    return this.subtestService.createUtbkSubtests(tryoutId);
+  }
+
+  @Get('tryouts/:tryoutId/subtests')
+  getSubtestsByTryout(@Param('tryoutId') tryoutId: string) {
+    return this.subtestService.getSubtestsByTryoutId(tryoutId);
+  }
+
+  @Get('subtests/:id')
+  getSubtestById(@Param('id') id: string) {
+    return this.subtestService.getSubtestById(id);
+  }
+
+  // --- QUESTION ---
+  @Get('subtests/:subtestId/questions')
+  getQuestionsBySubtest(@Param('subtestId') subtestId: string) {
+    return this.questionService.getQuestionBySubtestId(subtestId);
+  }
+
+  @Post('subtests/:subtestId/questions')
+  createQuestion(
+    @Param('subtestId') subtestId: string,
+    @Body() dto: CreateQuestionDto,
+  ) {
+    return this.questionService.createQuestion(dto, subtestId);
+  }
+
+  @Patch('questions/:id')
+  updateQuestion(@Param('id') id: string, @Body() dto: UpdateQuestionDto) {
+    return this.questionService.updateQuestion(dto, id);
+  }
+
+  @Delete('questions/:id')
+  deleteQuestion(@Param('id') id: string) {
+    return this.questionService.deleteQuestion(id);
+  }
+
+  // --- UPLOAD ---
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadImage(@UploadedFile() file: Express.Multer.File) {
+    const url =
+      await this.questionService.uploadQuestionImageToCloudinary(file);
+    return { url };
+  }
+
+  // --- USER ---
+  @Get('user')
+  getAllUsers(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.userService.getAllUser(Number(page), Number(limit));
+  }
+
+  @Get('user/:id')
+  getUserById(@Param('id') id: string) {
+    return this.userService.getUserById(id);
+  }
+
+  @Get('user/:id/transactions')
+  getUserTransactions(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.userService.getUserTransactions(id, Number(page), Number(limit));
+  }
+
+  @Get('user/:id/tryouts')
+  getUserTryouts(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.userService.getUserTryouts(id, Number(page), Number(limit));
+  }
+
+  @Patch('user/:id')
+  updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    return this.userService.updateUser(updateUserDto, id);
+  }
+
+  @Post('user/:id/token')
+  manualTokenAdjustment(
+    @Param('id') id: string,
+    @Body() topupTokenDto: TopupTokenDto,
+  ) {
+    return this.userService.manualTokenAdjustment(id, topupTokenDto);
+  }
+
+  @Delete('user/attempt/:id')
+  resetUserAttempt(@Param('id') id: string) {
+    return this.userService.resetUserTryoutAttempt(id);
+  }
+
+  @Delete('user/:id')
+  removeUser(@Param('id') id: string) {
+    return this.userService.deleteUser(id);
+  }
+}
+</file>
+
+<file path="src/app.module.ts">
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { AuthModule } from '@thallesp/nestjs-better-auth';
+import { auth } from './lib/auth';
+import { ConfigModule } from '@nestjs/config';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { HistoryModule } from './modules/history/history.module';
+import { ReferralModule } from './modules/referral/referral.module';
+import { ShopModule } from './modules/shop/shop.module';
+import { TryoutModule } from './modules/tryout/tryout.module';
+import { PrismaModule } from './prisma.module';
+import { ExamModule } from './modules/exam/exam.module';
+import { AdminModule } from './modules/admin/admin.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      envFilePath: '.env',
+      isGlobal: true,
+    }),
+    AuthModule.forRoot({ auth, disableGlobalAuthGuard: true }),
+    PrismaModule,
+    DashboardModule,
+    HistoryModule,
+    ReferralModule,
+    ShopModule,
+    TryoutModule,
+    ExamModule,
+    AdminModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+</file>
+
 <file path="package.json">
 {
   "name": "jituptn-backend",
@@ -5170,6 +5478,8 @@ export class DashboardService {
     "@prisma/adapter-pg": "^7.1.0",
     "@prisma/client": "^7.1.0",
     "@thallesp/nestjs-better-auth": "^2.2.0",
+    "@types/bcryptjs": "^3.0.0",
+    "bcryptjs": "^3.0.3",
     "better-auth": "^1.4.5",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
@@ -5231,44 +5541,6 @@ export class DashboardService {
     }
   }
 }
-</file>
-
-<file path="src/app.module.ts">
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { AuthModule } from '@thallesp/nestjs-better-auth';
-import { auth } from './lib/auth';
-import { ConfigModule } from '@nestjs/config';
-import { DashboardModule } from './modules/dashboard/dashboard.module';
-import { HistoryModule } from './modules/history/history.module';
-import { ReferralModule } from './modules/referral/referral.module';
-import { ShopModule } from './modules/shop/shop.module';
-import { TryoutModule } from './modules/tryout/tryout.module';
-import { PrismaModule } from './prisma.module';
-import { ExamModule } from './modules/exam/exam.module';
-import { AdminModule } from './modules/admin/admin.module';
-
-@Module({
-  imports: [
-    ConfigModule.forRoot({
-      envFilePath: '.env',
-      isGlobal: true,
-    }),
-    AuthModule.forRoot({ auth, disableGlobalAuthGuard: true }),
-    PrismaModule,
-    DashboardModule,
-    HistoryModule,
-    ReferralModule,
-    ShopModule,
-    TryoutModule,
-    ExamModule,
-    AdminModule,
-  ],
-  controllers: [AppController],
-  providers: [AppService],
-})
-export class AppModule {}
 </file>
 
 <file path="src/main.ts">
