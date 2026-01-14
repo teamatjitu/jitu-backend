@@ -7,6 +7,7 @@ import { AdminQuestionService } from './services/question.service';
 import { AdminUserService } from './services/user.service';
 import { AdminPaymentService } from './services/payment.service';
 import { AdminPackageService } from './services/package.service';
+import { AdminDailyService } from './services/daily.service';
 
 @Module({
   controllers: [AdminController],
@@ -18,6 +19,7 @@ import { AdminPackageService } from './services/package.service';
     AdminUserService,
     AdminPaymentService,
     AdminPackageService,
+    AdminDailyService,
   ],
 })
 export class AdminModule {}

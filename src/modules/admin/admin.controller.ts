@@ -25,7 +25,8 @@ import { TopupTokenDto } from './dto/topup-token.dto';
 import { AdminPaymentService } from './services/payment.service';
 import { AdminPackageService } from './services/package.service';
 import { CreatePackageDto, UpdatePackageDto } from './dto/package.dto';
-import { PaymentStatus } from 'generated/prisma/client';
+import { AdminDailyService } from './services/daily.service';
+import { PaymentStatus } from 'generated/prisma/enums';
 
 @Controller('admin')
 export class AdminController {
@@ -37,6 +38,7 @@ export class AdminController {
     private readonly userService: AdminUserService,
     private readonly paymentService: AdminPaymentService,
     private readonly packageService: AdminPackageService,
+    private readonly dailyService: AdminDailyService,
   ) {}
 
   // --- DASHBOARD ---
@@ -246,5 +248,11 @@ export class AdminController {
   @Delete('shop/packages/:id')
   deletePackage(@Param('id') id: string) {
     return this.packageService.deletePackage(id);
+  }
+
+  // --- DAILY QUESTION ---
+  @Get('daily/today')
+  getTodayDailyQuestion() {
+    return this.dailyService.getTodayQuestion();
   }
 }
