@@ -28,6 +28,8 @@ export class TryoutDetailDto {
   isRegistered: boolean;
   isFree: boolean;
   tokenCost?: number;
+  latestFinishedAttemptId?: string | null;
+  latestAttemptStatus?: 'IN_PROGRESS' | 'FINISHED' | null;
   categories: {
     id: number;
     name: string;
