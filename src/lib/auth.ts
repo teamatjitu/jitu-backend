@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { PrismaClient } from '../../generated/prisma/client';
@@ -26,8 +27,21 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
+  user: {
+    additionalFields: {
+      role: {
+        type: 'string',
+        required: false,
+        defaultValue: 'USER',
+        input: false, // Don't allow users to set their own role during signup
+      },
+    },
+  },
   advanced: {
-    disableCSRFCheck: true,
     disableOriginCheck: true,
+    disableCSRFCheck: true,
+    // defaultCookieAttributes: {
+    //   sameSite: 'None',
+    // },
   },
 });

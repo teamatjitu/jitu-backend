@@ -1,121 +1,115 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
-import { TryOutCardDto } from './dto/tryout.dto';
+import { PrismaService } from '../../prisma.service';
+import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
 
 @Injectable()
 export class TryoutService {
   constructor(private prisma: PrismaService) {}
 
-  // Mock data - replace with database queries when schema is ready
-  private mockTryouts: TryOutCardDto[] = [
-    {
-      id: '5',
-      title: 'Try Out UTBK SNBT 5 2026',
-      number: '5',
-      canEdit: false,
-      participants: 8016,
-      badge: 'SNBT',
-    },
-    {
-      id: '4',
-      title: 'Try Out UTBK SNBT 4 2026',
-      number: '4',
-      canEdit: false,
-      participants: 22665,
-      badge: 'SNBT',
-    },
-    {
-      id: '3',
-      title: 'Try Out UTBK SNBT 3 2026',
-      number: '3',
-      canEdit: false,
-      participants: 18540,
-      badge: 'SNBT',
-    },
-    {
-      id: '2',
-      title: 'Try Out UTBK SNBT 2 2026',
-      number: '2',
-      canEdit: false,
-      participants: 22195,
-      badge: 'SNBT',
-    },
-    {
-      id: '1',
-      title: 'Try Out UTBK SNBT 1 2026',
-      number: '1',
-      canEdit: false,
-      participants: 31316,
-      badge: 'SNBT',
-    },
-    {
-      id: '14',
-      title: 'Try Out UTBK SNBT 14 2025',
-      number: '14',
-      canEdit: false,
-      participants: 188663,
-      badge: 'SNBT',
-    },
-    {
-      id: '13',
-      title: 'Try Out UTBK SNBT 13 2025',
-      number: '13',
-      canEdit: false,
-      participants: 156594,
-      badge: 'SNBT',
-    },
-  ];
+  private mapTryoutToDto(tryout: any): TryoutDetailDto {
+    const totalQuestions = tryout.subtests.reduce(
+      (sum, s) => sum + s.questions.length,
+      0,
+    );
 
-  async getActiveTryouts(): Promise<TryOutCardDto[]> {
-    // For now, return the first item as active
-    return [this.mockTryouts[0]];
-    
-    // TODO: When database is ready, implement:
-    // const today = new Date();
-    // return this.prisma.tryOut.findMany({
-    //   where: {
-    //     AND: [
-    //       { scheduledStart: { lte: today } },
-    //       { NOT: { scheduledStart: null } },
-    //     ],
-    //   },
-    // });
-  }
+    const totalDuration = tryout.subtests.reduce(
+      (sum, s) => sum + s.durationMinutes,
+      0,
+    );
 
-  async getAvailableTryouts(): Promise<TryOutCardDto[]> {
-    // Return all except the first one (which is active)
-    return this.mockTryouts.slice(1);
-    
-    // TODO: When database is ready, implement:
-    // return this.prisma.tryOut.findMany({
-    //   where: {
-    //     OR: [
-    //       { scheduledStart: null },
-    //       { scheduledStart: { gt: new Date() } },
-    //     ],
-    //   },
-    // });
+    return {
+      id: tryout.id, // CUID
+      title: tryout.title,
+      number: tryout.code,
+      badge: tryout.batch, // SNBT / MANDIRI
+      participants: tryout.attempts?.length ?? 0,
+      description: tryout.description ?? '',
+      duration: totalDuration,
+      totalQuestions,
+      startDate: tryout.scheduledStart?.toISOString() ?? '',
+      endDate: '',
+      isRegistered: (tryout.attempts?.length ?? 0) > 0,
+      isFree: tryout.solutionPrice === 0,
+      tokenCost: tryout.solutionPrice,
+      categories: tryout.subtests.map((s) => ({
+        id: Number(s.order),
+        name: s.name,
+        questionCount: s.questions.length,
+        duration: s.durationMinutes,
+        isCompleted: false,
+      })),
+      benefits: ['Pembahasan lengkap', 'Analisis hasil', 'Simulasi UTBK'],
+      requirements: ['Akun terverifikasi', 'Token mencukupi'],
+    };
   }
 
   async getTryouts(): Promise<TryOutCardDto[]> {
-    return this.mockTryouts;
-    
-    // TODO: When database is ready, implement:
-    // const tryouts = await this.prisma.tryOut.findMany({
-    //   include: {
-    //     _count: {
-    //       select: { attempts: true },
-    //     },
-    //   },
-    // });
-    //
-    // return tryouts.map((t) => ({
-    //   id: t.id,
-    //   title: t.title,
-    //   number: t.id,
-    //   canEdit: false,
-    //   participants: t._count.attempts,
-    //   badge: 'SNBT',
-    // }));
+    const tryouts = await this.prisma.tryOut.findMany({
+      include: {
+        _count: {
+          select: { attempts: true },
+        },
+      },
+    });
+
+    return tryouts.map((t) => ({
+      id: t.id, // CUID
+      title: t.title,
+      number: t.code.toString(),
+      canEdit: false,
+      participants: t._count.attempts,
+      badge: t.batch,
+    }));
+  }
+
+  async getTryoutById(id: string, userId?: string): Promise<TryoutDetailDto> {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+      include: {
+        subtests: {
+          include: {
+            questions: true,
+          },
+        },
+        attempts: userId ? { where: { userId } } : false,
+        unlockedSolutions: userId ? { where: { userId } } : false,
+      },
+    });
+
+    if (!tryout) {
+      throw new Error('Tryout not found');
+    }
+
+    return this.mapTryoutToDto(tryout);
+  }
+
+  async getSubtestQuestions(tryOutId: string, subtestOrder: number) {
+    const subtest = await this.prisma.subtest.findFirst({
+      where: { tryOutId, order: subtestOrder },
+      include: {
+        tryOut: { select: { title: true } },
+        questions: {
+          include: { items: { orderBy: { order: 'asc' } } },
+        },
+      },
+    });
+
+    if (!subtest) {
+      throw new Error('Subtest not found');
+    }
+
+    return {
+      subtestId: subtest.order,
+      subtestName: subtest.name,
+      tryoutId: tryOutId,
+      tryoutTitle: subtest.tryOut.title,
+      duration: subtest.durationMinutes,
+      questions: subtest.questions.map((q) => ({
+        id: q.id,
+        questionText: q.content,
+        options: q.items.map((i) => i.content),
+        optionIds: q.items.map((i) => i.id),
+      })),
+    };
   }
 }

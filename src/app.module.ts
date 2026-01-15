@@ -10,19 +10,24 @@ import { ReferralModule } from './modules/referral/referral.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { TryoutModule } from './modules/tryout/tryout.module';
 import { PrismaModule } from './prisma.module';
+import { ExamModule } from './modules/exam/exam.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       envFilePath: '.env',
+      isGlobal: true,
     }),
-    AuthModule.forRoot({ auth }),
+    AuthModule.forRoot({ auth, disableGlobalAuthGuard: true }),
+    PrismaModule,
     DashboardModule,
     HistoryModule,
     ReferralModule,
     ShopModule,
     TryoutModule,
-    PrismaModule,
+    ExamModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
