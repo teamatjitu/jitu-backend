@@ -9,6 +9,12 @@ import {
   AvailableTryoutDto,
   ScoreHistoryDto,
 } from './dto/dashboard.dto';
+import {
+  DailyQuestionDto,
+  SubmitDailyAnswerDto,
+  DailyQuestionResponseDto,
+} from './dto/dashboard.dto';
+import { isISO4217CurrencyCode } from 'class-validator';
 
 enum TryoutStatus {
   IN_PROGRESS = 'IN_PROGRESS',

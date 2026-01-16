@@ -120,42 +120,45 @@ async function main() {
   // ===============================
   // Note: userId is @unique in Payment schema, so 1 payment per user for now
   
+  // Payment 1
   await prisma.payment.upsert({
-    where: { userId: userSiswa1.id },
+    where: { orderId: `ORDER-${userSiswa1.id}-PKG2` }, // Gunakan orderId unik buatan sendiri
     update: {},
     create: {
       userId: userSiswa1.id,
+      amount: 50000,
+      orderId: `ORDER-${userSiswa1.id}-PKG2`,
       tokenPackageId: pkg2.id,
-      amount: pkg2.price,
-      tokenAmount: pkg2.tokenAmount,
       status: PaymentStatus.CONFIRMED,
-      paymentMethod: 'QRIS_STATIC',
+      tokenAmount: 100,
     },
   });
 
+  // Payment 2
   await prisma.payment.upsert({
-    where: { userId: userSiswa2.id },
+    where: { orderId: `ORDER-${userSiswa2.id}-PKG1` },
     update: {},
     create: {
       userId: userSiswa2.id,
+      amount: 20000,
+      orderId: `ORDER-${userSiswa2.id}-PKG1`,
       tokenPackageId: pkg1.id,
-      amount: pkg1.price,
-      tokenAmount: pkg1.tokenAmount,
-      status: PaymentStatus.PENDING,
-      paymentMethod: 'MANUAL_TRANSFER',
+      status: PaymentStatus.CONFIRMED,
+      tokenAmount: 100,
     },
   });
 
+  // Payment 3
   await prisma.payment.upsert({
-    where: { userId: userSiswa3.id },
+    where: { orderId: `ORDER-${userSiswa3.id}-PKG3` },
     update: {},
     create: {
       userId: userSiswa3.id,
+      amount: 100000,
+      orderId: `ORDER-${userSiswa3.id}-PKG3`,
       tokenPackageId: pkg3.id,
-      amount: pkg3.price,
-      tokenAmount: pkg3.tokenAmount,
       status: PaymentStatus.DECLINED,
-      paymentMethod: 'QRIS_STATIC',
+      tokenAmount: 100,
     },
   });
 
