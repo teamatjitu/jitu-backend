@@ -4,10 +4,9 @@ import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { json, urlencoded } from 'express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  app.use(json({ limit: '50mb' }));
-  app.use(urlencoded({ extended: true, limit: '50mb' }));
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: false,
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

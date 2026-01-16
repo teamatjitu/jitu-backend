@@ -4,6 +4,13 @@ import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { PrismaClient } from '../../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
+console.log('--- Auth Config Debug ---');
+console.log('BETTER_AUTH_URL:', process.env.BETTER_AUTH_URL);
+console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+console.log('BETTER_AUTH_SECRET exists:', !!process.env.BETTER_AUTH_SECRET);
+console.log('GOOGLE_CLIENT_ID exists:', !!process.env.GOOGLE_CLIENT_ID);
+console.log('-------------------------');
+
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL as string,
 });
