@@ -239,9 +239,7 @@ export class DailyService {
       isCorrect,
       newStreak,
       explanation: question.explanation || undefined,
-      message: isCorrect
-        ? 'Jawaban Anda benar!'
-        : 'Jawaban Anda kurang tepat.',
+      message: isCorrect ? 'Jawaban Anda benar!' : 'Jawaban Anda kurang tepat.',
     };
   }
 }

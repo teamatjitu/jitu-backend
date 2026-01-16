@@ -14,7 +14,10 @@ const prisma = new PrismaClient({
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
-  trustedOrigins: ['http://localhost:5173'],
+  trustedOrigins: [
+    'http://localhost:5173',
+    'https://jitu-frontend-staging.vercel.app',
+  ],
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
@@ -33,7 +36,7 @@ export const auth = betterAuth({
         type: 'string',
         required: false,
         defaultValue: 'USER',
-        input: false, // Don't allow users to set their own role during signup
+        input: false,
       },
     },
   },
