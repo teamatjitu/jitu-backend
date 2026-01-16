@@ -56,6 +56,9 @@ importers:
       pg:
         specifier: ^8.16.3
         version: 8.17.1
+      process:
+        specifier: ^0.11.10
+        version: 0.11.10
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -3238,6 +3241,10 @@ packages:
         optional: true
       typescript:
         optional: true
+
+  process@0.11.10:
+    resolution: {integrity: sha512-cdGef/drWFoydD1JsMzuFf8100nZl+GT+yacc2bEced5f9Rjk4z+WtFUTBu9PhOi9j/jfmBPu0mMEY4wIdAF8A==}
+    engines: {node: '>= 0.6.0'}
 
   proper-lockfile@4.1.2:
     resolution: {integrity: sha512-TjNPblN4BwAWMXU8s9AEz4JmQxnD1NNL7bNOY/AKUzyamc379FWASUhc/K1pL2noVb+XmZKLL68cjzLsiOAMaA==}
@@ -7276,6 +7283,8 @@ snapshots:
       - magicast
       - react
       - react-dom
+
+  process@0.11.10: {}
 
   proper-lockfile@4.1.2:
     dependencies:
