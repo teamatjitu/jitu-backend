@@ -17,4 +17,8 @@ export class UpdateUserDto {
   @IsOptional()
   @IsInt()
   tokenBalance?: number;
+
+  @IsString()
+  @IsOptional()
+  password?: string;
 }

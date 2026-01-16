@@ -34,6 +34,10 @@ export class CreateQuestionDto {
   @IsOptional()
   explanation?: string;
 
+  @IsInt()
+  @IsOptional()
+  points?: number;
+
   // kalau isian singkat wajib diisi
   @IsString()
   @IsOptional()

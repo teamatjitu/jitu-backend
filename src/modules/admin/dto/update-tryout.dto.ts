@@ -1,20 +1,25 @@
-import { IsString, IsInt, IsDateString, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsDateString,
+  IsOptional,
+  IsBoolean,
+} from 'class-validator';
 
 export class UpdateTryoutDto {
   @IsString()
   @IsOptional()
   title?: string;
 
-  // ini harga token
   @IsInt()
   @IsOptional()
   solutionPrice?: number;
 
   @IsDateString()
-  @IsDateString()
   @IsOptional()
   releaseDate?: string;
 
+  @IsDateString()
   @IsOptional()
   scheduledStart?: string;
 
@@ -25,4 +30,12 @@ export class UpdateTryoutDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
+
+  @IsString()
+  @IsOptional()
+  referralCode?: string;
 }

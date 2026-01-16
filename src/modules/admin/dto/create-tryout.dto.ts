@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsDateString,
   IsOptional,
+  IsBoolean,
 } from 'class-validator';
 import { TryoutBatch } from 'generated/prisma/client';
 
@@ -30,4 +31,12 @@ export class CreateTryoutDto {
 
   @IsDateString()
   scheduledStart: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
+
+  @IsString()
+  @IsOptional()
+  referralCode?: string;
 }

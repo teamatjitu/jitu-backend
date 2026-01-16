@@ -8,6 +8,7 @@ import {
   Delete,
   UseInterceptors,
   UploadedFile,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AdminService } from './services/admin.service';
@@ -20,6 +21,13 @@ import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { AdminUserService } from './services/user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { TopupTokenDto } from './dto/topup-token.dto';
+import { AdminPaymentService } from './services/payment.service';
+import { AdminPackageService } from './services/package.service';
+import { CreatePackageDto, UpdatePackageDto } from './dto/package.dto';
+import { AdminDailyService } from './services/daily.service';
+import { AdminTryoutResultService } from './services/result.service';
+import { PaymentStatus } from 'generated/prisma/enums';
 
 @Controller('admin')
 export class AdminController {
@@ -29,6 +37,10 @@ export class AdminController {
     private readonly subtestService: AdminSubtestService,
     private readonly questionService: AdminQuestionService,
     private readonly userService: AdminUserService,
+    private readonly paymentService: AdminPaymentService,
+    private readonly packageService: AdminPackageService,
+    private readonly dailyService: AdminDailyService,
+    private readonly resultService: AdminTryoutResultService,
   ) {}
 
   // --- DASHBOARD ---
@@ -39,8 +51,11 @@ export class AdminController {
 
   // --- TRYOUT ---
   @Get('tryouts')
-  getTryouts() {
-    return this.tryoutService.getTryouts();
+  getTryouts(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.tryoutService.getTryouts(Number(page), Number(limit));
   }
 
   @Post('tryouts')
@@ -115,9 +130,47 @@ export class AdminController {
     return { url };
   }
 
+  // --- USER ---
   @Get('user')
-  getAllUsers() {
-    return this.userService.getAllUser();
+  getAllUsers(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('search') search?: string,
+    @Query('role') role?: string,
+  ) {
+    return this.userService.getAllUser(
+      Number(page),
+      Number(limit),
+      search,
+      role,
+    );
+  }
+
+  @Get('user/:id')
+  getUserById(@Param('id') id: string) {
+    return this.userService.getUserById(id);
+  }
+
+  @Get('user/:id/transactions')
+  getUserTransactions(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.userService.getUserTransactions(
+      id,
+      Number(page),
+      Number(limit),
+    );
+  }
+
+  @Get('user/:id/tryouts')
+  getUserTryouts(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.userService.getUserTryouts(id, Number(page), Number(limit));
   }
 
   @Patch('user/:id')
@@ -125,8 +178,103 @@ export class AdminController {
     return this.userService.updateUser(updateUserDto, id);
   }
 
+  @Post('user/:id/token')
+  manualTokenAdjustment(
+    @Param('id') id: string,
+    @Body() topupTokenDto: TopupTokenDto,
+  ) {
+    return this.userService.manualTokenAdjustment(id, topupTokenDto);
+  }
+
+  @Delete('user/attempt/:id')
+  resetUserAttempt(@Param('id') id: string) {
+    return this.userService.resetUserTryoutAttempt(id);
+  }
+
   @Delete('user/:id')
   removeUser(@Param('id') id: string) {
     return this.userService.deleteUser(id);
+  }
+
+  @Get('payments')
+  getPayments(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('status') status?: PaymentStatus,
+    @Query('search') search?: string,
+  ) {
+    return this.paymentService.getAllPayments(
+      Number(page),
+      Number(limit),
+      status,
+      search,
+    );
+  }
+
+  @Get('payments/stats')
+  getPaymentStats() {
+    return this.paymentService.getPaymentStats();
+  }
+
+  @Patch('payments/:id/confirm')
+  confirmPayment(@Param('id') id: string) {
+    return this.paymentService.confirmPayment(id);
+  }
+
+  @Patch('payments/:id/reject')
+  rejectPayment(@Param('id') id: string) {
+    return this.paymentService.rejectPayment(id);
+  }
+
+  // --- PACKAGE / SHOP ---
+  @Get('shop/packages')
+  getPackages() {
+    return this.packageService.getAllPackages();
+  }
+
+  @Post('shop/packages')
+  createPackage(@Body() dto: CreatePackageDto) {
+    return this.packageService.createPackage(dto);
+  }
+
+  @Patch('shop/packages/:id')
+  updatePackage(@Param('id') id: string, @Body() dto: UpdatePackageDto) {
+    return this.packageService.updatePackage(id, dto);
+  }
+
+  @Patch('shop/packages/:id/status')
+  togglePackageStatus(@Param('id') id: string) {
+    return this.packageService.togglePackageStatus(id);
+  }
+
+  @Delete('shop/packages/:id')
+  deletePackage(@Param('id') id: string) {
+    return this.packageService.deletePackage(id);
+  }
+
+  // --- DAILY QUESTION ---
+  @Get('daily/today')
+  getTodayDailyQuestion() {
+    return this.dailyService.getTodayQuestion();
+  }
+
+  // --- RESULTS / LEADERBOARD ---
+  @Get('tryouts/:id/leaderboard')
+  getTryoutLeaderboard(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '50',
+  ) {
+    return this.resultService.getLeaderboard(id, Number(page), Number(limit));
+  }
+
+  @Get('tryouts/:id/stats')
+  getTryoutStats(@Param('id') id: string) {
+    return this.resultService.getTryoutStats(id);
+  }
+
+  @Get('tryouts/:id/export')
+  exportTryoutResults(@Param('id') id: string) {
+    return this.resultService.exportResults(id);
   }
 }

@@ -5,6 +5,11 @@ import { AdminTryoutService } from './services/tryout.service';
 import { AdminSubtestService } from './services/subtest.service';
 import { AdminQuestionService } from './services/question.service';
 import { AdminUserService } from './services/user.service';
+import { AdminPaymentService } from './services/payment.service';
+import { AdminPackageService } from './services/package.service';
+import { AdminDailyService } from './services/daily.service';
+import { AdminTryoutResultService } from './services/result.service';
+import { AdminUserService } from './services/user.service';
 
 @Module({
   controllers: [AdminController],
@@ -13,6 +18,11 @@ import { AdminUserService } from './services/user.service';
     AdminTryoutService,
     AdminSubtestService,
     AdminQuestionService,
+    AdminUserService,
+    AdminPaymentService,
+    AdminPackageService,
+    AdminDailyService,
+    AdminTryoutResultService,
     AdminUserService,
   ],
 })
