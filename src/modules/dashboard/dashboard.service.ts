@@ -4,17 +4,11 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import * as streamifier from 'streamifier';
 import {
-  ActiveTryoutDto,
-  ScoreDataDto,
   UserStatsDto,
+  OngoingTryoutDto,
+  AvailableTryoutDto,
+  ScoreHistoryDto,
 } from './dto/dashboard.dto';
-import {
-  DailyQuestionDto,
-  SubmitDailyAnswerDto,
-  DailyQuestionResponseDto,
-} from './dto/dashboard.dto';
-import { isISO4217CurrencyCode } from 'class-validator';
-import { un } from 'node_modules/better-auth/dist/index-COnelCGa.mjs';
 
 enum TryoutStatus {
   IN_PROGRESS = 'IN_PROGRESS',
@@ -52,6 +46,24 @@ export class DashboardService {
     });
   }
 
+  async getProfile(userId: string) {
+    return await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        target: true,
+        tokenBalance: true,
+        currentStreak: true,
+        lastDailyDate: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
   async updateProfile(
     userId: string,
     payload: UpdateProfileDto,
@@ -86,7 +98,7 @@ export class DashboardService {
     const now = new Date();
     const oneWeekAgo = new Date(now.setDate(now.getDate() - 7));
 
-    const [lastAttempt, bestScore, weeklyActivity, totalFinished] =
+    const [lastAttempt, bestScore, weeklyActivity, totalFinished, user] =
       await Promise.all([
         // last tryout score
         this.prisma.tryOutAttempt.findFirst({
@@ -113,9 +125,16 @@ export class DashboardService {
         this.prisma.tryOutAttempt.count({
           where: { userId, status: TryoutStatus.FINISHED },
         }),
+
+        // user data for token balance and streak
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { tokenBalance: true, currentStreak: true },
+        }),
       ]);
 
     return {
+      tokenBalance: user?.tokenBalance || 0,
       lastScore: lastAttempt?.totalScore
         ? Math.round(lastAttempt.totalScore)
         : 0,
@@ -123,127 +142,12 @@ export class DashboardService {
         ? Math.round(bestScore._max.totalScore)
         : 0,
       weeklyActivity: weeklyActivity,
-      totalFinished: totalFinished,
+      completedTryouts: totalFinished,
+      currentStreak: user?.currentStreak || 0,
     };
   }
 
-  async getDailyQuestion(userId: string): Promise<DailyQuestionResponseDto> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const existingLog = await this.prisma.dailyQuestionLog.findFirst({
-      where: {
-        userId,
-        completedAt: { gte: today },
-      },
-    });
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { currentStreak: true, lastDailyDate: true },
-    });
-
-    if (existingLog) {
-      return {
-        isCompleted: true,
-        streak: user?.currentStreak || 0,
-        question: null,
-      };
-    }
-
-    const totalQuestion = await this.prisma.question.count();
-    const skip = Math.floor(Math.random() * totalQuestion);
-
-    const randomQuestion = await this.prisma.question.findFirst({
-      skip: skip,
-      include: {
-        items: true,
-      },
-    });
-
-    if (!randomQuestion) {
-      return {
-        isCompleted: false,
-        streak: user?.currentStreak || 0,
-        question: null,
-      };
-    }
-
-    return {
-      isCompleted: false,
-      streak: user?.currentStreak || 0,
-      question: {
-        id: randomQuestion.id,
-        content: randomQuestion.content || 'Soal Error!',
-        options: randomQuestion.items.map((item) => ({
-          id: item.id,
-          content: item.content || '',
-        })),
-      },
-    };
-  }
-
-  async answerDailyQuestion(
-    userId: string,
-    payload: SubmitDailyAnswerDto,
-  ): Promise<{
-    isCorrect: boolean;
-    newStreak: number;
-    correctAnswerId?: string;
-  }> {
-    const selectedItem = await this.prisma.questionItem.findUnique({
-      where: { id: payload.answerId },
-    });
-
-    if (!selectedItem) {
-      throw new BadRequestException('Jawaban tidak valid!');
-    }
-    const isCorrect = selectedItem.isCorrect;
-
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    let newStreak = user?.currentStreak || 0;
-    const lastDate = user?.lastDailyDate;
-
-    const now = new Date();
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    if (isCorrect) {
-      newStreak += 1;
-    } else {
-      newStreak = 0;
-    }
-
-    await this.prisma.$transaction([
-      this.prisma.dailyQuestionLog.create({
-        data: {
-          userId,
-          questionId: selectedItem.questionId,
-          isCorrect,
-          completedAt: now,
-        },
-      }),
-      this.prisma.user.update({
-        where: { id: userId },
-        data: {
-          currentStreak: newStreak,
-          lastDailyDate: now,
-        },
-      }),
-    ]);
-
-    let correctAnswerId: string | undefined = undefined;
-    if (!isCorrect) {
-      const correctItem = await this.prisma.questionItem.findFirst({
-        where: { questionId: selectedItem.questionId, isCorrect: true },
-      });
-      correctAnswerId = correctItem?.id;
-    }
-
-    return { isCorrect, newStreak, correctAnswerId };
-  }
-
-  async getScoreHistory(userId: string): Promise<ScoreDataDto[]> {
+  async getScoreHistory(userId: string): Promise<ScoreHistoryDto[]> {
     const attempts = await this.prisma.tryOutAttempt.findMany({
       where: {
         userId,
@@ -256,6 +160,7 @@ export class DashboardService {
         tryOut: {
           select: {
             code: true,
+            title: true,
           },
         },
         answers: {
@@ -281,9 +186,8 @@ export class DashboardService {
         ppu: 0,
         pbm: 0,
         pk: 0,
-        lbi: 0,
-        lbe: 0,
-        pm: 0,
+        literasiIndo: 0,
+        literasiEng: 0,
       };
 
       attempt.answers.forEach((answer) => {
@@ -295,66 +199,99 @@ export class DashboardService {
           if (subtestName === 'PPU') scores.ppu += points;
           if (subtestName === 'PBM') scores.pbm += points;
           if (subtestName === 'PK') scores.pk += points;
-          if (subtestName === 'LBI') scores.lbi += points;
-          if (subtestName === 'LBE') scores.lbe += points;
-          if (subtestName === 'PM') scores.pm += points;
+          if (subtestName === 'LBI') scores.literasiIndo += points;
+          if (subtestName === 'LBE') scores.literasiEng += points;
         }
       });
 
       return {
-        to: `TO ${attempt.tryOut.code}`,
+        to: attempt.id,
+        tryOutTitle: attempt.tryOut.title,
         total: Math.round(attempt.totalScore),
         ...scores,
       };
     });
   }
 
-  async getActiveTryouts(userId: string): Promise<ActiveTryoutDto[]> {
-    const registeredTryouts = await this.prisma.tryOutAttempt.findMany({
+  async getOngoingTryouts(userId: string): Promise<OngoingTryoutDto[]> {
+    // Get user's in-progress attempts
+    const userAttempts = await this.prisma.tryOutAttempt.findMany({
       where: {
         userId,
         status: 'IN_PROGRESS',
       },
+      select: {
+        tryOutId: true,
+      },
+    });
+
+    const tryoutIds = userAttempts.map((attempt) => attempt.tryOutId);
+
+    if (tryoutIds.length === 0) {
+      return [];
+    }
+
+    const tryouts = await this.prisma.tryOut.findMany({
+      where: {
+        id: { in: tryoutIds },
+      },
       include: {
-        tryOut: {
-          include: {
-            subtests: {
-              select: { id: true },
-            },
-            _count: {
-              select: {
-                attempts: true,
-              },
-            },
-          },
-        },
-        answers: {
+        _count: {
           select: {
-            question: {
-              select: {
-                subtestId: true,
-              },
-            },
+            attempts: true,
           },
         },
       },
     });
 
-    return registeredTryouts.map((tryout) => {
-      const ansSubtestId = new Set(
-        tryout.answers.map((a) => a.question.subtestId),
-      );
+    return tryouts.map((tryout) => ({
+      id: tryout.id,
+      title: tryout.title,
+      description: tryout.description,
+      solutionPrice: tryout.solutionPrice,
+      isPublic: tryout.isPublic,
+      scheduledStart: tryout.scheduledStart,
+      createdAt: tryout.createdAt,
+      participants: tryout._count.attempts,
+      isRegistered: true,
+    }));
+  }
 
-      return {
-        id: tryout.tryOut.id,
-        title: tryout.tryOut.title,
-        code: tryout.tryOut.code,
-        batch: tryout.tryOut.batch,
-        participants: tryout.tryOut._count.attempts,
-        progress: ansSubtestId.size,
-        totalSubtests: tryout.tryOut.subtests.length,
-        endDate: tryout.tryOut.scheduledStart,
-      };
+  async getAvailableTryouts(userId: string): Promise<AvailableTryoutDto[]> {
+    // Get tryouts that are public and not yet started by the user
+    const userAttempts = await this.prisma.tryOutAttempt.findMany({
+      where: { userId },
+      select: { tryOutId: true },
     });
+
+    const attemptedTryoutIds = userAttempts.map((attempt) => attempt.tryOutId);
+
+    const tryouts = await this.prisma.tryOut.findMany({
+      where: {
+        isPublic: true,
+        id: { notIn: attemptedTryoutIds },
+      },
+      include: {
+        _count: {
+          select: {
+            attempts: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return tryouts.map((tryout) => ({
+      id: tryout.id,
+      title: tryout.title,
+      description: tryout.description,
+      solutionPrice: tryout.solutionPrice,
+      isPublic: tryout.isPublic,
+      scheduledStart: tryout.scheduledStart,
+      createdAt: tryout.createdAt,
+      participants: tryout._count.attempts,
+    }));
   }
 }

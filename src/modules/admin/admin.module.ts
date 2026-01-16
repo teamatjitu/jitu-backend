@@ -9,7 +9,6 @@ import { AdminPaymentService } from './services/payment.service';
 import { AdminPackageService } from './services/package.service';
 import { AdminDailyService } from './services/daily.service';
 import { AdminTryoutResultService } from './services/result.service';
-import { AdminUserService } from './services/user.service';
 
 @Module({
   controllers: [AdminController],
@@ -23,7 +22,6 @@ import { AdminUserService } from './services/user.service';
     AdminPackageService,
     AdminDailyService,
     AdminTryoutResultService,
-    AdminUserService,
   ],
 })
 export class AdminModule {}

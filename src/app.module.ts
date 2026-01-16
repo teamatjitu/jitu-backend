@@ -5,6 +5,7 @@ import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from './lib/auth';
 import { ConfigModule } from '@nestjs/config';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { DailyModule } from './modules/daily/daily.module';
 import { HistoryModule } from './modules/history/history.module';
 import { ReferralModule } from './modules/referral/referral.module';
 import { ShopModule } from './modules/shop/shop.module';
@@ -22,6 +23,7 @@ import { AdminModule } from './modules/admin/admin.module';
     AuthModule.forRoot({ auth, disableGlobalAuthGuard: true }),
     PrismaModule,
     DashboardModule,
+    DailyModule,
     HistoryModule,
     ReferralModule,
     ShopModule,

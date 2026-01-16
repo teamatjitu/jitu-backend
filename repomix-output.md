@@ -1,3 +1,6168 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+# File Summary
+
+## Purpose
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+
+## File Format
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  a. A header with the file path (## File: path/to/file)
+  b. The full contents of the file in a code block
+
+## Usage Guidelines
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+
+## Notes
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+
+# Directory Structure
+```
+prisma/
+  migrations/
+    20260108144805_reinit_schema/
+      migration.sql
+    migration_lock.toml
+  schema.prisma
+  seed.ts
+src/
+  lib/
+    auth.ts
+  modules/
+    admin/
+      dto/
+        create-question.dto.ts
+        create-subtest.dto.ts
+        create-tryout.dto.ts
+        package.dto.ts
+        topup-token.dto.ts
+        update-question.dto.ts
+        update-tryout.dto.ts
+        update-user.dto.ts
+      services/
+        admin.service.ts
+        daily.service.ts
+        package.service.ts
+        payment.service.ts
+        question.service.ts
+        result.service.ts
+        subtest.service.ts
+        tryout.service.ts
+        user.service.ts
+      tests/
+        admin.service.spec.ts
+        question.service.spec.ts
+        subtest.service.spec.ts
+        tryout.service.spec.ts
+      admin.controller.spec.ts
+      admin.controller.ts
+      admin.module.ts
+    dashboard/
+      dto/
+        dashboard.dto.ts
+        update-profile.dto.ts
+      dashboard.controller.spec.ts
+      dashboard.controller.ts
+      dashboard.module.ts
+      dashboard.service.spec.ts
+      dashboard.service.ts
+    exam/
+      entities/
+        exam.entity.ts
+      exam.controller.spec.ts
+      exam.controller.ts
+      exam.module.ts
+      exam.service.spec.ts
+      exam.service.ts
+    history/
+      dto/
+        history.dto.ts
+      history.controller.spec.ts
+      history.controller.ts
+      history.module.ts
+      history.service.spec.ts
+      history.service.ts
+    referral/
+      dto/
+        referral.dto.ts
+      referral.controller.spec.ts
+      referral.controller.ts
+      referral.module.ts
+      referral.service.spec.ts
+      referral.service.ts
+    shop/
+      dto/
+        shop.dto.ts
+      shop.controller.spec.ts
+      shop.controller.ts
+      shop.module.ts
+      shop.service.spec.ts
+      shop.service.ts
+    tryout/
+      dto/
+        tryout.dto.ts
+      tryout.controller.spec.ts
+      tryout.controller.ts
+      tryout.module.ts
+      tryout.service.spec.ts
+      tryout.service.ts
+  app.controller.spec.ts
+  app.controller.ts
+  app.module.ts
+  app.service.ts
+  main.ts
+  prisma.module.ts
+  prisma.service.ts
+test/
+  app.e2e-spec.ts
+  jest-e2e.json
+.env.example
+.gitignore
+.prettierrc
+eslint.config.mjs
+nest-cli.json
+package.json
+prisma.config.ts
+README.md
+repomix-output.xml
+tsconfig.build.json
+tsconfig.json
+```
+
+# Files
+
+## File: prisma/migrations/20260108144805_reinit_schema/migration.sql
+`````sql
+-- CreateEnum
+CREATE TYPE "TryoutBatch" AS ENUM ('SNBT', 'MANDIRI');
+
+-- CreateEnum
+CREATE TYPE "TryoutStatus" AS ENUM ('NOT_STARTED', 'IN_PROGRESS', 'FINISHED');
+
+-- CreateEnum
+CREATE TYPE "SubtestName" AS ENUM ('PU', 'PPU', 'PBM', 'PK', 'LBI', 'LBE', 'PM');
+
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('USER', 'ADMIN');
+
+-- CreateEnum
+CREATE TYPE "QuestionType" AS ENUM ('PILIHAN_GANDA', 'ISIAN_SINGKAT', 'BENAR_SALAH');
+
+-- CreateEnum
+CREATE TYPE "PaymentStatus" AS ENUM ('CONFIRMED', 'PENDING', 'DECLINED', 'CANCELLED');
+
+-- CreateTable
+CREATE TABLE "user" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "emailVerified" BOOLEAN NOT NULL DEFAULT false,
+    "image" TEXT,
+    "target" VARCHAR(100),
+    "currentStreak" INTEGER NOT NULL DEFAULT 0,
+    "lastDailyDate" TIMESTAMP(3),
+    "tokenBalance" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "role" "Role" NOT NULL DEFAULT 'USER',
+
+    CONSTRAINT "user_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "session" (
+    "id" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "token" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "ipAddress" TEXT,
+    "userAgent" TEXT,
+    "userId" TEXT NOT NULL,
+
+    CONSTRAINT "session_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "account" (
+    "id" TEXT NOT NULL,
+    "accountId" TEXT NOT NULL,
+    "providerId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "accessToken" TEXT,
+    "refreshToken" TEXT,
+    "idToken" TEXT,
+    "accessTokenExpiresAt" TIMESTAMP(3),
+    "refreshTokenExpiresAt" TIMESTAMP(3),
+    "scope" TEXT,
+    "password" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "account_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "verification" (
+    "id" TEXT NOT NULL,
+    "identifier" TEXT NOT NULL,
+    "value" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "verification_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TryOut" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "solutionPrice" INTEGER NOT NULL DEFAULT 0,
+    "code" SERIAL NOT NULL,
+    "isPublic" BOOLEAN NOT NULL DEFAULT true,
+    "referralCode" TEXT,
+    "scheduledStart" TIMESTAMP(3),
+    "scheduledEnd" TIMESTAMP(3),
+    "releaseDate" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "status" "TryoutStatus" NOT NULL DEFAULT 'NOT_STARTED',
+    "batch" "TryoutBatch" NOT NULL,
+
+    CONSTRAINT "TryOut_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "DailyQuestionLog" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "questionId" TEXT NOT NULL,
+    "isCorrect" BOOLEAN NOT NULL,
+    "completedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DailyQuestionLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Subtest" (
+    "id" TEXT NOT NULL,
+    "try_out_id" TEXT NOT NULL,
+    "name" "SubtestName" NOT NULL,
+    "duration_minutes" INTEGER NOT NULL,
+    "order" INTEGER NOT NULL,
+
+    CONSTRAINT "Subtest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Question" (
+    "id" TEXT NOT NULL,
+    "subtest_id" TEXT NOT NULL,
+    "type" "QuestionType" NOT NULL,
+    "imageUrl" TEXT,
+    "narration" TEXT,
+    "content" TEXT,
+    "explanation" TEXT,
+    "points" INTEGER NOT NULL DEFAULT 1,
+    "correct_answer_short_answer" TEXT,
+
+    CONSTRAINT "Question_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "QuestionItem" (
+    "id" TEXT NOT NULL,
+    "question_id" TEXT NOT NULL,
+    "content" TEXT,
+    "is_correct" BOOLEAN NOT NULL DEFAULT false,
+    "order" INTEGER NOT NULL,
+
+    CONSTRAINT "QuestionItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TokenTransaction" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "type" TEXT NOT NULL,
+    "referenceId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TokenTransaction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TokenPackage" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "tokenAmount" INTEGER NOT NULL,
+    "price" INTEGER NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TokenPackage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Payment" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tokenPackageId" TEXT NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "tokenAmount" INTEGER NOT NULL,
+    "status" "PaymentStatus" NOT NULL,
+    "paymentMethod" TEXT NOT NULL DEFAULT 'QRIS_STATIC',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UnlockedSolution" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tryOutId" TEXT NOT NULL,
+    "unlockedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "UnlockedSolution_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TryOutAttempt" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "try_out_id" TEXT NOT NULL,
+    "total_score" DOUBLE PRECISION NOT NULL,
+    "status" TEXT NOT NULL,
+    "started_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "finished_at" TIMESTAMP(3),
+
+    CONSTRAINT "TryOutAttempt_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserAnswer" (
+    "id" TEXT NOT NULL,
+    "tryout_attempt_id" TEXT NOT NULL,
+    "question_id" TEXT NOT NULL,
+    "question_item_id" TEXT,
+    "inputText" TEXT,
+    "isCorrect" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "UserAnswer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "user_email_key" ON "user"("email");
+
+-- CreateIndex
+CREATE INDEX "session_userId_idx" ON "session"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "session_token_key" ON "session"("token");
+
+-- CreateIndex
+CREATE INDEX "account_userId_idx" ON "account"("userId");
+
+-- CreateIndex
+CREATE INDEX "verification_identifier_idx" ON "verification"("identifier");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TryOut_referralCode_key" ON "TryOut"("referralCode");
+
+-- CreateIndex
+CREATE INDEX "daily_user_date_idx" ON "DailyQuestionLog"("userId", "completedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Payment_userId_key" ON "Payment"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserAnswer_tryout_attempt_id_question_id_key" ON "UserAnswer"("tryout_attempt_id", "question_id");
+
+-- AddForeignKey
+ALTER TABLE "session" ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "account" ADD CONSTRAINT "account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DailyQuestionLog" ADD CONSTRAINT "DailyQuestionLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DailyQuestionLog" ADD CONSTRAINT "DailyQuestionLog_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Subtest" ADD CONSTRAINT "Subtest_try_out_id_fkey" FOREIGN KEY ("try_out_id") REFERENCES "TryOut"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Question" ADD CONSTRAINT "Question_subtest_id_fkey" FOREIGN KEY ("subtest_id") REFERENCES "Subtest"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "QuestionItem" ADD CONSTRAINT "QuestionItem_question_id_fkey" FOREIGN KEY ("question_id") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TokenTransaction" ADD CONSTRAINT "TokenTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_tokenPackageId_fkey" FOREIGN KEY ("tokenPackageId") REFERENCES "TokenPackage"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UnlockedSolution" ADD CONSTRAINT "UnlockedSolution_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UnlockedSolution" ADD CONSTRAINT "UnlockedSolution_tryOutId_fkey" FOREIGN KEY ("tryOutId") REFERENCES "TryOut"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TryOutAttempt" ADD CONSTRAINT "TryOutAttempt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TryOutAttempt" ADD CONSTRAINT "TryOutAttempt_try_out_id_fkey" FOREIGN KEY ("try_out_id") REFERENCES "TryOut"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserAnswer" ADD CONSTRAINT "UserAnswer_question_id_fkey" FOREIGN KEY ("question_id") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserAnswer" ADD CONSTRAINT "UserAnswer_tryout_attempt_id_fkey" FOREIGN KEY ("tryout_attempt_id") REFERENCES "TryOutAttempt"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+`````
+
+## File: prisma/migrations/migration_lock.toml
+`````toml
+# Please do not edit this file manually
+# It should be added in your version-control system (e.g., Git)
+provider = "postgresql"
+`````
+
+## File: src/modules/admin/dto/create-subtest.dto.ts
+`````typescript
+import { IsString, IsInt, IsEnum } from 'class-validator';
+import { SubtestName } from 'generated/prisma/enums';
+
+export class CreateSubtestDto {
+  @IsString()
+  tryoutId: string;
+
+  @IsEnum(SubtestName)
+  name: SubtestName;
+
+  @IsInt()
+  durationMinutes: number;
+
+  @IsInt()
+  order: number;
+}
+`````
+
+## File: src/modules/admin/dto/package.dto.ts
+`````typescript
+import { IsString, IsInt, IsNotEmpty, IsBoolean, IsOptional } from 'class-validator';
+
+export class CreatePackageDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsInt()
+  @IsNotEmpty()
+  tokenAmount: number;
+
+  @IsInt()
+  @IsNotEmpty()
+  price: number;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+}
+
+export class UpdatePackageDto {
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsInt()
+  @IsOptional()
+  tokenAmount?: number;
+
+  @IsInt()
+  @IsOptional()
+  price?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+}
+`````
+
+## File: src/modules/admin/dto/topup-token.dto.ts
+`````typescript
+import { IsInt, IsNotEmpty, IsString } from 'class-validator';
+
+export class TopupTokenDto {
+  @IsInt()
+  @IsNotEmpty()
+  amount: number;
+
+  @IsString()
+  @IsNotEmpty()
+  description: string;
+}
+`````
+
+## File: src/modules/admin/dto/update-question.dto.ts
+`````typescript
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateQuestionDto } from './create-question.dto';
+
+export class UpdateQuestionDto extends PartialType(CreateQuestionDto) {}
+`````
+
+## File: src/modules/admin/services/daily.service.ts
+`````typescript
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+
+@Injectable()
+export class AdminDailyService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Mengambil soal hari ini menggunakan algoritma Deterministik Random.
+   * Soal akan berubah setiap hari secara otomatis, tapi tetap sama untuk semua user di hari tersebut.
+   */
+  async getTodayQuestion() {
+    const totalQuestions = await this.prisma.question.count();
+    if (totalQuestions === 0) return null;
+
+    // Gunakan tanggal (YYYYMMDD) sebagai SEED
+    const now = new Date();
+    const dateSeed = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+    
+    // Pilih index berdasarkan modulus
+    const randomIndex = dateSeed % totalQuestions;
+
+    const question = await this.prisma.question.findFirst({
+      skip: randomIndex,
+      orderBy: { id: 'asc' }, // Pastikan urutan stabil agar random tidak berubah-ubah
+      include: {
+        items: true,
+        subtest: {
+          select: {
+            name: true,
+            tryOut: { select: { title: true } }
+          }
+        }
+      }
+    });
+
+    if (!question) return null;
+
+    // Ambil Statistik Pengerjaan untuk soal ini HARI INI
+    const todayStart = new Date(now.setHours(0, 0, 0, 0));
+    const todayEnd = new Date(now.setHours(23, 59, 59, 999));
+
+    const [totalAttempts, correctAnswers] = await Promise.all([
+      this.prisma.dailyQuestionLog.count({
+        where: {
+          questionId: question.id,
+          completedAt: { gte: todayStart, lte: todayEnd }
+        }
+      }),
+      this.prisma.dailyQuestionLog.count({
+        where: {
+          questionId: question.id,
+          isCorrect: true,
+          completedAt: { gte: todayStart, lte: todayEnd }
+        }
+      })
+    ]);
+
+    return {
+      ...question,
+      stats: {
+        totalAttempts,
+        correctAnswers,
+        incorrectAnswers: totalAttempts - correctAnswers,
+        successRate: totalAttempts > 0 ? (correctAnswers / totalAttempts) * 100 : 0
+      }
+    };
+  }
+}
+`````
+
+## File: src/modules/admin/services/package.service.ts
+`````typescript
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+import { CreatePackageDto, UpdatePackageDto } from '../dto/package.dto';
+
+@Injectable()
+export class AdminPackageService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getAllPackages() {
+    return await this.prisma.tokenPackage.findMany({
+      orderBy: { price: 'asc' },
+      include: {
+        _count: {
+          select: { payments: true }
+        }
+      }
+    });
+  }
+
+  async getPackageById(id: string) {
+    const pkg = await this.prisma.tokenPackage.findUnique({
+      where: { id }
+    });
+    if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
+    return pkg;
+  }
+
+  async createPackage(dto: CreatePackageDto) {
+    return await this.prisma.tokenPackage.create({
+      data: {
+        name: dto.name,
+        tokenAmount: dto.tokenAmount,
+        price: dto.price,
+        isActive: dto.isActive ?? true,
+      }
+    });
+  }
+
+  async updatePackage(id: string, dto: UpdatePackageDto) {
+    const pkg = await this.prisma.tokenPackage.findUnique({ where: { id } });
+    if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
+
+    return await this.prisma.tokenPackage.update({
+      where: { id },
+      data: dto
+    });
+  }
+
+  async togglePackageStatus(id: string) {
+    const pkg = await this.prisma.tokenPackage.findUnique({ where: { id } });
+    if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
+
+    return await this.prisma.tokenPackage.update({
+      where: { id },
+      data: { isActive: !pkg.isActive }
+    });
+  }
+
+  async deletePackage(id: string) {
+    const pkg = await this.prisma.tokenPackage.findUnique({
+      where: { id },
+      include: { _count: { select: { payments: true } } }
+    });
+
+    if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
+
+    // JANGAN HAPUS jika sudah ada transaksi (Payment) terkait demi integritas data
+    if (pkg._count.payments > 0) {
+      throw new BadRequestException(
+        'Tidak bisa menghapus paket yang sudah memiliki riwayat transaksi. Gunakan fitur Nonaktifkan saja.'
+      );
+    }
+
+    return await this.prisma.tokenPackage.delete({
+      where: { id }
+    });
+  }
+}
+`````
+
+## File: src/modules/admin/services/payment.service.ts
+`````typescript
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+import { PaymentStatus, Prisma } from '../../../../generated/prisma/client';
+
+@Injectable()
+export class AdminPaymentService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getAllPayments(
+    page = 1,
+    limit = 10,
+    status?: PaymentStatus,
+    search?: string,
+  ) {
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.PaymentWhereInput = {};
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (search) {
+      where.user = {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.payment.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+          tokenPackage: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      }),
+      this.prisma.payment.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getPaymentStats() {
+    const [totalRevenue, totalSuccess, totalPending] = await Promise.all([
+      this.prisma.payment.aggregate({
+        where: { status: PaymentStatus.CONFIRMED },
+        _sum: { amount: true },
+      }),
+      this.prisma.payment.count({
+        where: { status: PaymentStatus.CONFIRMED },
+      }),
+      this.prisma.payment.count({
+        where: { status: PaymentStatus.PENDING },
+      }),
+    ]);
+
+    return {
+      totalRevenue: totalRevenue._sum.amount || 0,
+      totalSuccess,
+      totalPending,
+    };
+  }
+
+  async confirmPayment(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Data pembayaran tidak ditemukan');
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException(
+        'Hanya pembayaran berstatus PENDING yang bisa dikonfirmasi',
+      );
+    }
+
+    // CRITICAL: Database Transaction
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Update Status Payment
+      const updatedPayment = await tx.payment.update({
+        where: { id: paymentId },
+        data: { status: PaymentStatus.CONFIRMED },
+      });
+
+      // 2. Tambah Token User
+      await tx.user.update({
+        where: { id: payment.userId },
+        data: {
+          tokenBalance: { increment: payment.tokenAmount },
+        },
+      });
+
+      // 3. Catat di Riwayat Transaksi Token
+      await tx.tokenTransaction.create({
+        data: {
+          userId: payment.userId,
+          amount: payment.tokenAmount,
+          type: 'TOPUP',
+          referenceId: `PAYMENT_ID: ${paymentId}`,
+        },
+      });
+
+      return updatedPayment;
+    });
+  }
+
+  async rejectPayment(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Data pembayaran tidak ditemukan');
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException(
+        'Hanya pembayaran berstatus PENDING yang bisa ditolak',
+      );
+    }
+
+    return await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: PaymentStatus.DECLINED },
+    });
+  }
+}
+`````
+
+## File: src/modules/admin/services/result.service.ts
+`````typescript
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+
+@Injectable()
+export class AdminTryoutResultService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getLeaderboard(tryoutId: string, page = 1, limit = 50) {
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.prisma.tryOutAttempt.findMany({
+        where: {
+          tryOutId: tryoutId,
+          status: 'FINISHED',
+        },
+        orderBy: { totalScore: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+              image: true,
+              target: true,
+            },
+          },
+        },
+      }),
+      this.prisma.tryOutAttempt.count({
+        where: { tryOutId: tryoutId, status: 'FINISHED' },
+      }),
+    ]);
+
+    // Tambahkan posisi rank (1, 2, 3...)
+    const rankedData = data.map((item, index) => ({
+      ...item,
+      rank: skip + index + 1,
+    }));
+
+    return {
+      data: rankedData,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getTryoutStats(tryoutId: string) {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id: tryoutId },
+      select: { title: true },
+    });
+
+    if (!tryout) throw new NotFoundException('Tryout tidak ditemukan');
+
+    const aggregate = await this.prisma.tryOutAttempt.aggregate({
+      where: { tryOutId: tryoutId, status: 'FINISHED' },
+      _avg: { totalScore: true },
+      _max: { totalScore: true },
+      _min: { totalScore: true },
+      _count: { id: true },
+    });
+
+    // Distribusi Nilai (Kelompokkan skor)
+    const attempts = await this.prisma.tryOutAttempt.findMany({
+      where: { tryOutId: tryoutId, status: 'FINISHED' },
+      select: { totalScore: true },
+    });
+
+    const distribution = {
+      under400: attempts.filter((a) => a.totalScore < 400).length,
+      range400to600: attempts.filter(
+        (a) => a.totalScore >= 400 && a.totalScore < 600,
+      ).length,
+      range600to800: attempts.filter(
+        (a) => a.totalScore >= 600 && a.totalScore < 800,
+      ).length,
+      above800: attempts.filter((a) => a.totalScore >= 800).length,
+    };
+
+    return {
+      title: tryout.title,
+      totalParticipants: aggregate._count.id,
+      averageScore: aggregate._avg.totalScore || 0,
+      highestScore: aggregate._max.totalScore || 0,
+      lowestScore: aggregate._min.totalScore || 0,
+      distribution,
+    };
+  }
+
+  async exportResults(tryoutId: string) {
+    const data = await this.prisma.tryOutAttempt.findMany({
+      where: {
+        tryOutId: tryoutId,
+        status: 'FINISHED',
+      },
+      orderBy: { totalScore: 'desc' },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            target: true,
+          },
+        },
+      },
+    });
+
+    return data.map((item, index) => ({
+      Rank: index + 1,
+      Nama: item.user.name,
+      Email: item.user.email,
+      Target: item.user.target || '-',
+      Skor: item.totalScore,
+      Waktu_Mulai: item.startedAt,
+      Waktu_Selesai: item.finishedAt,
+    }));
+  }
+}
+`````
+
+## File: src/modules/admin/tests/admin.service.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { AdminService } from '../services/admin.service';
+import { PrismaService } from '../../../prisma.service';
+import { CreateTryoutDto } from '../dto/create-tryout.dto';
+import { UpdateTryoutDto } from '../dto/update-tryout.dto';
+import { NotFoundException } from '@nestjs/common';
+
+// Redefine enums locally to avoid Prisma client resolution issues in tests
+enum TryoutBatch {
+  SNBT = 'SNBT',
+  MANDIRI = 'MANDIRI',
+}
+
+enum TryoutStatus {
+  NOT_STARTED = 'NOT_STARTED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  FINISHED = 'FINISHED',
+}
+
+describe('AdminService', () => {
+  let service: AdminService;
+  let prisma: PrismaService;
+
+  // Mock Prisma Service
+  const mockPrismaService = {
+    tryOut: {
+      count: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AdminService,
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
+        },
+      ],
+    }).compile();
+
+    service = module.get<AdminService>(AdminService);
+    prisma = module.get<PrismaService>(PrismaService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('getDashboardStats', () => {
+    it('should return dashboard statistics correctly', async () => {
+      // Arrange
+      mockPrismaService.tryOut.count
+        .mockResolvedValueOnce(10) // total
+        .mockResolvedValueOnce(5) // active
+        .mockResolvedValueOnce(5); // upcoming
+
+      // Act
+      const result = await service.getDashboardStats();
+
+      // Assert
+      expect(result).toEqual({
+        totalTryout: 10,
+        totalActiveTryout: 5,
+        totalUpcomingTryout: 5,
+      });
+      expect(prisma.tryOut.count).toHaveBeenCalledTimes(3);
+    });
+  });
+});
+`````
+
+## File: src/modules/admin/tests/question.service.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { AdminQuestionService } from '../services/question.service';
+import { PrismaService } from '../../../prisma.service';
+import { ConfigService } from '@nestjs/config';
+import { NotFoundException } from '@nestjs/common';
+
+// Manually define enums to avoid Prisma client import issues in tests
+enum QuestionType {
+  PILIHAN_GANDA = 'PILIHAN_GANDA',
+  ISIAN_SINGKAT = 'ISIAN_SINGKAT',
+  BENAR_SALAH = 'BENAR_SALAH',
+}
+
+describe('AdminQuestionService', () => {
+  let service: AdminQuestionService;
+  let prisma: PrismaService;
+
+  const mockPrismaService = {
+    question: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    subtest: {
+      findUnique: jest.fn(),
+    },
+  };
+
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      if (key === 'CLOUDINARY_NAME') return 'test-cloud';
+      if (key === 'CLOUDINARY_API_KEY') return 'test-key';
+      if (key === 'CLOUDINARY_API_SECRET') return 'test-secret';
+      return null;
+    }),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AdminQuestionService,
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
+      ],
+    }).compile();
+
+    service = module.get<AdminQuestionService>(AdminQuestionService);
+    prisma = module.get<PrismaService>(PrismaService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('createQuestion', () => {
+    it('should create a question with nested items', async () => {
+      const subtestId = 'subtest-1';
+      const dto = {
+        type: QuestionType.PILIHAN_GANDA as any,
+        content: '<p>Soal 1</p>',
+        explanation: 'Penjelasan',
+        items: [
+          { content: 'Opsi A', isCorrect: true, order: 0 },
+          { content: 'Opsi B', isCorrect: false, order: 1 },
+        ],
+      };
+
+      const mockCreatedQuestion = { id: 'q1', ...dto };
+      mockPrismaService.question.create.mockResolvedValue(mockCreatedQuestion);
+
+      const result = await service.createQuestion(dto as any, subtestId);
+
+      expect(prisma.question.create).toHaveBeenCalledWith({
+        data: {
+          subtestId,
+          type: dto.type,
+          content: dto.content,
+          explanation: dto.explanation,
+          correctAnswer: undefined,
+          items: {
+            create: dto.items.map((item) => ({
+              content: item.content,
+              isCorrect: item.isCorrect,
+              order: item.order,
+            })),
+          },
+        },
+        include: { items: true },
+      });
+      expect(result).toEqual(mockCreatedQuestion);
+    });
+  });
+
+  describe('getQuestionBySubtestId', () => {
+    it('should throw NotFoundException if subtest does not exist', async () => {
+      mockPrismaService.subtest.findUnique.mockResolvedValue(null);
+      await expect(service.getQuestionBySubtestId('invalid-s')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should return questions if subtest exists', async () => {
+      mockPrismaService.subtest.findUnique.mockResolvedValue({ id: 's1' });
+      const mockQuestions = [{ id: 'q1', type: QuestionType.PILIHAN_GANDA }];
+      mockPrismaService.question.findMany.mockResolvedValue(mockQuestions);
+
+      const result = await service.getQuestionBySubtestId('s1');
+
+      expect(prisma.question.findMany).toHaveBeenCalledWith({
+        where: { subtestId: 's1' },
+        select: {
+          id: true,
+          type: true,
+          imageUrl: true,
+          content: true,
+        },
+      });
+      expect(result).toEqual(mockQuestions);
+    });
+  });
+
+  describe('updateQuestion', () => {
+    it('should update a question and its items', async () => {
+      const questionId = 'q1';
+      const dto = {
+        type: QuestionType.ISIAN_SINGKAT as any,
+        content: 'Updated content',
+        correctAnswer: 'Jawaban',
+        items: [],
+      };
+
+      const mockUpdatedQuestion = { id: questionId, ...dto };
+      mockPrismaService.question.update.mockResolvedValue(mockUpdatedQuestion);
+
+      const result = await service.updateQuestion(dto as any, questionId);
+
+      expect(prisma.question.update).toHaveBeenCalledWith({
+        where: { id: questionId },
+        data: {
+          type: dto.type,
+          content: dto.content,
+          explanation: undefined,
+          correctAnswer: dto.correctAnswer,
+          items: {
+            create: [],
+          },
+        },
+        include: { items: true },
+      });
+      expect(result).toEqual(mockUpdatedQuestion);
+    });
+  });
+
+  describe('deleteQuestion', () => {
+    it('should delete a question', async () => {
+      mockPrismaService.question.delete.mockResolvedValue({ id: 'q1' });
+      await service.deleteQuestion('q1');
+      expect(prisma.question.delete).toHaveBeenCalledWith({
+        where: { id: 'q1' },
+      });
+    });
+  });
+});
+`````
+
+## File: src/modules/admin/tests/subtest.service.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { AdminSubtestService } from '../services/subtest.service';
+import { PrismaService } from '../../../prisma.service';
+import { ConfigService } from '@nestjs/config';
+import { NotFoundException } from '@nestjs/common';
+
+enum SubtestName {
+  PU = 'PU',
+  PPU = 'PPU',
+  PBM = 'PBM',
+  PK = 'PK',
+  LBI = 'LBI',
+  LBE = 'LBE',
+  PM = 'PM',
+}
+
+// test save
+
+describe('AdminSubtestService', () => {
+  let service: AdminSubtestService;
+  let prisma: PrismaService;
+
+  const mockPrismaService = {
+    tryOut: {
+      findUnique: jest.fn(),
+    },
+    subtest: {
+      create: jest.fn(),
+      createMany: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+    },
+  };
+
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      if (key === 'CLOUDINARY_NAME') return 'test-cloud';
+      if (key === 'CLOUDINARY_API_KEY') return 'test-key';
+      if (key === 'CLOUDINARY_API_SECRET') return 'test-secret';
+      return null;
+    }),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AdminSubtestService,
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
+      ],
+    }).compile();
+
+    service = module.get<AdminSubtestService>(AdminSubtestService);
+    prisma = module.get<PrismaService>(PrismaService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('createUtbkSubtests', () => {
+    it('should create 7 UTBK subtests', async () => {
+      mockPrismaService.subtest.createMany.mockResolvedValue({ count: 7 });
+
+      const result = await service.createUtbkSubtests('tryout-1');
+
+      expect(prisma.subtest.createMany).toHaveBeenCalledWith({
+        data: expect.arrayContaining([
+          expect.objectContaining({ name: SubtestName.PU, order: 1 }),
+          expect.objectContaining({ name: SubtestName.PM, order: 7 }),
+        ]),
+      });
+      expect(result).toEqual({ count: 7 });
+    });
+  });
+
+  describe('createSubtest', () => {
+    it('should throw NotFoundException if tryout does not exist', async () => {
+      mockPrismaService.tryOut.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.createSubtest({
+          tryoutId: 'invalid-id',
+          name: SubtestName.PU as any,
+          durationMinutes: 30,
+          order: 1,
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should create a subtest if tryout exists', async () => {
+      mockPrismaService.tryOut.findUnique.mockResolvedValue({ id: 'tryout-1' });
+      mockPrismaService.subtest.create.mockResolvedValue({ id: 'subtest-1' });
+
+      const dto = {
+        tryoutId: 'tryout-1',
+        name: SubtestName.PU as any,
+        durationMinutes: 30,
+        order: 1,
+      };
+
+      const result = await service.createSubtest(dto);
+
+      expect(prisma.subtest.create).toHaveBeenCalledWith({
+        data: {
+          tryOutId: dto.tryoutId,
+          name: dto.name,
+          durationMinutes: dto.durationMinutes,
+          order: dto.order,
+        },
+      });
+      expect(result).toEqual({ id: 'subtest-1' });
+    });
+  });
+
+  describe('getSubtestsByTryoutId', () => {
+    it('should return all subtests for a tryout', async () => {
+      mockPrismaService.tryOut.findUnique.mockResolvedValue({ id: 'tryout-1' });
+      const mockSubtests = [{ id: 's1' }, { id: 's2' }];
+      mockPrismaService.subtest.findMany.mockResolvedValue(mockSubtests);
+
+      const result = await service.getSubtestsByTryoutId('tryout-1');
+
+      expect(prisma.subtest.findMany).toHaveBeenCalledWith({
+        where: { tryOutId: 'tryout-1' },
+        orderBy: { order: 'asc' },
+      });
+      expect(result).toEqual(mockSubtests);
+    });
+  });
+
+  describe('deleteSubtest', () => {
+    it('should delete a subtest if it exists', async () => {
+      mockPrismaService.subtest.findUnique.mockResolvedValue({ id: 's1' });
+      mockPrismaService.subtest.delete.mockResolvedValue({ id: 's1' });
+
+      await service.deleteSubtest('s1');
+
+      expect(prisma.subtest.delete).toHaveBeenCalledWith({
+        where: { id: 's1' },
+      });
+    });
+
+    it('should throw NotFoundException if subtest not found', async () => {
+      mockPrismaService.subtest.findUnique.mockResolvedValue(null);
+      await expect(service.deleteSubtest('s1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+});
+`````
+
+## File: src/modules/admin/tests/tryout.service.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { AdminTryoutService } from '../services/tryout.service';
+import { PrismaService } from '../../../prisma.service';
+import { CreateTryoutDto } from '../dto/create-tryout.dto';
+import { UpdateTryoutDto } from '../dto/update-tryout.dto';
+import { NotFoundException } from '@nestjs/common';
+
+// Redefine enums locally to avoid Prisma client resolution issues in tests
+enum TryoutBatch {
+  SNBT = 'SNBT',
+  MANDIRI = 'MANDIRI',
+}
+
+enum TryoutStatus {
+  NOT_STARTED = 'NOT_STARTED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  FINISHED = 'FINISHED',
+}
+
+describe('AdminService', () => {
+  let tryoutService: AdminTryoutService;
+  let prisma: PrismaService;
+
+  // Mock Prisma Service
+  const mockPrismaService = {
+    tryOut: {
+      count: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AdminTryoutService,
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
+        },
+      ],
+    }).compile();
+
+    tryoutService = module.get<AdminTryoutService>(AdminTryoutService);
+    prisma = module.get<PrismaService>(PrismaService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(tryoutService).toBeDefined();
+  });
+
+  describe('getTryouts', () => {
+    it('should return an array of tryouts', async () => {
+      // Arrange
+      const mockTryouts = [
+        { id: '1', title: 'Tryout 1' },
+        { id: '2', title: 'Tryout 2' },
+      ];
+      mockPrismaService.tryOut.findMany.mockResolvedValue(mockTryouts);
+
+      // Act
+      const result = await tryoutService.getTryouts();
+
+      // Assert
+      expect(result).toEqual(mockTryouts);
+      expect(prisma.tryOut.findMany).toHaveBeenCalledWith({
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+  });
+
+  describe('createTryout', () => {
+    const baseDto: CreateTryoutDto = {
+      title: 'New Tryout',
+      description: 'Desc',
+      solutionPrice: 10,
+      batch: TryoutBatch.SNBT as any,
+      releaseDate: new Date().toISOString(),
+      scheduledEnd: new Date(
+        new Date().setDate(new Date().getDate() + 5),
+      ).toISOString(),
+      scheduledStart: '', // to be set in tests
+    };
+
+    it('should create a tryout with status IN_PROGRESS if scheduledStart is now or past', async () => {
+      // Arrange
+      const pastDate = new Date();
+      pastDate.setDate(pastDate.getDate() - 1);
+
+      const dto = { ...baseDto, scheduledStart: pastDate.toISOString() };
+
+      const expectedResult = {
+        id: '1',
+        title: dto.title,
+        status: TryoutStatus.IN_PROGRESS,
+      };
+      mockPrismaService.tryOut.create.mockResolvedValue(expectedResult);
+
+      // Act
+      const result = await tryoutService.createTryout(dto);
+
+      // Assert
+      expect(prisma.tryOut.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'IN_PROGRESS',
+            scheduledStart: expect.any(Date),
+          }),
+        }),
+      );
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('should create a tryout with status NOT_STARTED if scheduledStart is future', async () => {
+      // Arrange
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 2); // 2 days in future
+
+      const dto = { ...baseDto, scheduledStart: futureDate.toISOString() };
+
+      const expectedResult = {
+        id: '1',
+        title: dto.title,
+        status: TryoutStatus.NOT_STARTED,
+      };
+      mockPrismaService.tryOut.create.mockResolvedValue(expectedResult);
+
+      // Act
+      const result = await tryoutService.createTryout(dto);
+
+      // Assert
+      expect(prisma.tryOut.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'NOT_STARTED',
+            scheduledStart: expect.any(Date),
+          }),
+        }),
+      );
+      expect(result).toEqual(expectedResult);
+    });
+  });
+
+  describe('updateTryout', () => {
+    const updateDto: UpdateTryoutDto = {
+      title: 'Updated Title',
+      solutionPrice: 20,
+    };
+
+    it('should throw NotFoundException if tryout does not exist', async () => {
+      // Arrange
+      mockPrismaService.tryOut.findUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        tryoutService.updateTryout('non-existent-id', updateDto),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should update and return tryout if it exists', async () => {
+      // Arrange
+      mockPrismaService.tryOut.findUnique.mockResolvedValue({ id: '1' });
+      const expectedResult = { id: '1', ...updateDto };
+      mockPrismaService.tryOut.update.mockResolvedValue(expectedResult);
+
+      // Act
+      const result = await tryoutService.updateTryout('1', updateDto);
+
+      // Assert
+      expect(prisma.tryOut.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: '1' },
+          data: expect.objectContaining({
+            title: updateDto.title,
+            solutionPrice: updateDto.solutionPrice,
+          }),
+        }),
+      );
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('should parse dates correctly when updating', async () => {
+      // Arrange
+      const dateDto: UpdateTryoutDto = {
+        scheduledStart: '2025-01-01T00:00:00Z',
+      };
+      mockPrismaService.tryOut.findUnique.mockResolvedValue({ id: '1' });
+      mockPrismaService.tryOut.update.mockResolvedValue({ id: '1' });
+
+      // Act
+      await tryoutService.updateTryout('1', dateDto);
+
+      // Assert
+      expect(prisma.tryOut.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            scheduledStart: new Date('2025-01-01T00:00:00Z'),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('deleteTryout', () => {
+    it('should throw NotFoundException if tryout does not exist', async () => {
+      // Arrange
+      mockPrismaService.tryOut.findUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        tryoutService.deleteTryout('non-existent-id'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should delete and return tryout info if exists', async () => {
+      // Arrange
+      const mockTryout = { id: '1', title: 'To Be Deleted' };
+      mockPrismaService.tryOut.findUnique.mockResolvedValue(mockTryout);
+      mockPrismaService.tryOut.delete.mockResolvedValue(mockTryout);
+
+      // Act
+      const result = await tryoutService.deleteTryout('1');
+
+      // Assert
+      expect(prisma.tryOut.delete).toHaveBeenCalledWith({
+        where: { id: '1' },
+        select: { id: true, title: true },
+      });
+      expect(result).toEqual(mockTryout);
+    });
+  });
+});
+`````
+
+## File: src/modules/dashboard/dto/update-profile.dto.ts
+`````typescript
+import { IsOptional, IsString, MaxLength } from 'class-validator';
+
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  target?: string;
+}
+`````
+
+## File: src/modules/dashboard/dashboard.controller.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { DashboardController } from './dashboard.controller';
+
+describe('DashboardController', () => {
+  let controller: DashboardController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [DashboardController],
+    }).compile();
+
+    controller = module.get<DashboardController>(DashboardController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+`````
+
+## File: src/modules/dashboard/dashboard.module.ts
+`````typescript
+import { Module } from '@nestjs/common';
+import { DashboardController } from './dashboard.controller';
+import { DashboardService } from './dashboard.service';
+import { PrismaService } from '../../prisma.service';
+
+@Module({
+  controllers: [DashboardController],
+  providers: [DashboardService, PrismaService],
+})
+export class DashboardModule {}
+`````
+
+## File: src/modules/exam/entities/exam.entity.ts
+`````typescript
+export class Exam {}
+`````
+
+## File: src/modules/exam/exam.controller.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { ExamController } from './exam.controller';
+import { ExamService } from './exam.service';
+
+describe('ExamController', () => {
+  let controller: ExamController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [ExamController],
+      providers: [ExamService],
+    }).compile();
+
+    controller = module.get<ExamController>(ExamController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+`````
+
+## File: src/modules/exam/exam.module.ts
+`````typescript
+import { Module } from '@nestjs/common';
+import { ExamService } from './exam.service';
+import { ExamController } from './exam.controller';
+
+@Module({
+  controllers: [ExamController],
+  providers: [ExamService],
+})
+export class ExamModule {}
+`````
+
+## File: src/modules/history/history.controller.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { HistoryController } from './history.controller';
+
+describe('HistoryController', () => {
+  let controller: HistoryController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [HistoryController],
+    }).compile();
+
+    controller = module.get<HistoryController>(HistoryController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+`````
+
+## File: src/modules/history/history.module.ts
+`````typescript
+import { Module } from '@nestjs/common';
+import { HistoryController } from './history.controller';
+import { HistoryService } from './history.service';
+
+@Module({
+  controllers: [HistoryController],
+  providers: [HistoryService]
+})
+export class HistoryModule {}
+`````
+
+## File: src/modules/referral/dto/referral.dto.ts
+`````typescript
+export class ReferralCheckResultDto {
+  exists: boolean;
+  message: string;
+  ownerName?: string;
+  benefits?: string[];
+}
+`````
+
+## File: src/modules/referral/referral.controller.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { ReferralController } from './referral.controller';
+
+describe('ReferralController', () => {
+  let controller: ReferralController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [ReferralController],
+    }).compile();
+
+    controller = module.get<ReferralController>(ReferralController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+`````
+
+## File: src/modules/referral/referral.controller.ts
+`````typescript
+import { Controller } from '@nestjs/common';
+
+@Controller('referral')
+export class ReferralController {}
+`````
+
+## File: src/modules/referral/referral.module.ts
+`````typescript
+import { Module } from '@nestjs/common';
+import { ReferralController } from './referral.controller';
+import { ReferralService } from './referral.service';
+
+@Module({
+  controllers: [ReferralController],
+  providers: [ReferralService]
+})
+export class ReferralModule {}
+`````
+
+## File: src/modules/referral/referral.service.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { ReferralService } from './referral.service';
+
+describe('ReferralService', () => {
+  let service: ReferralService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [ReferralService],
+    }).compile();
+
+    service = module.get<ReferralService>(ReferralService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
+`````
+
+## File: src/modules/referral/referral.service.ts
+`````typescript
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class ReferralService {}
+`````
+
+## File: src/modules/shop/dto/shop.dto.ts
+`````typescript
+export class TokenPackageDto {
+  id: number;
+  tokenAmount: number;
+  title: string;
+  subtitle: string;
+  originalPrice: number;
+  discount: number;
+  finalPrice: number;
+  savings: number;
+  pricePerToken: string;
+  categoryBg: string;
+}
+`````
+
+## File: src/modules/shop/shop.controller.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { ShopController } from './shop.controller';
+
+describe('ShopController', () => {
+  let controller: ShopController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [ShopController],
+    }).compile();
+
+    controller = module.get<ShopController>(ShopController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+`````
+
+## File: src/modules/shop/shop.module.ts
+`````typescript
+import { Module } from '@nestjs/common';
+import { ShopController } from './shop.controller';
+import { ShopService } from './shop.service';
+
+@Module({
+  controllers: [ShopController],
+  providers: [ShopService]
+})
+export class ShopModule {}
+`````
+
+## File: src/app.controller.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+describe('AppController', () => {
+  let appController: AppController;
+
+  beforeEach(async () => {
+    const app: TestingModule = await Test.createTestingModule({
+      controllers: [AppController],
+      providers: [AppService],
+    }).compile();
+
+    appController = app.get<AppController>(AppController);
+  });
+
+  describe('root', () => {
+    it('should return "Hello World!"', () => {
+      expect(appController.getHello()).toBe('Hello World!');
+    });
+  });
+});
+`````
+
+## File: src/app.controller.ts
+`````typescript
+import { Controller, Get } from '@nestjs/common';
+import { AppService } from './app.service';
+
+@Controller()
+export class AppController {
+  constructor(private readonly appService: AppService) {}
+
+  @Get()
+  getHello(): string {
+    return this.appService.getHello();
+  }
+}
+`````
+
+## File: src/app.service.ts
+`````typescript
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class AppService {
+  getHello(): string {
+    return 'Hello World!';
+  }
+}
+`````
+
+## File: src/prisma.module.ts
+`````typescript
+import { Global, Module } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
+
+@Global()
+@Module({
+  providers: [PrismaService],
+  exports: [PrismaService],
+})
+export class PrismaModule {}
+`````
+
+## File: src/prisma.service.ts
+`````typescript
+import { Injectable } from '@nestjs/common';
+import { PrismaClient } from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+@Injectable()
+export class PrismaService extends PrismaClient {
+  constructor() {
+    const adapter = new PrismaPg({
+      connectionString: process.env.DATABASE_URL as string,
+    });
+
+    super({ adapter });
+  }
+}
+`````
+
+## File: test/app.e2e-spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
+import { App } from 'supertest/types';
+import { AppModule } from './../src/app.module';
+
+describe('AppController (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeEach(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  it('/ (GET)', () => {
+    return request(app.getHttpServer())
+      .get('/')
+      .expect(200)
+      .expect('Hello World!');
+  });
+});
+`````
+
+## File: test/jest-e2e.json
+`````json
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  }
+}
+`````
+
+## File: .gitignore
+`````
+# compiled output
+/dist
+/node_modules
+/build
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+
+# Tests
+/coverage
+/.nyc_output
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# temp directory
+.temp
+.tmp
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+/generated/prisma
+`````
+
+## File: .prettierrc
+`````
+{
+  "singleQuote": true,
+  "trailingComma": "all"
+}
+`````
+
+## File: eslint.config.mjs
+`````javascript
+// @ts-check
+import eslint from '@eslint/js';
+import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
+
+export default tseslint.config(
+  {
+    ignores: ['eslint.config.mjs'],
+  },
+  eslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
+  eslintPluginPrettierRecommended,
+  {
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.jest,
+      },
+      sourceType: 'commonjs',
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-floating-promises': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn'
+    },
+  },
+);
+`````
+
+## File: nest-cli.json
+`````json
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true
+  }
+}
+`````
+
+## File: README.md
+`````markdown
+<p align="center">
+  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+</p>
+
+[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
+[circleci-url]: https://circleci.com/gh/nestjs/nest
+
+  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
+    <p align="center">
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
+<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
+<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
+<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
+<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
+  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
+    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
+  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+</p>
+  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
+  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+
+## Description
+
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+
+## Project setup
+
+```bash
+$ pnpm install
+```
+
+## Compile and run the project
+
+```bash
+# development
+$ pnpm run start
+
+# watch mode
+$ pnpm run start:dev
+
+# production mode
+$ pnpm run start:prod
+```
+
+## Run tests
+
+```bash
+# unit tests
+$ pnpm run test
+
+# e2e tests
+$ pnpm run test:e2e
+
+# test coverage
+$ pnpm run test:cov
+```
+
+## Deployment
+
+When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+
+If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+
+```bash
+$ pnpm install -g @nestjs/mau
+$ mau deploy
+```
+
+With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+
+## Resources
+
+Check out a few resources that may come in handy when working with NestJS:
+
+- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
+- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
+- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
+- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
+- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
+- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
+- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
+- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+
+## Support
+
+Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+
+## Stay in touch
+
+- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
+- Website - [https://nestjs.com](https://nestjs.com/)
+- Twitter - [@nestframework](https://twitter.com/nestframework)
+
+## License
+
+Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+`````
+
+## File: tsconfig.build.json
+`````json
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+}
+`````
+
+## File: tsconfig.json
+`````json
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "noFallthroughCasesInSwitch": false
+  }
+}
+`````
+
+## File: src/modules/admin/dto/create-question.dto.ts
+`````typescript
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsInt,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
+import { QuestionType } from 'generated/prisma/enums';
+import { Type } from 'class-transformer';
+
+export class CreateQuestionItemDto {
+  @IsString()
+  @IsNotEmpty()
+  content: string;
+
+  @IsOptional()
+  isCorrect?: boolean;
+
+  @IsInt()
+  order: number;
+}
+
+export class CreateQuestionDto {
+  @IsEnum(QuestionType)
+  type: QuestionType;
+
+  @IsString()
+  @IsNotEmpty()
+  content: string;
+
+  @IsString()
+  @IsOptional()
+  explanation?: string;
+
+  @IsInt()
+  @IsOptional()
+  points?: number;
+
+  // kalau isian singkat wajib diisi
+  @IsString()
+  @IsOptional()
+  correctAnswer?: string;
+
+  // wajib jika BS atau PG
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateQuestionItemDto)
+  @IsOptional()
+  items?: CreateQuestionItemDto[];
+}
+`````
+
+## File: src/modules/admin/dto/create-tryout.dto.ts
+`````typescript
+import {
+  IsString,
+  IsInt,
+  IsEnum,
+  IsDateString,
+  IsOptional,
+  IsBoolean,
+} from 'class-validator';
+import { TryoutBatch } from 'generated/prisma/client';
+
+export class CreateTryoutDto {
+  @IsString()
+  title: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  // ini harga token
+  @IsInt()
+  solutionPrice: number;
+
+  @IsEnum(TryoutBatch)
+  batch: TryoutBatch;
+
+  @IsDateString()
+  releaseDate: string;
+
+  @IsDateString()
+  scheduledEnd: string;
+
+  @IsDateString()
+  scheduledStart: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
+
+  @IsString()
+  @IsOptional()
+  referralCode?: string;
+}
+`````
+
+## File: src/modules/admin/dto/update-tryout.dto.ts
+`````typescript
+import {
+  IsString,
+  IsInt,
+  IsDateString,
+  IsOptional,
+  IsBoolean,
+} from 'class-validator';
+
+export class UpdateTryoutDto {
+  @IsString()
+  @IsOptional()
+  title?: string;
+
+  @IsInt()
+  @IsOptional()
+  solutionPrice?: number;
+
+  @IsDateString()
+  @IsOptional()
+  releaseDate?: string;
+
+  @IsDateString()
+  @IsOptional()
+  scheduledStart?: string;
+
+  @IsDateString()
+  @IsOptional()
+  scheduledEnd?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
+
+  @IsString()
+  @IsOptional()
+  referralCode?: string;
+}
+`````
+
+## File: src/modules/admin/dto/update-user.dto.ts
+`````typescript
+import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import { Role } from 'generated/prisma/enums';
+
+export class UpdateUserDto {
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  image?: string;
+
+  @IsEnum(Role)
+  @IsOptional()
+  role?: Role;
+
+  @IsOptional()
+  @IsInt()
+  tokenBalance?: number;
+
+  @IsString()
+  @IsOptional()
+  password?: string;
+}
+`````
+
+## File: src/modules/admin/admin.controller.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { AdminController } from './admin.controller';
+import { AdminService } from './services/admin.service';
+
+describe('AdminController', () => {
+  let controller: AdminController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [AdminController],
+      providers: [AdminService],
+    }).compile();
+
+    controller = module.get<AdminController>(AdminController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+`````
+
+## File: src/modules/exam/exam.service.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { ExamService } from './exam.service';
+import { PrismaService } from '../../prisma.service';
+
+const prismaMock = {
+  tryOutAttempt: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
+
+  questionItem: {
+    findUnique: jest.fn(),
+  },
+
+  userAnswer: {
+    upsert: jest.fn(),
+  },
+};
+
+describe('ExamService', () => {
+  let service: ExamService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ExamService,
+
+        { provide: PrismaService, useValue: prismaMock },
+      ],
+    }).compile();
+
+    service = module.get<ExamService>(ExamService);
+
+    jest.clearAllMocks();
+  });
+
+  describe('startExam', () => {
+    it('should resume existing attempt if found', async () => {
+      const mockAttempt = { id: 'attempt-1', status: 'IN_PROGRESS' };
+
+      prismaMock.tryOutAttempt.findFirst.mockResolvedValue(mockAttempt);
+
+      const result = await service.startExam('tryout-1', 'user-1');
+
+      expect(prismaMock.tryOutAttempt.findFirst).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          tryOutId: 'tryout-1',
+          status: 'IN_PROGRESS',
+        },
+      });
+
+      expect(result).toEqual(mockAttempt);
+    });
+
+    it('should create new attempt if not found', async () => {
+      prismaMock.tryOutAttempt.findFirst.mockResolvedValue(null);
+
+      const newAttempt = { id: 'attempt-2', status: 'IN_PROGRESS' };
+
+      prismaMock.tryOutAttempt.create.mockResolvedValue(newAttempt);
+
+      const result = await service.startExam('tryout-1', 'user-1');
+
+      expect(prismaMock.tryOutAttempt.create).toHaveBeenCalled();
+
+      expect(result).toEqual(newAttempt);
+    });
+  });
+
+  describe('saveAnswer', () => {
+    it('should mark answer as CORRECT if selected item is correct', async () => {
+      prismaMock.questionItem.findUnique.mockResolvedValue({
+        id: 'opt-B',
+
+        isCorrect: true, // Jawaban Benar
+      });
+
+      const mockSavedAnswer = { id: 'ans-1', isCorrect: true };
+
+      prismaMock.userAnswer.upsert.mockResolvedValue(mockSavedAnswer);
+
+      const result = await service.saveAnswer('attempt-1', 'q-1', 'opt-B');
+
+      expect(prismaMock.userAnswer.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            isCorrect: true,
+
+            questionItemId: 'opt-B',
+          }),
+
+          update: expect.objectContaining({
+            isCorrect: true,
+
+            questionItemId: 'opt-B',
+          }),
+        }),
+      );
+
+      expect(result.isCorrect).toBe(true);
+    });
+
+    it('should mark answer as INCORRECT if selected item is wrong', async () => {
+      prismaMock.questionItem.findUnique.mockResolvedValue({
+        id: 'opt-A',
+
+        isCorrect: false, // Jawaban Salah
+      });
+
+      const mockSavedAnswer = { id: 'ans-1', isCorrect: false };
+
+      prismaMock.userAnswer.upsert.mockResolvedValue(mockSavedAnswer);
+
+      await service.saveAnswer('attempt-1', 'q-1', 'opt-A');
+
+      expect(prismaMock.userAnswer.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ isCorrect: false }),
+
+          update: expect.objectContaining({ isCorrect: false }),
+        }),
+      );
+    });
+
+    it('should throw error if question item invalid', async () => {
+      prismaMock.questionItem.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.saveAnswer('attempt-1', 'q-1', 'invalid-opt'),
+      ).rejects.toThrow('Pilihan jawaban tidak valid');
+    });
+  });
+
+  describe('finishExam', () => {
+    it('should update attempt status to FINISHED', async () => {
+      const finishedAttempt = { id: 'attempt-1', status: 'FINISHED' };
+
+      prismaMock.tryOutAttempt.update.mockResolvedValue(finishedAttempt);
+
+      await service.finishExam('attempt-1');
+
+      expect(prismaMock.tryOutAttempt.update).toHaveBeenCalledWith({
+        where: { id: 'attempt-1' },
+
+        data: {
+          status: 'FINISHED',
+
+          finishedAt: expect.any(Date),
+        },
+      });
+    });
+  });
+});
+`````
+
+## File: src/modules/history/dto/history.dto.ts
+`````typescript
+export class TryoutHistoryDto {
+  id: string;
+  title: string;
+  date: string;
+  score: number;
+  maxScore: number;
+  duration: string;
+  questionsAnswered: number;
+  totalQuestions: number;
+  category: string;
+  status: string;
+  breakdown: {
+    pu: number;
+    ppu: number;
+    pbm: number;
+    pk: number;
+    lbi: number;
+    lbe: number;
+    pm: number;
+  };
+}
+`````
+
+## File: src/modules/history/history.controller.ts
+`````typescript
+import { Get, Controller, Session, UseGuards } from '@nestjs/common';
+import { HistoryService } from './history.service';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
+import type { UserSession } from '@thallesp/nestjs-better-auth';
+
+@Controller('history')
+@UseGuards(AuthGuard)
+export class HistoryController {
+  constructor(private readonly historyService: HistoryService) {}
+
+  @Get()
+  async getTryoutsHistory(@Session() session: UserSession) {
+    return await this.historyService.getHistoryTryouts(session.user.id);
+  }
+}
+`````
+
+## File: src/modules/history/history.service.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { HistoryService } from './history.service';
+import { PrismaService } from '../../prisma.service';
+
+const prismaMock = {
+  tryOutAttempt: {
+    findMany: jest.fn(),
+  },
+};
+
+describe('HistoryService', () => {
+  let service: HistoryService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        HistoryService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
+    }).compile();
+
+    service = module.get<HistoryService>(HistoryService);
+    jest.clearAllMocks();
+  });
+
+  describe('getHistoryTryouts', () => {
+    it('should return history with correct calculations', async () => {
+      const userId = 'user-test';
+      // Mock Start: 10:00, End: 11:30 (Durasi 90 menit)
+      const startDate = new Date('2024-01-01T10:00:00Z');
+      const endDate = new Date('2024-01-01T11:30:00Z');
+
+      const mockAttempts = [
+        {
+          id: 'attempt-1',
+          startedAt: startDate,
+          finishedAt: endDate,
+          totalScore: 750,
+          tryOut: {
+            id: 'to-1',
+            title: 'Try Out SNBT 1',
+            batch: 'SNBT',
+            subtests: [
+              { questions: [{}, {}, {}] }, // Subtest 1: 3 soal
+              { questions: [{}, {}] }, // Subtest 2: 2 soal (Total 5 soal)
+            ],
+          },
+          answers: [
+            // Jawaban Benar (PU) -> Poin 20
+            {
+              isCorrect: true,
+              question: { points: 20, subtest: { name: 'PU' } },
+            },
+            // Jawaban Benar (PBM) -> Poin 30
+            {
+              isCorrect: true,
+              question: { points: 30, subtest: { name: 'PBM' } },
+            },
+            // Jawaban Salah (PK) -> Poin 0 (walaupun soal bernilai 50)
+            {
+              isCorrect: false,
+              question: { points: 50, subtest: { name: 'PK' } },
+            },
+          ],
+        },
+      ];
+
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue(
+        mockAttempts,
+      );
+
+      const result = await service.getHistoryTryouts(userId);
+
+      expect(prismaMock.tryOutAttempt.findMany).toHaveBeenCalledWith({
+        where: { userId, status: 'FINISHED' },
+        orderBy: { finishedAt: 'desc' },
+        include: expect.any(Object),
+      });
+
+      expect(result).toHaveLength(1);
+      const history = result[0];
+
+      // Verifikasi Data Dasar
+      expect(history.id).toBe('to-1');
+      expect(history.title).toBe('Try Out SNBT 1');
+      expect(history.score).toBe(750);
+      expect(history.category).toBe('SNBT');
+      expect(history.status).toBe('selesai');
+
+      // Verifikasi Kalkulasi Durasi
+      // 90 menit (beda waktu 10:00 - 11:30)
+      expect(history.duration).toBe('90 Menit');
+
+      // Verifikasi Total Soal & Jawaban
+      expect(history.totalQuestions).toBe(5); // 3 + 2
+      expect(history.questionsAnswered).toBe(3); // Panjang array answers
+
+      // Verifikasi Breakdown Skor
+      expect(history.breakdown).toEqual({
+        pu: 20, // Benar
+        ppu: 0, // Tidak ada jawaban
+        pbm: 30, // Benar
+        pk: 0, // Salah (poin tidak dihitung)
+        lbi: 0,
+        lbe: 0,
+        pm: 0,
+      });
+    });
+
+    it('should return empty array if no history found', async () => {
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.getHistoryTryouts('user-none');
+
+      expect(result).toEqual([]);
+    });
+  });
+});
+`````
+
+## File: src/modules/history/history.service.ts
+`````typescript
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma.service';
+import { TryoutHistoryDto } from './dto/history.dto';
+
+@Injectable()
+export class HistoryService {
+  constructor(private prisma: PrismaService) {}
+
+  async getHistoryTryouts(userId: string): Promise<TryoutHistoryDto[]> {
+    const tryouts = await this.prisma.tryOutAttempt.findMany({
+      where: {
+        userId,
+        status: 'FINISHED',
+      },
+      orderBy: {
+        finishedAt: 'desc',
+      },
+      include: {
+        tryOut: {
+          include: {
+            subtests: {
+              include: {
+                questions: {
+                  select: { id: true },
+                },
+              },
+            },
+          },
+        },
+        answers: {
+          include: {
+            question: {
+              select: {
+                points: true,
+                subtest: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return tryouts.map((tryout) => {
+      const start = new Date(tryout.startedAt);
+      const end = tryout.finishedAt ? new Date(tryout.finishedAt) : new Date();
+      const durationMinutes = Math.round(
+        (end.getTime() - start.getTime()) / 60000,
+      );
+
+      let totalQuestion = 0;
+      tryout.tryOut.subtests.forEach((sub) => {
+        totalQuestion += sub.questions.length;
+      });
+
+      const scores = {
+        pu: 0,
+        ppu: 0,
+        pbm: 0,
+        pk: 0,
+        lbi: 0,
+        lbe: 0,
+        pm: 0,
+      };
+
+      tryout.answers.forEach((ans) => {
+        if (ans.isCorrect) {
+          const subtestName = ans.question.subtest.name;
+          const points = ans.question.points;
+
+          if (subtestName === 'PU') scores.pu += points;
+          if (subtestName === 'PPU') scores.ppu += points;
+          if (subtestName === 'PBM') scores.pbm += points;
+          if (subtestName === 'PK') scores.pk += points;
+          if (subtestName === 'LBI') scores.lbi += points;
+          if (subtestName === 'LBE') scores.lbe += points;
+          if (subtestName === 'PM') scores.pm += points;
+        }
+      });
+      return {
+        id: tryout.tryOut.id,
+        title: tryout.tryOut.title,
+        date: tryout.finishedAt?.toISOString() ?? new Date().toISOString(),
+        score: Math.round(tryout.totalScore),
+        maxScore: 1000,
+        duration: `${durationMinutes} Menit`,
+        questionsAnswered: tryout.answers.length,
+        totalQuestions: totalQuestion,
+        category: tryout.tryOut.batch,
+        status: 'selesai',
+        breakdown: scores,
+      };
+    });
+  }
+}
+`````
+
+## File: src/modules/shop/shop.service.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { ShopService } from './shop.service';
+import { PrismaService } from '../../prisma.service';
+import { ConfigService } from '@nestjs/config';
+import { BadRequestException } from '@nestjs/common';
+
+// --- MOCK CONSTANTS ---
+const MOCK_USER_ID = 'user-123';
+const MOCK_TX_ID = 'tx-abc-123';
+const MOCK_QRIS_STATIC =
+  '00020101021126570014ID.LINKAJA.WWW0118936009153355276600021520090815335527660303UMI51440014ID.OR.Q-RIS.WWW0215ID10200211756470303UMI5204581253033605802ID5919JITU STORE TESTING6012KOTA JAKARTA61051211063042A25';
+
+describe('ShopService', () => {
+  let service: ShopService;
+  let prismaService: PrismaService;
+  let configService: ConfigService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ShopService,
+        {
+          provide: PrismaService,
+          useValue: {
+            tokenTransaction: {
+              create: jest.fn(),
+              findUnique: jest.fn(),
+              update: jest.fn(),
+            },
+            user: {
+              update: jest.fn(),
+            },
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockReturnValue(MOCK_QRIS_STATIC),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<ShopService>(ShopService);
+    prismaService = module.get<PrismaService>(PrismaService);
+    configService = module.get<ConfigService>(ConfigService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('createTokenTransaction', () => {
+    it('should create a transaction and return dynamic QRIS', async () => {
+      // Mock data transaksi yang dibuat
+      const mockTx = {
+        id: MOCK_TX_ID,
+        userId: MOCK_USER_ID,
+        amount: 10,
+        type: 'UNPAID',
+        createdAt: new Date(),
+      };
+
+      jest
+        .spyOn(prismaService.tokenTransaction, 'create')
+        .mockResolvedValue(mockTx as any);
+
+      // Panggil fungsi (Paket 1: Rp 99.000)
+      const result = await service.createTokenTransaction(MOCK_USER_ID, 1);
+
+      // Verifikasi:
+      expect(prismaService.tokenTransaction.create).toHaveBeenCalledWith({
+        data: {
+          amount: 10,
+          userId: MOCK_USER_ID,
+          type: 'UNPAID',
+        },
+      });
+
+      // Pastikan QRIS mengandung nominal (Tag 54) -> 99000 (panjang 5) -> "540599000"
+      expect(result.qris).toContain('540599000');
+
+      // Pastikan QRIS mengandung Transaction ID (Tag 62) -> ID: tx-abc-123 (panjang 10) -> "6210tx-abc-123"
+      expect(result.qris).toContain(`6210${MOCK_TX_ID}`);
+
+      // Pastikan Point of Initiation berubah jadi 12 (Dynamic)
+      expect(result.qris).toContain('010212');
+
+      expect(result.totalPrice).toBe(99000);
+    });
+
+    it('should throw BadRequestException if package is invalid', async () => {
+      await expect(
+        service.createTokenTransaction(MOCK_USER_ID, 99 as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('setPaid', () => {
+    it('should update transaction status and increment user token', async () => {
+      const mockUnpaidTx = {
+        id: MOCK_TX_ID,
+        userId: MOCK_USER_ID,
+        amount: 10,
+        type: 'UNPAID',
+      };
+
+      const mockPaidTx = { ...mockUnpaidTx, type: 'PAID' };
+
+      jest
+        .spyOn(prismaService.tokenTransaction, 'findUnique')
+        .mockResolvedValue(mockUnpaidTx as any);
+      jest
+        .spyOn(prismaService.tokenTransaction, 'update')
+        .mockResolvedValue(mockPaidTx as any);
+      jest.spyOn(prismaService.user, 'update').mockResolvedValue({} as any);
+
+      const result = await service.setPaid(MOCK_TX_ID);
+
+      // 1. Cek Transaksi diupdate jadi PAID
+      expect(prismaService.tokenTransaction.update).toHaveBeenCalledWith({
+        where: { id: MOCK_TX_ID },
+        data: { type: 'PAID' },
+      });
+
+      // 2. Cek Saldo User ditambah
+      expect(prismaService.user.update).toHaveBeenCalledWith({
+        where: { id: MOCK_USER_ID },
+        data: {
+          tokenBalance: { increment: 10 },
+        },
+      });
+
+      expect(result.type).toBe('PAID');
+    });
+
+    it('should return immediately if already PAID (Idempotency)', async () => {
+      const mockPaidTx = {
+        id: MOCK_TX_ID,
+        userId: MOCK_USER_ID,
+        type: 'PAID',
+      };
+
+      jest
+        .spyOn(prismaService.tokenTransaction, 'findUnique')
+        .mockResolvedValue(mockPaidTx as any);
+
+      const result = await service.setPaid(MOCK_TX_ID);
+
+      // Tidak boleh update database lagi
+      expect(prismaService.tokenTransaction.update).not.toHaveBeenCalled();
+      expect(prismaService.user.update).not.toHaveBeenCalled();
+      expect(result).toEqual(mockPaidTx);
+    });
+
+    it('should throw error if transaction not found', async () => {
+      jest
+        .spyOn(prismaService.tokenTransaction, 'findUnique')
+        .mockResolvedValue(null);
+
+      await expect(service.setPaid('invalid-id')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  describe('updateQrisAmount (Unit Logic)', () => {
+    it('should generate valid QRIS with correct CRC16', () => {
+      // Kita test logic internalnya saja
+      const nominal = 10000;
+      const txId = 'TEST1234';
+
+      const qris = service.updateQrisAmount(nominal, txId);
+
+      // Format Tag 54: 54 + 05 + 10000 -> 540510000
+      expect(qris).toContain('540510000');
+
+      // Format Tag 62: 62 + 08 + TEST1234 -> 6208TEST1234
+      expect(qris).toContain('6208TEST1234');
+
+      // Pastikan diakhiri dengan CRC (4 digit hex)
+      expect(qris).toMatch(/[0-9A-F]{4}$/);
+    });
+  });
+});
+`````
+
+## File: src/modules/tryout/tryout.module.ts
+`````typescript
+import { Module } from '@nestjs/common';
+import { TryoutController } from './tryout.controller';
+import { TryoutService } from './tryout.service';
+
+@Module({
+  controllers: [TryoutController],
+  providers: [TryoutService],
+})
+export class TryoutModule {}
+`````
+
+## File: src/modules/admin/services/question.service.ts
+`````typescript
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+import { ConfigService } from '@nestjs/config';
+import { v2 as cloudinary } from 'cloudinary';
+import streamifier from 'streamifier';
+import { CreateQuestionDto } from '../dto/create-question.dto';
+import { UpdateQuestionDto } from '../dto/update-question.dto';
+import { QuestionType } from 'generated/prisma/client';
+
+@Injectable()
+export class AdminQuestionService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {
+    cloudinary.config({
+      cloud_name: this.configService.get('CLOUDINARY_NAME'),
+      api_key: this.configService.get('CLOUDINARY_API_KEY'),
+      api_secret: this.configService.get('CLOUDINARY_API_SECRET'),
+    });
+  }
+
+  async uploadQuestionImageToCloudinary(
+    file: Express.Multer.File,
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'jitu-soal',
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error) {
+            console.error('Cloudinary Upload Error:', error); // DEBUG LOG
+            return reject(error);
+          }
+          if (!result || !result.secure_url) {
+            console.error('Cloudinary Result Empty:', result); // DEBUG LOG
+            return reject(
+              new Error('Gagal mengupload gambar ke Cloudinary: Result kosong'),
+            );
+          }
+          resolve(result.secure_url);
+        },
+      );
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
+
+  async getQuestionBySubtestId(subtestId: string) {
+    const subtest = await this.prisma.subtest.findUnique({
+      where: { id: subtestId },
+    });
+
+    if (!subtest) throw new NotFoundException('Subtest Not Found');
+
+    return await this.prisma.question.findMany({
+      where: { subtestId },
+      select: {
+        id: true,
+        type: true,
+        imageUrl: true,
+        content: true,
+        points: true,
+        explanation: true,
+        items: true,
+      },
+    });
+  }
+
+  private validateQuestionData(
+    type: QuestionType,
+    items?: { isCorrect?: boolean }[],
+    correctAnswer?: string,
+  ) {
+    if (type === 'ISIAN_SINGKAT') {
+      if (!correctAnswer || correctAnswer.trim() === '') {
+        throw new BadRequestException(
+          'Soal Isian Singkat wajib memiliki Kunci Jawaban (correctAnswer).',
+        );
+      }
+    } else if (type === 'PILIHAN_GANDA' || type === 'BENAR_SALAH') {
+      if (!items || items.length === 0) {
+        throw new BadRequestException(
+          'Soal Pilihan Ganda/Benar Salah wajib memiliki opsi jawaban.',
+        );
+      }
+
+      const correctCount = items.filter((i) => i.isCorrect === true).length;
+      if (correctCount !== 1) {
+        throw new BadRequestException(
+          `Soal ${type} harus memiliki TEPAT SATU jawaban benar. Ditemukan: ${correctCount}.`,
+        );
+      }
+    }
+  }
+
+  async createQuestion(dto: CreateQuestionDto, subtestId: string) {
+    if (
+      (dto.type === 'PILIHAN_GANDA' || dto.type === 'BENAR_SALAH') &&
+      (!dto.items || dto.items.length === 0)
+    ) {
+      throw new NotFoundException(
+        'Pilihan jawaban harus diinput untuk tipe soal ini!',
+      );
+    }
+
+    this.validateQuestionData(dto.type, dto.items, dto.correctAnswer);
+
+    return await this.prisma.question.create({
+      data: {
+        subtestId: subtestId,
+        type: dto.type,
+        content: dto.content,
+        explanation: dto.explanation,
+        correctAnswer: dto.correctAnswer,
+        points: dto.points ?? 1,
+        items: {
+          create: dto.items?.map((item) => ({
+            content: item.content,
+            isCorrect: item.isCorrect,
+            order: item.order,
+          })),
+        },
+      },
+      include: {
+        items: true,
+      },
+    });
+  }
+
+  async deleteQuestion(id: string) {
+    // Manually delete related items first to avoid foreign key constraint errors
+    await this.prisma.questionItem.deleteMany({
+      where: { questionId: id },
+    });
+
+    return await this.prisma.question.delete({
+      where: { id },
+    });
+  }
+
+  async updateQuestion(dto: UpdateQuestionDto, id: string) {
+    if (dto.type) {
+      this.validateQuestionData(dto.type, dto.items, dto.correctAnswer);
+    }
+
+    // Delete existing items first to avoid duplicates
+    if (dto.items) {
+      await this.prisma.questionItem.deleteMany({
+        where: { questionId: id },
+      });
+    }
+
+    return await this.prisma.question.update({
+      where: { id },
+      data: {
+        type: dto.type,
+        content: dto.content,
+        explanation: dto.explanation,
+        correctAnswer: dto.correctAnswer,
+        points: dto.points,
+        items: {
+          create: dto.items?.map((item) => ({
+            content: item.content,
+            isCorrect: item.isCorrect,
+            order: item.order,
+          })),
+        },
+      },
+      include: {
+        items: true,
+      },
+    });
+  }
+}
+`````
+
+## File: src/modules/admin/services/subtest.service.ts
+`````typescript
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+import { CreateSubtestDto } from '../dto/create-subtest.dto';
+// import { SubtestName } from 'generated/prisma/enums';
+
+enum SubtestName {
+  PU = 'PU',
+  PPU = 'PPU',
+  PBM = 'PBM',
+  PK = 'PK',
+  LBI = 'LBI',
+  LBE = 'LBE',
+  PM = 'PM',
+}
+
+@Injectable()
+export class AdminSubtestService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async createUtbkSubtests(tryOutId: string) {
+    // assign subtest by default (kalau nambah test mandiri harus diubah)
+    const utbkSubtests = [
+      { name: SubtestName.PU, duration: 30, order: 1 },
+      { name: SubtestName.PPU, duration: 15, order: 2 },
+      { name: SubtestName.PBM, duration: 25, order: 3 },
+      { name: SubtestName.PK, duration: 20, order: 4 },
+      { name: SubtestName.LBI, duration: 45, order: 5 },
+      { name: SubtestName.LBE, duration: 30, order: 6 },
+      { name: SubtestName.PM, duration: 45, order: 7 },
+    ];
+
+    const data = utbkSubtests.map((s) => ({
+      tryOutId,
+      name: s.name,
+      durationMinutes: s.duration,
+      order: s.order,
+    }));
+
+    return await this.prisma.subtest.createMany({
+      data: data,
+    });
+  }
+
+  // fungsi buat bikin subtest satu persatu, sekarang ga kepake
+  async createSubtest(dto: CreateSubtestDto) {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id: dto.tryoutId },
+    });
+
+    if (!tryout) throw new NotFoundException('Tryout Not Found');
+
+    return await this.prisma.subtest.create({
+      data: {
+        tryOutId: dto.tryoutId,
+        name: dto.name,
+        durationMinutes: dto.durationMinutes,
+        order: dto.order,
+      },
+    });
+  }
+
+  async getSubtestsByTryoutId(tryoutId: string) {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id: tryoutId },
+    });
+
+    if (!tryout) throw new NotFoundException('Tryout Not Found');
+
+    return await this.prisma.subtest.findMany({
+      where: { tryOutId: tryoutId },
+      orderBy: { order: 'asc' },
+    });
+  }
+
+  async deleteSubtest(id: string) {
+    const existingSubtest = await this.prisma.subtest.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existingSubtest) throw new NotFoundException('Subtest Not Found');
+
+    return await this.prisma.subtest.delete({
+      where: { id },
+    });
+  }
+
+  async getSubtestById(id: string) {
+    const subtest = await this.prisma.subtest.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        durationMinutes: true,
+        _count: {
+          select: { questions: true },
+        },
+      },
+    });
+
+    if (!subtest) throw new NotFoundException('Subtest Not Found');
+
+    return subtest;
+  }
+}
+`````
+
+## File: src/modules/exam/exam.controller.ts
+`````typescript
+import { Controller, Get, Post, Body, Param, Sse } from '@nestjs/common';
+import { ExamService } from './exam.service';
+import { Observable } from 'rxjs';
+import { Public } from '@thallesp/nestjs-better-auth';
+
+@Public()
+@Controller('exam')
+export class ExamController {
+  constructor(private readonly examService: ExamService) {}
+
+  @Post(':tryoutId/start')
+  async startExam(
+    @Param('tryoutId') tryoutId: string,
+    @Body('userId') userId: string,
+  ) {
+    return this.examService.startExam(tryoutId, userId);
+  }
+
+  @Sse(':attemptId/stream')
+  streamExamStatus(
+    @Param('attemptId') attemptId: string,
+  ): Observable<MessageEvent> {
+    return this.examService.getExamStream(attemptId);
+  }
+
+  @Post(':attemptId/answer')
+  async submitAnswer(
+    @Param('attemptId') attemptId: string,
+    @Body() answerData: { questionId: string; answerId: string },
+  ) {
+    return this.examService.saveAnswer(
+      attemptId,
+      answerData.questionId,
+      answerData.answerId,
+    );
+  }
+
+  @Get('ping')
+  ping() {
+    return 'pong';
+  }
+}
+`````
+
+## File: src/modules/exam/exam.service.ts
+`````typescript
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma.service';
+import { Observable, interval, map, switchMap, of } from 'rxjs';
+
+@Injectable()
+export class ExamService {
+  constructor(private prisma: PrismaService) {}
+
+  async startExam(tryOutId: string, userId: string) {
+    const existing = await this.prisma.tryOutAttempt.findFirst({
+      where: { userId, tryOutId, status: 'IN_PROGRESS' },
+    });
+
+    if (existing) return existing;
+
+    return this.prisma.tryOutAttempt.create({
+      data: {
+        userId,
+        tryOutId,
+        status: 'IN_PROGRESS',
+        totalScore: 0,
+        startedAt: new Date(),
+      },
+    });
+  }
+
+  // SSE untuk memperbarui jam tryout simultaniously
+  getExamStream(attemptId: string): Observable<MessageEvent> {
+    return interval(1000).pipe(
+      switchMap(async () => {
+        const attempt = await this.prisma.tryOutAttempt.findUnique({
+          where: { id: attemptId },
+          include: { tryOut: { include: { subtests: true } } },
+        });
+
+        if (!attempt || attempt.status !== 'IN_PROGRESS') {
+          return { data: { status: 'FINISHED', remainingSeconds: 0 } };
+        }
+
+        const totalDurationMinutes = attempt.tryOut.subtests.reduce(
+          (acc, sub) => acc + sub.durationMinutes,
+          0,
+        );
+        const endTime = new Date(
+          attempt.startedAt.getTime() + totalDurationMinutes * 60000,
+        );
+        const now = new Date();
+        const remainingSeconds = Math.max(
+          0,
+          Math.floor((endTime.getTime() - now.getTime()) / 1000),
+        );
+
+        if (remainingSeconds === 0) await this.finishExam(attemptId);
+
+        return {
+          data: {
+            status: 'IN_PROGRESS',
+            remainingSeconds,
+            serverTime: new Date().toISOString(),
+          },
+        };
+      }),
+      map((data) => ({ data }) as MessageEvent),
+    );
+  }
+
+  async saveAnswer(
+    attemptId: string,
+    questionId: string,
+    questionItemId: string,
+  ) {
+    const selectedItem = await this.prisma.questionItem.findUnique({
+      where: { id: questionItemId },
+    });
+
+    if (!selectedItem) {
+      throw new Error('Pilihan jawaban tidak valid / tidak ditemukan');
+    }
+
+    const isCorrect = selectedItem.isCorrect;
+
+    return this.prisma.userAnswer.upsert({
+      where: {
+        tryOutAttemptId_questionId: {
+          tryOutAttemptId: attemptId,
+          questionId: questionId,
+        },
+      },
+      update: {
+        questionItemId: questionItemId,
+        isCorrect: isCorrect, // Update status benar/salah
+        updatedAt: new Date(),
+      },
+      create: {
+        tryOutAttemptId: attemptId,
+        questionId: questionId,
+        questionItemId: questionItemId,
+        isCorrect: isCorrect, // Simpan status benar/salah
+      },
+    });
+  }
+
+  async finishExam(attemptId: string) {
+    return this.prisma.tryOutAttempt.update({
+      where: { id: attemptId },
+      data: {
+        status: 'FINISHED',
+        finishedAt: new Date(),
+      },
+    });
+  }
+}
+`````
+
+## File: src/modules/shop/shop.service.ts
+`````typescript
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma.service';
+import { ConfigService } from '@nestjs/config';
+
+// Untuk sekarang, tipe token yang dibeli hard-coded
+const TOKEN_TYPES = {
+  1: { amount: 10, price: 99000 },
+  2: { amount: 25, price: 249000 },
+  3: { amount: 50, price: 499000 },
+};
+
+@Injectable()
+export class ShopService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  async createTokenTransaction(userId: string, type: keyof typeof TOKEN_TYPES) {
+    // TODO: Add checking logic buat ngecek apakah lagi ada transaksi unpaid sebelumnya
+    const selectedPackage = TOKEN_TYPES[type];
+    if (!selectedPackage) {
+      throw new BadRequestException('Paket tidak valid!');
+    }
+
+    const transaction = await this.prisma.tokenTransaction.create({
+      data: {
+        amount: selectedPackage.amount,
+        userId,
+        type: 'UNPAID',
+      },
+    });
+
+    // Generate mock QRIS dynaamically
+    let qrisString = '';
+    try {
+      qrisString = this.updateQrisAmount(selectedPackage.price, transaction.id);
+    } catch (error) {
+      console.error('Gagal generate QRIS:', error);
+      throw new BadRequestException('Gagal generate QRIS Code');
+    }
+
+    return {
+      ...transaction,
+      qris: qrisString,
+      totalPrice: selectedPackage.price,
+    };
+  }
+
+  async setPaid(transactionId: string) {
+    // TODO: Add checking logic buat ngecek apakah udah paid sebelumnya, biar dia gak nambah token double
+
+    const transaction = await this.prisma.tokenTransaction.findUnique({
+      where: { id: transactionId },
+    });
+
+    if (!transaction)
+      throw new BadRequestException('Transaksi tidak ditemukan!');
+    // kalau transaksi sudah lunas, maka tidak akan mengubah apapun
+    if (transaction.type === 'PAID') return transaction;
+
+    const res = await this.prisma.tokenTransaction.update({
+      where: {
+        id: transactionId,
+      },
+      data: {
+        type: 'PAID',
+      },
+    });
+
+    await this.prisma.user.update({
+      where: {
+        id: res.userId,
+      },
+      data: {
+        tokenBalance: {
+          increment: res.amount,
+        },
+      },
+    });
+
+    return res;
+  }
+
+  checkTransactionStatus(transactionId: string) {
+    return this.prisma.tokenTransaction.findUnique({
+      where: {
+        id: transactionId,
+      },
+    });
+  }
+
+  /**
+   * Update nominal (tag 54) pada QRIS dan hitung ulang CRC.
+   * - Mengubah 010211 -> 010212 (menjadi dynamic)
+   * - Menyisipkan tag 54 sebelum "5802ID"
+   * - Menghitung ulang CRC16-CCITT (poly 0x1021, init 0xFFFF) di akhir payload
+   */
+  updateQrisAmount(nominal: number | string, transactionId?: string): string {
+    const qris = this.configService.get<string>('QRIS_ID');
+
+    if (qris === undefined || qris === null || qris === '') {
+      throw new Error('QRIS_ID belum dikonfigurasi di environment variables.');
+    }
+
+    if (nominal === undefined || nominal === null || nominal === '') {
+      throw new Error('Parameter "nominal" wajib diisi.');
+    }
+
+    // toString nominal; biarkan apa adanya (boleh "10000" atau "10000.50" kalau dibutuhkan)
+    const nominalStr =
+      typeof nominal === 'number'
+        ? String(nominal) // jika ingin selalu 2 desimal: nominal.toFixed(2).replace(/\.?0+$/, '')
+        : String(nominal);
+
+    // Utility lokal agar tetap satu fungsi saja
+    const pad2 = (n: number) => (n < 10 ? '0' + n : String(n));
+    const toCRC16 = (input: string) => {
+      let crc = 0xffff;
+      for (let i = 0; i < input.length; i++) {
+        crc ^= input.charCodeAt(i) << 8;
+        for (let j = 0; j < 8; j++) {
+          crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
+          crc &= 0xffff; // jaga tetap 16-bit
+        }
+      }
+      return (crc & 0xffff).toString(16).toUpperCase().padStart(4, '0');
+    };
+
+    // Buang CRC lama (4 char terakhir) tetapi tetap mempertahankan "6304" di before-end
+    let base = qris?.slice(0, -4);
+
+    // Pastikan jadi dynamic (010212). Abaikan jika sudah dynamic.
+    base = base?.includes('010211') ? base.replace('010211', '010212') : base;
+
+    // Sisipkan amount (tag 54) sebelum country code "5802ID"
+    const splitMarker = '5802ID';
+    const parts = base?.split(splitMarker);
+    if (parts?.length! < 2) {
+      throw new Error('QRIS tidak valid: marker "5802ID" tidak ditemukan.');
+    }
+
+    const amountTag = '54' + pad2(nominalStr.length) + nominalStr;
+    let payloadWithoutCRC = parts?.[0] + amountTag + splitMarker + parts?.[1];
+
+    if (transactionId) {
+      const tag62 = '62' + pad2(transactionId.length) + transactionId;
+      payloadWithoutCRC += tag62;
+    }
+
+    payloadWithoutCRC += '6304'; // Tambahkan kembali tag CRC tanpa value
+
+    // Hitung CRC baru dan gabungkan
+    const newCrc = toCRC16(payloadWithoutCRC);
+    return payloadWithoutCRC + newCrc;
+  }
+}
+`````
+
+## File: src/modules/tryout/tryout.controller.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { TryoutController } from './tryout.controller';
+import { TryoutService } from './tryout.service';
+import { PrismaService } from 'src/prisma.service';
+
+describe('TryoutController', () => {
+  let controller: TryoutController;
+  let service: TryoutService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [TryoutController],
+      providers: [TryoutService],
+    }).compile();
+
+    service = module.get<TryoutService>(TryoutService);
+    controller = module.get<TryoutController>(TryoutController);
+  });
+
+  describe('getAllTryouts', () => {
+    it('should be defined', () => {
+      expect(controller).toBeDefined();
+    });
+  })
+});
+`````
+
+## File: src/modules/tryout/tryout.service.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { TryoutService } from './tryout.service';
+import { PrismaService } from '../../prisma.service';
+
+const prismaMock = {
+  tryOut: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+  },
+};
+
+describe('TryoutService', () => {
+  let service: TryoutService;
+
+  const mockTryoutsComplete = [
+    {
+      id: 'cku1tryout1',
+      code: 1,
+      title: 'Try Out UTBK SNBT 1',
+      batch: 'SNBT',
+      description: 'Simulasi UTBK SNBT lengkap',
+      solutionPrice: 0,
+      isPublic: true,
+      referralCode: null,
+      scheduledStart: new Date('2025-01-10T08:00:00Z'),
+      createdAt: new Date(),
+      subtests: [
+        {
+          order: 1,
+          name: 'Penalaran Umum',
+          durationMinutes: 30,
+          questions: [{}, {}, {}], // 3 questions
+        },
+        {
+          order: 2,
+          name: 'Pengetahuan Kuantitatif',
+          durationMinutes: 45,
+          questions: [{}, {}], // 2 questions
+        },
+      ],
+      attempts: [],
+      unlockedSolutions: [],
+      _count: {
+        attempts: 10,
+      },
+    },
+    {
+      id: 'cku1tryout2',
+      code: 2,
+      title: 'Try Out UTBK SNBT 2',
+      batch: 'SNBT',
+      description: 'Try out lanjutan',
+      solutionPrice: 30000,
+      isPublic: true,
+      referralCode: null,
+      scheduledStart: new Date('2025-01-17T08:00:00Z'),
+      createdAt: new Date(),
+      subtests: [],
+      attempts: [],
+      unlockedSolutions: [],
+      _count: {
+        attempts: 5,
+      },
+    },
+  ];
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TryoutService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
+    }).compile();
+
+    service = module.get<TryoutService>(TryoutService);
+
+    prismaMock.tryOut.findMany.mockClear();
+    prismaMock.tryOut.findUnique.mockClear();
+  });
+
+  describe('getTryouts', () => {
+    it('should return mapped tryouts with correct format', async () => {
+      prismaMock.tryOut.findMany.mockResolvedValue(mockTryoutsComplete);
+
+      const result = await service.getTryouts();
+
+      expect(prismaMock.tryOut.findMany).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(2);
+
+      // Verifikasi Item 1
+      expect(result[0]).toEqual({
+        id: 'cku1tryout1', // Sekarang string CUID
+        title: 'Try Out UTBK SNBT 1',
+        number: '1',
+        canEdit: false,
+        participants: 10, // Mengambil dari _count.attempts
+        badge: 'SNBT',
+      });
+
+      // Verifikasi Item 2
+      expect(result[1]).toEqual({
+        id: 'cku1tryout2', // Sekarang string CUID
+        title: 'Try Out UTBK SNBT 2',
+        number: '2',
+        canEdit: false,
+        participants: 5,
+        badge: 'SNBT',
+      });
+    });
+  });
+
+  describe('getTryoutById', () => {
+    it('should return detailed tryout DTO', async () => {
+      // Ambil item pertama dari array mock sebagai target test
+      const targetTryout = mockTryoutsComplete[0];
+      prismaMock.tryOut.findUnique.mockResolvedValue(targetTryout);
+
+      const result = await service.getTryoutById('cku1tryout1', 'user123');
+
+      expect(prismaMock.tryOut.findUnique).toHaveBeenCalledWith({
+        where: { id: 'cku1tryout1' },
+        include: {
+          subtests: {
+            include: {
+              questions: true,
+            },
+          },
+          attempts: { where: { userId: 'user123' } },
+          unlockedSolutions: { where: { userId: 'user123' } },
+        },
+      });
+
+      expect(result).toEqual({
+        id: 'cku1tryout1', // CUID
+        title: 'Try Out UTBK SNBT 1',
+        number: 1,
+        badge: 'SNBT',
+        participants: 0,
+        description: 'Simulasi UTBK SNBT lengkap',
+        duration: 75,
+        totalQuestions: 5,
+        startDate: targetTryout.scheduledStart.toISOString(),
+        endDate: '',
+        isRegistered: false,
+        isFree: true,
+        tokenCost: 0,
+        categories: [
+          {
+            id: 1,
+            name: 'Penalaran Umum',
+            questionCount: 3,
+            duration: 30,
+            isCompleted: false,
+          },
+          {
+            id: 2,
+            name: 'Pengetahuan Kuantitatif',
+            questionCount: 2,
+            duration: 45,
+            isCompleted: false,
+          },
+        ],
+        benefits: expect.any(Array),
+        requirements: expect.any(Array),
+      });
+    });
+  });
+});
+`````
+
+## File: repomix-output.xml
+`````xml
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+prisma/
+  migrations/
+    20260108144805_reinit_schema/
+      migration.sql
+    migration_lock.toml
+  schema.prisma
+  seed.ts
+src/
+  lib/
+    auth.ts
+  modules/
+    admin/
+      dto/
+        create-question.dto.ts
+        create-subtest.dto.ts
+        create-tryout.dto.ts
+        package.dto.ts
+        topup-token.dto.ts
+        update-question.dto.ts
+        update-tryout.dto.ts
+        update-user.dto.ts
+      services/
+        admin.service.ts
+        daily.service.ts
+        package.service.ts
+        payment.service.ts
+        question.service.ts
+        result.service.ts
+        subtest.service.ts
+        tryout.service.ts
+        user.service.ts
+      tests/
+        admin.service.spec.ts
+        question.service.spec.ts
+        subtest.service.spec.ts
+        tryout.service.spec.ts
+      admin.controller.spec.ts
+      admin.controller.ts
+      admin.module.ts
+    dashboard/
+      dto/
+        dashboard.dto.ts
+        update-profile.dto.ts
+      dashboard.controller.spec.ts
+      dashboard.controller.ts
+      dashboard.module.ts
+      dashboard.service.spec.ts
+      dashboard.service.ts
+    exam/
+      entities/
+        exam.entity.ts
+      exam.controller.spec.ts
+      exam.controller.ts
+      exam.module.ts
+      exam.service.spec.ts
+      exam.service.ts
+    history/
+      dto/
+        history.dto.ts
+      history.controller.spec.ts
+      history.controller.ts
+      history.module.ts
+      history.service.spec.ts
+      history.service.ts
+    referral/
+      dto/
+        referral.dto.ts
+      referral.controller.spec.ts
+      referral.controller.ts
+      referral.module.ts
+      referral.service.spec.ts
+      referral.service.ts
+    shop/
+      dto/
+        shop.dto.ts
+      shop.controller.spec.ts
+      shop.controller.ts
+      shop.module.ts
+      shop.service.spec.ts
+      shop.service.ts
+    tryout/
+      dto/
+        tryout.dto.ts
+      tryout.controller.spec.ts
+      tryout.controller.ts
+      tryout.module.ts
+      tryout.service.spec.ts
+      tryout.service.ts
+  app.controller.spec.ts
+  app.controller.ts
+  app.module.ts
+  app.service.ts
+  main.ts
+  prisma.module.ts
+  prisma.service.ts
+test/
+  app.e2e-spec.ts
+  jest-e2e.json
+.env.example
+.gitignore
+.prettierrc
+eslint.config.mjs
+nest-cli.json
+package.json
+prisma.config.ts
+README.md
+repomix-output.md
+tsconfig.build.json
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="prisma/migrations/20260108144805_reinit_schema/migration.sql">
+-- CreateEnum
+CREATE TYPE "TryoutBatch" AS ENUM ('SNBT', 'MANDIRI');
+
+-- CreateEnum
+CREATE TYPE "TryoutStatus" AS ENUM ('NOT_STARTED', 'IN_PROGRESS', 'FINISHED');
+
+-- CreateEnum
+CREATE TYPE "SubtestName" AS ENUM ('PU', 'PPU', 'PBM', 'PK', 'LBI', 'LBE', 'PM');
+
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('USER', 'ADMIN');
+
+-- CreateEnum
+CREATE TYPE "QuestionType" AS ENUM ('PILIHAN_GANDA', 'ISIAN_SINGKAT', 'BENAR_SALAH');
+
+-- CreateEnum
+CREATE TYPE "PaymentStatus" AS ENUM ('CONFIRMED', 'PENDING', 'DECLINED', 'CANCELLED');
+
+-- CreateTable
+CREATE TABLE "user" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "emailVerified" BOOLEAN NOT NULL DEFAULT false,
+    "image" TEXT,
+    "target" VARCHAR(100),
+    "currentStreak" INTEGER NOT NULL DEFAULT 0,
+    "lastDailyDate" TIMESTAMP(3),
+    "tokenBalance" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "role" "Role" NOT NULL DEFAULT 'USER',
+
+    CONSTRAINT "user_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "session" (
+    "id" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "token" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "ipAddress" TEXT,
+    "userAgent" TEXT,
+    "userId" TEXT NOT NULL,
+
+    CONSTRAINT "session_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "account" (
+    "id" TEXT NOT NULL,
+    "accountId" TEXT NOT NULL,
+    "providerId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "accessToken" TEXT,
+    "refreshToken" TEXT,
+    "idToken" TEXT,
+    "accessTokenExpiresAt" TIMESTAMP(3),
+    "refreshTokenExpiresAt" TIMESTAMP(3),
+    "scope" TEXT,
+    "password" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "account_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "verification" (
+    "id" TEXT NOT NULL,
+    "identifier" TEXT NOT NULL,
+    "value" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "verification_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TryOut" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "solutionPrice" INTEGER NOT NULL DEFAULT 0,
+    "code" SERIAL NOT NULL,
+    "isPublic" BOOLEAN NOT NULL DEFAULT true,
+    "referralCode" TEXT,
+    "scheduledStart" TIMESTAMP(3),
+    "scheduledEnd" TIMESTAMP(3),
+    "releaseDate" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "status" "TryoutStatus" NOT NULL DEFAULT 'NOT_STARTED',
+    "batch" "TryoutBatch" NOT NULL,
+
+    CONSTRAINT "TryOut_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "DailyQuestionLog" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "questionId" TEXT NOT NULL,
+    "isCorrect" BOOLEAN NOT NULL,
+    "completedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DailyQuestionLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Subtest" (
+    "id" TEXT NOT NULL,
+    "try_out_id" TEXT NOT NULL,
+    "name" "SubtestName" NOT NULL,
+    "duration_minutes" INTEGER NOT NULL,
+    "order" INTEGER NOT NULL,
+
+    CONSTRAINT "Subtest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Question" (
+    "id" TEXT NOT NULL,
+    "subtest_id" TEXT NOT NULL,
+    "type" "QuestionType" NOT NULL,
+    "imageUrl" TEXT,
+    "narration" TEXT,
+    "content" TEXT,
+    "explanation" TEXT,
+    "points" INTEGER NOT NULL DEFAULT 1,
+    "correct_answer_short_answer" TEXT,
+
+    CONSTRAINT "Question_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "QuestionItem" (
+    "id" TEXT NOT NULL,
+    "question_id" TEXT NOT NULL,
+    "content" TEXT,
+    "is_correct" BOOLEAN NOT NULL DEFAULT false,
+    "order" INTEGER NOT NULL,
+
+    CONSTRAINT "QuestionItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TokenTransaction" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "type" TEXT NOT NULL,
+    "referenceId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TokenTransaction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TokenPackage" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "tokenAmount" INTEGER NOT NULL,
+    "price" INTEGER NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TokenPackage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Payment" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tokenPackageId" TEXT NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "tokenAmount" INTEGER NOT NULL,
+    "status" "PaymentStatus" NOT NULL,
+    "paymentMethod" TEXT NOT NULL DEFAULT 'QRIS_STATIC',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UnlockedSolution" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tryOutId" TEXT NOT NULL,
+    "unlockedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "UnlockedSolution_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TryOutAttempt" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "try_out_id" TEXT NOT NULL,
+    "total_score" DOUBLE PRECISION NOT NULL,
+    "status" TEXT NOT NULL,
+    "started_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "finished_at" TIMESTAMP(3),
+
+    CONSTRAINT "TryOutAttempt_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserAnswer" (
+    "id" TEXT NOT NULL,
+    "tryout_attempt_id" TEXT NOT NULL,
+    "question_id" TEXT NOT NULL,
+    "question_item_id" TEXT,
+    "inputText" TEXT,
+    "isCorrect" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "UserAnswer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "user_email_key" ON "user"("email");
+
+-- CreateIndex
+CREATE INDEX "session_userId_idx" ON "session"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "session_token_key" ON "session"("token");
+
+-- CreateIndex
+CREATE INDEX "account_userId_idx" ON "account"("userId");
+
+-- CreateIndex
+CREATE INDEX "verification_identifier_idx" ON "verification"("identifier");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TryOut_referralCode_key" ON "TryOut"("referralCode");
+
+-- CreateIndex
+CREATE INDEX "daily_user_date_idx" ON "DailyQuestionLog"("userId", "completedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Payment_userId_key" ON "Payment"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserAnswer_tryout_attempt_id_question_id_key" ON "UserAnswer"("tryout_attempt_id", "question_id");
+
+-- AddForeignKey
+ALTER TABLE "session" ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "account" ADD CONSTRAINT "account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DailyQuestionLog" ADD CONSTRAINT "DailyQuestionLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DailyQuestionLog" ADD CONSTRAINT "DailyQuestionLog_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Subtest" ADD CONSTRAINT "Subtest_try_out_id_fkey" FOREIGN KEY ("try_out_id") REFERENCES "TryOut"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Question" ADD CONSTRAINT "Question_subtest_id_fkey" FOREIGN KEY ("subtest_id") REFERENCES "Subtest"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "QuestionItem" ADD CONSTRAINT "QuestionItem_question_id_fkey" FOREIGN KEY ("question_id") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TokenTransaction" ADD CONSTRAINT "TokenTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_tokenPackageId_fkey" FOREIGN KEY ("tokenPackageId") REFERENCES "TokenPackage"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UnlockedSolution" ADD CONSTRAINT "UnlockedSolution_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UnlockedSolution" ADD CONSTRAINT "UnlockedSolution_tryOutId_fkey" FOREIGN KEY ("tryOutId") REFERENCES "TryOut"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TryOutAttempt" ADD CONSTRAINT "TryOutAttempt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TryOutAttempt" ADD CONSTRAINT "TryOutAttempt_try_out_id_fkey" FOREIGN KEY ("try_out_id") REFERENCES "TryOut"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserAnswer" ADD CONSTRAINT "UserAnswer_question_id_fkey" FOREIGN KEY ("question_id") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserAnswer" ADD CONSTRAINT "UserAnswer_tryout_attempt_id_fkey" FOREIGN KEY ("tryout_attempt_id") REFERENCES "TryOutAttempt"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+</file>
+
+<file path="prisma/migrations/migration_lock.toml">
+# Please do not edit this file manually
+# It should be added in your version-control system (e.g., Git)
+provider = "postgresql"
+</file>
+
+<file path="src/modules/admin/dto/create-subtest.dto.ts">
+import { IsString, IsInt, IsEnum } from 'class-validator';
+import { SubtestName } from 'generated/prisma/enums';
+
+export class CreateSubtestDto {
+  @IsString()
+  tryoutId: string;
+
+  @IsEnum(SubtestName)
+  name: SubtestName;
+
+  @IsInt()
+  durationMinutes: number;
+
+  @IsInt()
+  order: number;
+}
+</file>
+
+<file path="src/modules/admin/dto/package.dto.ts">
+import { IsString, IsInt, IsNotEmpty, IsBoolean, IsOptional } from 'class-validator';
+
+export class CreatePackageDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsInt()
+  @IsNotEmpty()
+  tokenAmount: number;
+
+  @IsInt()
+  @IsNotEmpty()
+  price: number;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+}
+
+export class UpdatePackageDto {
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsInt()
+  @IsOptional()
+  tokenAmount?: number;
+
+  @IsInt()
+  @IsOptional()
+  price?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+}
+</file>
+
+<file path="src/modules/admin/dto/topup-token.dto.ts">
+import { IsInt, IsNotEmpty, IsString } from 'class-validator';
+
+export class TopupTokenDto {
+  @IsInt()
+  @IsNotEmpty()
+  amount: number;
+
+  @IsString()
+  @IsNotEmpty()
+  description: string;
+}
+</file>
+
+<file path="src/modules/admin/dto/update-question.dto.ts">
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateQuestionDto } from './create-question.dto';
+
+export class UpdateQuestionDto extends PartialType(CreateQuestionDto) {}
+</file>
+
+<file path="src/modules/admin/services/daily.service.ts">
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+
+@Injectable()
+export class AdminDailyService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Mengambil soal hari ini menggunakan algoritma Deterministik Random.
+   * Soal akan berubah setiap hari secara otomatis, tapi tetap sama untuk semua user di hari tersebut.
+   */
+  async getTodayQuestion() {
+    const totalQuestions = await this.prisma.question.count();
+    if (totalQuestions === 0) return null;
+
+    // Gunakan tanggal (YYYYMMDD) sebagai SEED
+    const now = new Date();
+    const dateSeed = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+    
+    // Pilih index berdasarkan modulus
+    const randomIndex = dateSeed % totalQuestions;
+
+    const question = await this.prisma.question.findFirst({
+      skip: randomIndex,
+      orderBy: { id: 'asc' }, // Pastikan urutan stabil agar random tidak berubah-ubah
+      include: {
+        items: true,
+        subtest: {
+          select: {
+            name: true,
+            tryOut: { select: { title: true } }
+          }
+        }
+      }
+    });
+
+    if (!question) return null;
+
+    // Ambil Statistik Pengerjaan untuk soal ini HARI INI
+    const todayStart = new Date(now.setHours(0, 0, 0, 0));
+    const todayEnd = new Date(now.setHours(23, 59, 59, 999));
+
+    const [totalAttempts, correctAnswers] = await Promise.all([
+      this.prisma.dailyQuestionLog.count({
+        where: {
+          questionId: question.id,
+          completedAt: { gte: todayStart, lte: todayEnd }
+        }
+      }),
+      this.prisma.dailyQuestionLog.count({
+        where: {
+          questionId: question.id,
+          isCorrect: true,
+          completedAt: { gte: todayStart, lte: todayEnd }
+        }
+      })
+    ]);
+
+    return {
+      ...question,
+      stats: {
+        totalAttempts,
+        correctAnswers,
+        incorrectAnswers: totalAttempts - correctAnswers,
+        successRate: totalAttempts > 0 ? (correctAnswers / totalAttempts) * 100 : 0
+      }
+    };
+  }
+}
+</file>
+
+<file path="src/modules/admin/services/package.service.ts">
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+import { CreatePackageDto, UpdatePackageDto } from '../dto/package.dto';
+
+@Injectable()
+export class AdminPackageService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getAllPackages() {
+    return await this.prisma.tokenPackage.findMany({
+      orderBy: { price: 'asc' },
+      include: {
+        _count: {
+          select: { payments: true }
+        }
+      }
+    });
+  }
+
+  async getPackageById(id: string) {
+    const pkg = await this.prisma.tokenPackage.findUnique({
+      where: { id }
+    });
+    if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
+    return pkg;
+  }
+
+  async createPackage(dto: CreatePackageDto) {
+    return await this.prisma.tokenPackage.create({
+      data: {
+        name: dto.name,
+        tokenAmount: dto.tokenAmount,
+        price: dto.price,
+        isActive: dto.isActive ?? true,
+      }
+    });
+  }
+
+  async updatePackage(id: string, dto: UpdatePackageDto) {
+    const pkg = await this.prisma.tokenPackage.findUnique({ where: { id } });
+    if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
+
+    return await this.prisma.tokenPackage.update({
+      where: { id },
+      data: dto
+    });
+  }
+
+  async togglePackageStatus(id: string) {
+    const pkg = await this.prisma.tokenPackage.findUnique({ where: { id } });
+    if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
+
+    return await this.prisma.tokenPackage.update({
+      where: { id },
+      data: { isActive: !pkg.isActive }
+    });
+  }
+
+  async deletePackage(id: string) {
+    const pkg = await this.prisma.tokenPackage.findUnique({
+      where: { id },
+      include: { _count: { select: { payments: true } } }
+    });
+
+    if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
+
+    // JANGAN HAPUS jika sudah ada transaksi (Payment) terkait demi integritas data
+    if (pkg._count.payments > 0) {
+      throw new BadRequestException(
+        'Tidak bisa menghapus paket yang sudah memiliki riwayat transaksi. Gunakan fitur Nonaktifkan saja.'
+      );
+    }
+
+    return await this.prisma.tokenPackage.delete({
+      where: { id }
+    });
+  }
+}
+</file>
+
+<file path="src/modules/admin/services/payment.service.ts">
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+import { PaymentStatus, Prisma } from '../../../../generated/prisma/client';
+
+@Injectable()
+export class AdminPaymentService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getAllPayments(
+    page = 1,
+    limit = 10,
+    status?: PaymentStatus,
+    search?: string,
+  ) {
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.PaymentWhereInput = {};
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (search) {
+      where.user = {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.payment.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+          tokenPackage: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      }),
+      this.prisma.payment.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getPaymentStats() {
+    const [totalRevenue, totalSuccess, totalPending] = await Promise.all([
+      this.prisma.payment.aggregate({
+        where: { status: PaymentStatus.CONFIRMED },
+        _sum: { amount: true },
+      }),
+      this.prisma.payment.count({
+        where: { status: PaymentStatus.CONFIRMED },
+      }),
+      this.prisma.payment.count({
+        where: { status: PaymentStatus.PENDING },
+      }),
+    ]);
+
+    return {
+      totalRevenue: totalRevenue._sum.amount || 0,
+      totalSuccess,
+      totalPending,
+    };
+  }
+
+  async confirmPayment(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Data pembayaran tidak ditemukan');
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException(
+        'Hanya pembayaran berstatus PENDING yang bisa dikonfirmasi',
+      );
+    }
+
+    // CRITICAL: Database Transaction
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Update Status Payment
+      const updatedPayment = await tx.payment.update({
+        where: { id: paymentId },
+        data: { status: PaymentStatus.CONFIRMED },
+      });
+
+      // 2. Tambah Token User
+      await tx.user.update({
+        where: { id: payment.userId },
+        data: {
+          tokenBalance: { increment: payment.tokenAmount },
+        },
+      });
+
+      // 3. Catat di Riwayat Transaksi Token
+      await tx.tokenTransaction.create({
+        data: {
+          userId: payment.userId,
+          amount: payment.tokenAmount,
+          type: 'TOPUP',
+          referenceId: `PAYMENT_ID: ${paymentId}`,
+        },
+      });
+
+      return updatedPayment;
+    });
+  }
+
+  async rejectPayment(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Data pembayaran tidak ditemukan');
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException(
+        'Hanya pembayaran berstatus PENDING yang bisa ditolak',
+      );
+    }
+
+    return await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: PaymentStatus.DECLINED },
+    });
+  }
+}
+</file>
+
+<file path="src/modules/admin/services/result.service.ts">
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+
+@Injectable()
+export class AdminTryoutResultService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getLeaderboard(tryoutId: string, page = 1, limit = 50) {
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.prisma.tryOutAttempt.findMany({
+        where: {
+          tryOutId: tryoutId,
+          status: 'FINISHED',
+        },
+        orderBy: { totalScore: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+              image: true,
+              target: true,
+            },
+          },
+        },
+      }),
+      this.prisma.tryOutAttempt.count({
+        where: { tryOutId: tryoutId, status: 'FINISHED' },
+      }),
+    ]);
+
+    // Tambahkan posisi rank (1, 2, 3...)
+    const rankedData = data.map((item, index) => ({
+      ...item,
+      rank: skip + index + 1,
+    }));
+
+    return {
+      data: rankedData,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getTryoutStats(tryoutId: string) {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id: tryoutId },
+      select: { title: true },
+    });
+
+    if (!tryout) throw new NotFoundException('Tryout tidak ditemukan');
+
+    const aggregate = await this.prisma.tryOutAttempt.aggregate({
+      where: { tryOutId: tryoutId, status: 'FINISHED' },
+      _avg: { totalScore: true },
+      _max: { totalScore: true },
+      _min: { totalScore: true },
+      _count: { id: true },
+    });
+
+    // Distribusi Nilai (Kelompokkan skor)
+    const attempts = await this.prisma.tryOutAttempt.findMany({
+      where: { tryOutId: tryoutId, status: 'FINISHED' },
+      select: { totalScore: true },
+    });
+
+    const distribution = {
+      under400: attempts.filter((a) => a.totalScore < 400).length,
+      range400to600: attempts.filter(
+        (a) => a.totalScore >= 400 && a.totalScore < 600,
+      ).length,
+      range600to800: attempts.filter(
+        (a) => a.totalScore >= 600 && a.totalScore < 800,
+      ).length,
+      above800: attempts.filter((a) => a.totalScore >= 800).length,
+    };
+
+    return {
+      title: tryout.title,
+      totalParticipants: aggregate._count.id,
+      averageScore: aggregate._avg.totalScore || 0,
+      highestScore: aggregate._max.totalScore || 0,
+      lowestScore: aggregate._min.totalScore || 0,
+      distribution,
+    };
+  }
+
+  async exportResults(tryoutId: string) {
+    const data = await this.prisma.tryOutAttempt.findMany({
+      where: {
+        tryOutId: tryoutId,
+        status: 'FINISHED',
+      },
+      orderBy: { totalScore: 'desc' },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            target: true,
+          },
+        },
+      },
+    });
+
+    return data.map((item, index) => ({
+      Rank: index + 1,
+      Nama: item.user.name,
+      Email: item.user.email,
+      Target: item.user.target || '-',
+      Skor: item.totalScore,
+      Waktu_Mulai: item.startedAt,
+      Waktu_Selesai: item.finishedAt,
+    }));
+  }
+}
+</file>
+
+<file path="src/modules/admin/tests/admin.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { AdminService } from '../services/admin.service';
+import { PrismaService } from '../../../prisma.service';
+import { CreateTryoutDto } from '../dto/create-tryout.dto';
+import { UpdateTryoutDto } from '../dto/update-tryout.dto';
+import { NotFoundException } from '@nestjs/common';
+
+// Redefine enums locally to avoid Prisma client resolution issues in tests
+enum TryoutBatch {
+  SNBT = 'SNBT',
+  MANDIRI = 'MANDIRI',
+}
+
+enum TryoutStatus {
+  NOT_STARTED = 'NOT_STARTED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  FINISHED = 'FINISHED',
+}
+
+describe('AdminService', () => {
+  let service: AdminService;
+  let prisma: PrismaService;
+
+  // Mock Prisma Service
+  const mockPrismaService = {
+    tryOut: {
+      count: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AdminService,
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
+        },
+      ],
+    }).compile();
+
+    service = module.get<AdminService>(AdminService);
+    prisma = module.get<PrismaService>(PrismaService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('getDashboardStats', () => {
+    it('should return dashboard statistics correctly', async () => {
+      // Arrange
+      mockPrismaService.tryOut.count
+        .mockResolvedValueOnce(10) // total
+        .mockResolvedValueOnce(5) // active
+        .mockResolvedValueOnce(5); // upcoming
+
+      // Act
+      const result = await service.getDashboardStats();
+
+      // Assert
+      expect(result).toEqual({
+        totalTryout: 10,
+        totalActiveTryout: 5,
+        totalUpcomingTryout: 5,
+      });
+      expect(prisma.tryOut.count).toHaveBeenCalledTimes(3);
+    });
+  });
+});
+</file>
+
+<file path="src/modules/admin/tests/question.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { AdminQuestionService } from '../services/question.service';
+import { PrismaService } from '../../../prisma.service';
+import { ConfigService } from '@nestjs/config';
+import { NotFoundException } from '@nestjs/common';
+
+// Manually define enums to avoid Prisma client import issues in tests
+enum QuestionType {
+  PILIHAN_GANDA = 'PILIHAN_GANDA',
+  ISIAN_SINGKAT = 'ISIAN_SINGKAT',
+  BENAR_SALAH = 'BENAR_SALAH',
+}
+
+describe('AdminQuestionService', () => {
+  let service: AdminQuestionService;
+  let prisma: PrismaService;
+
+  const mockPrismaService = {
+    question: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    subtest: {
+      findUnique: jest.fn(),
+    },
+  };
+
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      if (key === 'CLOUDINARY_NAME') return 'test-cloud';
+      if (key === 'CLOUDINARY_API_KEY') return 'test-key';
+      if (key === 'CLOUDINARY_API_SECRET') return 'test-secret';
+      return null;
+    }),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AdminQuestionService,
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
+      ],
+    }).compile();
+
+    service = module.get<AdminQuestionService>(AdminQuestionService);
+    prisma = module.get<PrismaService>(PrismaService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('createQuestion', () => {
+    it('should create a question with nested items', async () => {
+      const subtestId = 'subtest-1';
+      const dto = {
+        type: QuestionType.PILIHAN_GANDA as any,
+        content: '<p>Soal 1</p>',
+        explanation: 'Penjelasan',
+        items: [
+          { content: 'Opsi A', isCorrect: true, order: 0 },
+          { content: 'Opsi B', isCorrect: false, order: 1 },
+        ],
+      };
+
+      const mockCreatedQuestion = { id: 'q1', ...dto };
+      mockPrismaService.question.create.mockResolvedValue(mockCreatedQuestion);
+
+      const result = await service.createQuestion(dto as any, subtestId);
+
+      expect(prisma.question.create).toHaveBeenCalledWith({
+        data: {
+          subtestId,
+          type: dto.type,
+          content: dto.content,
+          explanation: dto.explanation,
+          correctAnswer: undefined,
+          items: {
+            create: dto.items.map((item) => ({
+              content: item.content,
+              isCorrect: item.isCorrect,
+              order: item.order,
+            })),
+          },
+        },
+        include: { items: true },
+      });
+      expect(result).toEqual(mockCreatedQuestion);
+    });
+  });
+
+  describe('getQuestionBySubtestId', () => {
+    it('should throw NotFoundException if subtest does not exist', async () => {
+      mockPrismaService.subtest.findUnique.mockResolvedValue(null);
+      await expect(service.getQuestionBySubtestId('invalid-s')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should return questions if subtest exists', async () => {
+      mockPrismaService.subtest.findUnique.mockResolvedValue({ id: 's1' });
+      const mockQuestions = [{ id: 'q1', type: QuestionType.PILIHAN_GANDA }];
+      mockPrismaService.question.findMany.mockResolvedValue(mockQuestions);
+
+      const result = await service.getQuestionBySubtestId('s1');
+
+      expect(prisma.question.findMany).toHaveBeenCalledWith({
+        where: { subtestId: 's1' },
+        select: {
+          id: true,
+          type: true,
+          imageUrl: true,
+          content: true,
+        },
+      });
+      expect(result).toEqual(mockQuestions);
+    });
+  });
+
+  describe('updateQuestion', () => {
+    it('should update a question and its items', async () => {
+      const questionId = 'q1';
+      const dto = {
+        type: QuestionType.ISIAN_SINGKAT as any,
+        content: 'Updated content',
+        correctAnswer: 'Jawaban',
+        items: [],
+      };
+
+      const mockUpdatedQuestion = { id: questionId, ...dto };
+      mockPrismaService.question.update.mockResolvedValue(mockUpdatedQuestion);
+
+      const result = await service.updateQuestion(dto as any, questionId);
+
+      expect(prisma.question.update).toHaveBeenCalledWith({
+        where: { id: questionId },
+        data: {
+          type: dto.type,
+          content: dto.content,
+          explanation: undefined,
+          correctAnswer: dto.correctAnswer,
+          items: {
+            create: [],
+          },
+        },
+        include: { items: true },
+      });
+      expect(result).toEqual(mockUpdatedQuestion);
+    });
+  });
+
+  describe('deleteQuestion', () => {
+    it('should delete a question', async () => {
+      mockPrismaService.question.delete.mockResolvedValue({ id: 'q1' });
+      await service.deleteQuestion('q1');
+      expect(prisma.question.delete).toHaveBeenCalledWith({
+        where: { id: 'q1' },
+      });
+    });
+  });
+});
+</file>
+
+<file path="src/modules/admin/tests/subtest.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { AdminSubtestService } from '../services/subtest.service';
+import { PrismaService } from '../../../prisma.service';
+import { ConfigService } from '@nestjs/config';
+import { NotFoundException } from '@nestjs/common';
+
+enum SubtestName {
+  PU = 'PU',
+  PPU = 'PPU',
+  PBM = 'PBM',
+  PK = 'PK',
+  LBI = 'LBI',
+  LBE = 'LBE',
+  PM = 'PM',
+}
+
+// test save
+
+describe('AdminSubtestService', () => {
+  let service: AdminSubtestService;
+  let prisma: PrismaService;
+
+  const mockPrismaService = {
+    tryOut: {
+      findUnique: jest.fn(),
+    },
+    subtest: {
+      create: jest.fn(),
+      createMany: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+    },
+  };
+
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      if (key === 'CLOUDINARY_NAME') return 'test-cloud';
+      if (key === 'CLOUDINARY_API_KEY') return 'test-key';
+      if (key === 'CLOUDINARY_API_SECRET') return 'test-secret';
+      return null;
+    }),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AdminSubtestService,
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
+      ],
+    }).compile();
+
+    service = module.get<AdminSubtestService>(AdminSubtestService);
+    prisma = module.get<PrismaService>(PrismaService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('createUtbkSubtests', () => {
+    it('should create 7 UTBK subtests', async () => {
+      mockPrismaService.subtest.createMany.mockResolvedValue({ count: 7 });
+
+      const result = await service.createUtbkSubtests('tryout-1');
+
+      expect(prisma.subtest.createMany).toHaveBeenCalledWith({
+        data: expect.arrayContaining([
+          expect.objectContaining({ name: SubtestName.PU, order: 1 }),
+          expect.objectContaining({ name: SubtestName.PM, order: 7 }),
+        ]),
+      });
+      expect(result).toEqual({ count: 7 });
+    });
+  });
+
+  describe('createSubtest', () => {
+    it('should throw NotFoundException if tryout does not exist', async () => {
+      mockPrismaService.tryOut.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.createSubtest({
+          tryoutId: 'invalid-id',
+          name: SubtestName.PU as any,
+          durationMinutes: 30,
+          order: 1,
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should create a subtest if tryout exists', async () => {
+      mockPrismaService.tryOut.findUnique.mockResolvedValue({ id: 'tryout-1' });
+      mockPrismaService.subtest.create.mockResolvedValue({ id: 'subtest-1' });
+
+      const dto = {
+        tryoutId: 'tryout-1',
+        name: SubtestName.PU as any,
+        durationMinutes: 30,
+        order: 1,
+      };
+
+      const result = await service.createSubtest(dto);
+
+      expect(prisma.subtest.create).toHaveBeenCalledWith({
+        data: {
+          tryOutId: dto.tryoutId,
+          name: dto.name,
+          durationMinutes: dto.durationMinutes,
+          order: dto.order,
+        },
+      });
+      expect(result).toEqual({ id: 'subtest-1' });
+    });
+  });
+
+  describe('getSubtestsByTryoutId', () => {
+    it('should return all subtests for a tryout', async () => {
+      mockPrismaService.tryOut.findUnique.mockResolvedValue({ id: 'tryout-1' });
+      const mockSubtests = [{ id: 's1' }, { id: 's2' }];
+      mockPrismaService.subtest.findMany.mockResolvedValue(mockSubtests);
+
+      const result = await service.getSubtestsByTryoutId('tryout-1');
+
+      expect(prisma.subtest.findMany).toHaveBeenCalledWith({
+        where: { tryOutId: 'tryout-1' },
+        orderBy: { order: 'asc' },
+      });
+      expect(result).toEqual(mockSubtests);
+    });
+  });
+
+  describe('deleteSubtest', () => {
+    it('should delete a subtest if it exists', async () => {
+      mockPrismaService.subtest.findUnique.mockResolvedValue({ id: 's1' });
+      mockPrismaService.subtest.delete.mockResolvedValue({ id: 's1' });
+
+      await service.deleteSubtest('s1');
+
+      expect(prisma.subtest.delete).toHaveBeenCalledWith({
+        where: { id: 's1' },
+      });
+    });
+
+    it('should throw NotFoundException if subtest not found', async () => {
+      mockPrismaService.subtest.findUnique.mockResolvedValue(null);
+      await expect(service.deleteSubtest('s1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+});
+</file>
+
+<file path="src/modules/admin/tests/tryout.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { AdminTryoutService } from '../services/tryout.service';
+import { PrismaService } from '../../../prisma.service';
+import { CreateTryoutDto } from '../dto/create-tryout.dto';
+import { UpdateTryoutDto } from '../dto/update-tryout.dto';
+import { NotFoundException } from '@nestjs/common';
+
+// Redefine enums locally to avoid Prisma client resolution issues in tests
+enum TryoutBatch {
+  SNBT = 'SNBT',
+  MANDIRI = 'MANDIRI',
+}
+
+enum TryoutStatus {
+  NOT_STARTED = 'NOT_STARTED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  FINISHED = 'FINISHED',
+}
+
+describe('AdminService', () => {
+  let tryoutService: AdminTryoutService;
+  let prisma: PrismaService;
+
+  // Mock Prisma Service
+  const mockPrismaService = {
+    tryOut: {
+      count: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AdminTryoutService,
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
+        },
+      ],
+    }).compile();
+
+    tryoutService = module.get<AdminTryoutService>(AdminTryoutService);
+    prisma = module.get<PrismaService>(PrismaService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(tryoutService).toBeDefined();
+  });
+
+  describe('getTryouts', () => {
+    it('should return an array of tryouts', async () => {
+      // Arrange
+      const mockTryouts = [
+        { id: '1', title: 'Tryout 1' },
+        { id: '2', title: 'Tryout 2' },
+      ];
+      mockPrismaService.tryOut.findMany.mockResolvedValue(mockTryouts);
+
+      // Act
+      const result = await tryoutService.getTryouts();
+
+      // Assert
+      expect(result).toEqual(mockTryouts);
+      expect(prisma.tryOut.findMany).toHaveBeenCalledWith({
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+  });
+
+  describe('createTryout', () => {
+    const baseDto: CreateTryoutDto = {
+      title: 'New Tryout',
+      description: 'Desc',
+      solutionPrice: 10,
+      batch: TryoutBatch.SNBT as any,
+      releaseDate: new Date().toISOString(),
+      scheduledEnd: new Date(
+        new Date().setDate(new Date().getDate() + 5),
+      ).toISOString(),
+      scheduledStart: '', // to be set in tests
+    };
+
+    it('should create a tryout with status IN_PROGRESS if scheduledStart is now or past', async () => {
+      // Arrange
+      const pastDate = new Date();
+      pastDate.setDate(pastDate.getDate() - 1);
+
+      const dto = { ...baseDto, scheduledStart: pastDate.toISOString() };
+
+      const expectedResult = {
+        id: '1',
+        title: dto.title,
+        status: TryoutStatus.IN_PROGRESS,
+      };
+      mockPrismaService.tryOut.create.mockResolvedValue(expectedResult);
+
+      // Act
+      const result = await tryoutService.createTryout(dto);
+
+      // Assert
+      expect(prisma.tryOut.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'IN_PROGRESS',
+            scheduledStart: expect.any(Date),
+          }),
+        }),
+      );
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('should create a tryout with status NOT_STARTED if scheduledStart is future', async () => {
+      // Arrange
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 2); // 2 days in future
+
+      const dto = { ...baseDto, scheduledStart: futureDate.toISOString() };
+
+      const expectedResult = {
+        id: '1',
+        title: dto.title,
+        status: TryoutStatus.NOT_STARTED,
+      };
+      mockPrismaService.tryOut.create.mockResolvedValue(expectedResult);
+
+      // Act
+      const result = await tryoutService.createTryout(dto);
+
+      // Assert
+      expect(prisma.tryOut.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'NOT_STARTED',
+            scheduledStart: expect.any(Date),
+          }),
+        }),
+      );
+      expect(result).toEqual(expectedResult);
+    });
+  });
+
+  describe('updateTryout', () => {
+    const updateDto: UpdateTryoutDto = {
+      title: 'Updated Title',
+      solutionPrice: 20,
+    };
+
+    it('should throw NotFoundException if tryout does not exist', async () => {
+      // Arrange
+      mockPrismaService.tryOut.findUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        tryoutService.updateTryout('non-existent-id', updateDto),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should update and return tryout if it exists', async () => {
+      // Arrange
+      mockPrismaService.tryOut.findUnique.mockResolvedValue({ id: '1' });
+      const expectedResult = { id: '1', ...updateDto };
+      mockPrismaService.tryOut.update.mockResolvedValue(expectedResult);
+
+      // Act
+      const result = await tryoutService.updateTryout('1', updateDto);
+
+      // Assert
+      expect(prisma.tryOut.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: '1' },
+          data: expect.objectContaining({
+            title: updateDto.title,
+            solutionPrice: updateDto.solutionPrice,
+          }),
+        }),
+      );
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('should parse dates correctly when updating', async () => {
+      // Arrange
+      const dateDto: UpdateTryoutDto = {
+        scheduledStart: '2025-01-01T00:00:00Z',
+      };
+      mockPrismaService.tryOut.findUnique.mockResolvedValue({ id: '1' });
+      mockPrismaService.tryOut.update.mockResolvedValue({ id: '1' });
+
+      // Act
+      await tryoutService.updateTryout('1', dateDto);
+
+      // Assert
+      expect(prisma.tryOut.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            scheduledStart: new Date('2025-01-01T00:00:00Z'),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('deleteTryout', () => {
+    it('should throw NotFoundException if tryout does not exist', async () => {
+      // Arrange
+      mockPrismaService.tryOut.findUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        tryoutService.deleteTryout('non-existent-id'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should delete and return tryout info if exists', async () => {
+      // Arrange
+      const mockTryout = { id: '1', title: 'To Be Deleted' };
+      mockPrismaService.tryOut.findUnique.mockResolvedValue(mockTryout);
+      mockPrismaService.tryOut.delete.mockResolvedValue(mockTryout);
+
+      // Act
+      const result = await tryoutService.deleteTryout('1');
+
+      // Assert
+      expect(prisma.tryOut.delete).toHaveBeenCalledWith({
+        where: { id: '1' },
+        select: { id: true, title: true },
+      });
+      expect(result).toEqual(mockTryout);
+    });
+  });
+});
+</file>
+
+<file path="src/modules/dashboard/dto/update-profile.dto.ts">
+import { IsOptional, IsString, MaxLength } from 'class-validator';
+
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  target?: string;
+}
+</file>
+
+<file path="src/modules/dashboard/dashboard.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { DashboardController } from './dashboard.controller';
+
+describe('DashboardController', () => {
+  let controller: DashboardController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [DashboardController],
+    }).compile();
+
+    controller = module.get<DashboardController>(DashboardController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/dashboard/dashboard.module.ts">
+import { Module } from '@nestjs/common';
+import { DashboardController } from './dashboard.controller';
+import { DashboardService } from './dashboard.service';
+
+@Module({
+  controllers: [DashboardController],
+  providers: [DashboardService]
+})
+export class DashboardModule {}
+</file>
+
+<file path="src/modules/exam/entities/exam.entity.ts">
+export class Exam {}
+</file>
+
+<file path="src/modules/exam/exam.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { ExamController } from './exam.controller';
+import { ExamService } from './exam.service';
+
+describe('ExamController', () => {
+  let controller: ExamController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [ExamController],
+      providers: [ExamService],
+    }).compile();
+
+    controller = module.get<ExamController>(ExamController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/exam/exam.module.ts">
+import { Module } from '@nestjs/common';
+import { ExamService } from './exam.service';
+import { ExamController } from './exam.controller';
+
+@Module({
+  controllers: [ExamController],
+  providers: [ExamService],
+})
+export class ExamModule {}
+</file>
+
+<file path="src/modules/history/history.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { HistoryController } from './history.controller';
+
+describe('HistoryController', () => {
+  let controller: HistoryController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [HistoryController],
+    }).compile();
+
+    controller = module.get<HistoryController>(HistoryController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/history/history.module.ts">
+import { Module } from '@nestjs/common';
+import { HistoryController } from './history.controller';
+import { HistoryService } from './history.service';
+
+@Module({
+  controllers: [HistoryController],
+  providers: [HistoryService]
+})
+export class HistoryModule {}
+</file>
+
+<file path="src/modules/referral/dto/referral.dto.ts">
+export class ReferralCheckResultDto {
+  exists: boolean;
+  message: string;
+  ownerName?: string;
+  benefits?: string[];
+}
+</file>
+
+<file path="src/modules/referral/referral.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { ReferralController } from './referral.controller';
+
+describe('ReferralController', () => {
+  let controller: ReferralController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [ReferralController],
+    }).compile();
+
+    controller = module.get<ReferralController>(ReferralController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/referral/referral.controller.ts">
+import { Controller } from '@nestjs/common';
+
+@Controller('referral')
+export class ReferralController {}
+</file>
+
+<file path="src/modules/referral/referral.module.ts">
+import { Module } from '@nestjs/common';
+import { ReferralController } from './referral.controller';
+import { ReferralService } from './referral.service';
+
+@Module({
+  controllers: [ReferralController],
+  providers: [ReferralService]
+})
+export class ReferralModule {}
+</file>
+
+<file path="src/modules/referral/referral.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { ReferralService } from './referral.service';
+
+describe('ReferralService', () => {
+  let service: ReferralService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [ReferralService],
+    }).compile();
+
+    service = module.get<ReferralService>(ReferralService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/referral/referral.service.ts">
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class ReferralService {}
+</file>
+
+<file path="src/modules/shop/dto/shop.dto.ts">
+export class TokenPackageDto {
+  id: number;
+  tokenAmount: number;
+  title: string;
+  subtitle: string;
+  originalPrice: number;
+  discount: number;
+  finalPrice: number;
+  savings: number;
+  pricePerToken: string;
+  categoryBg: string;
+}
+</file>
+
+<file path="src/modules/shop/shop.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { ShopController } from './shop.controller';
+
+describe('ShopController', () => {
+  let controller: ShopController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [ShopController],
+    }).compile();
+
+    controller = module.get<ShopController>(ShopController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/shop/shop.module.ts">
+import { Module } from '@nestjs/common';
+import { ShopController } from './shop.controller';
+import { ShopService } from './shop.service';
+
+@Module({
+  controllers: [ShopController],
+  providers: [ShopService]
+})
+export class ShopModule {}
+</file>
+
+<file path="src/app.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+describe('AppController', () => {
+  let appController: AppController;
+
+  beforeEach(async () => {
+    const app: TestingModule = await Test.createTestingModule({
+      controllers: [AppController],
+      providers: [AppService],
+    }).compile();
+
+    appController = app.get<AppController>(AppController);
+  });
+
+  describe('root', () => {
+    it('should return "Hello World!"', () => {
+      expect(appController.getHello()).toBe('Hello World!');
+    });
+  });
+});
+</file>
+
+<file path="src/app.controller.ts">
+import { Controller, Get } from '@nestjs/common';
+import { AppService } from './app.service';
+
+@Controller()
+export class AppController {
+  constructor(private readonly appService: AppService) {}
+
+  @Get()
+  getHello(): string {
+    return this.appService.getHello();
+  }
+}
+</file>
+
+<file path="src/app.service.ts">
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class AppService {
+  getHello(): string {
+    return 'Hello World!';
+  }
+}
+</file>
+
+<file path="src/prisma.module.ts">
+import { Global, Module } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
+
+@Global()
+@Module({
+  providers: [PrismaService],
+  exports: [PrismaService],
+})
+export class PrismaModule {}
+</file>
+
+<file path="src/prisma.service.ts">
+import { Injectable } from '@nestjs/common';
+import { PrismaClient } from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+@Injectable()
+export class PrismaService extends PrismaClient {
+  constructor() {
+    const adapter = new PrismaPg({
+      connectionString: process.env.DATABASE_URL as string,
+    });
+
+    super({ adapter });
+  }
+}
+</file>
+
+<file path="test/app.e2e-spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
+import { App } from 'supertest/types';
+import { AppModule } from './../src/app.module';
+
+describe('AppController (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeEach(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  it('/ (GET)', () => {
+    return request(app.getHttpServer())
+      .get('/')
+      .expect(200)
+      .expect('Hello World!');
+  });
+});
+</file>
+
+<file path="test/jest-e2e.json">
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  }
+}
+</file>
+
+<file path=".gitignore">
+# compiled output
+/dist
+/node_modules
+/build
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+
+# Tests
+/coverage
+/.nyc_output
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# temp directory
+.temp
+.tmp
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+/generated/prisma
+</file>
+
+<file path=".prettierrc">
+{
+  "singleQuote": true,
+  "trailingComma": "all"
+}
+</file>
+
+<file path="eslint.config.mjs">
+// @ts-check
+import eslint from '@eslint/js';
+import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
+
+export default tseslint.config(
+  {
+    ignores: ['eslint.config.mjs'],
+  },
+  eslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
+  eslintPluginPrettierRecommended,
+  {
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.jest,
+      },
+      sourceType: 'commonjs',
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-floating-promises': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn'
+    },
+  },
+);
+</file>
+
+<file path="nest-cli.json">
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true
+  }
+}
+</file>
+
+<file path="README.md">
+<p align="center">
+  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+</p>
+
+[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
+[circleci-url]: https://circleci.com/gh/nestjs/nest
+
+  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
+    <p align="center">
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
+<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
+<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
+<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
+<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
+  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
+    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
+  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+</p>
+  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
+  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+
+## Description
+
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+
+## Project setup
+
+```bash
+$ pnpm install
+```
+
+## Compile and run the project
+
+```bash
+# development
+$ pnpm run start
+
+# watch mode
+$ pnpm run start:dev
+
+# production mode
+$ pnpm run start:prod
+```
+
+## Run tests
+
+```bash
+# unit tests
+$ pnpm run test
+
+# e2e tests
+$ pnpm run test:e2e
+
+# test coverage
+$ pnpm run test:cov
+```
+
+## Deployment
+
+When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+
+If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+
+```bash
+$ pnpm install -g @nestjs/mau
+$ mau deploy
+```
+
+With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+
+## Resources
+
+Check out a few resources that may come in handy when working with NestJS:
+
+- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
+- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
+- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
+- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
+- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
+- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
+- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
+- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+
+## Support
+
+Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+
+## Stay in touch
+
+- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
+- Website - [https://nestjs.com](https://nestjs.com/)
+- Twitter - [@nestframework](https://twitter.com/nestframework)
+
+## License
+
+Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+</file>
+
+<file path="repomix-output.md">
 This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
 
 # File Summary
@@ -1092,3 +7257,7528 @@ model TryOutAttempt {
   tryOut TryOut @relation(fields: [tryOutId], references: [id])
 }
 ````
+</file>
+
+<file path="tsconfig.build.json">
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+}
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "noFallthroughCasesInSwitch": false
+  }
+}
+</file>
+
+<file path="src/modules/admin/dto/create-question.dto.ts">
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsInt,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
+import { QuestionType } from 'generated/prisma/enums';
+import { Type } from 'class-transformer';
+
+export class CreateQuestionItemDto {
+  @IsString()
+  @IsNotEmpty()
+  content: string;
+
+  @IsOptional()
+  isCorrect?: boolean;
+
+  @IsInt()
+  order: number;
+}
+
+export class CreateQuestionDto {
+  @IsEnum(QuestionType)
+  type: QuestionType;
+
+  @IsString()
+  @IsNotEmpty()
+  content: string;
+
+  @IsString()
+  @IsOptional()
+  explanation?: string;
+
+  @IsInt()
+  @IsOptional()
+  points?: number;
+
+  // kalau isian singkat wajib diisi
+  @IsString()
+  @IsOptional()
+  correctAnswer?: string;
+
+  // wajib jika BS atau PG
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateQuestionItemDto)
+  @IsOptional()
+  items?: CreateQuestionItemDto[];
+}
+</file>
+
+<file path="src/modules/admin/dto/create-tryout.dto.ts">
+import {
+  IsString,
+  IsInt,
+  IsEnum,
+  IsDateString,
+  IsOptional,
+  IsBoolean,
+} from 'class-validator';
+import { TryoutBatch } from 'generated/prisma/client';
+
+export class CreateTryoutDto {
+  @IsString()
+  title: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  // ini harga token
+  @IsInt()
+  solutionPrice: number;
+
+  @IsEnum(TryoutBatch)
+  batch: TryoutBatch;
+
+  @IsDateString()
+  releaseDate: string;
+
+  @IsDateString()
+  scheduledEnd: string;
+
+  @IsDateString()
+  scheduledStart: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
+
+  @IsString()
+  @IsOptional()
+  referralCode?: string;
+}
+</file>
+
+<file path="src/modules/admin/dto/update-tryout.dto.ts">
+import {
+  IsString,
+  IsInt,
+  IsDateString,
+  IsOptional,
+  IsBoolean,
+} from 'class-validator';
+
+export class UpdateTryoutDto {
+  @IsString()
+  @IsOptional()
+  title?: string;
+
+  @IsInt()
+  @IsOptional()
+  solutionPrice?: number;
+
+  @IsDateString()
+  @IsOptional()
+  releaseDate?: string;
+
+  @IsDateString()
+  @IsOptional()
+  scheduledStart?: string;
+
+  @IsDateString()
+  @IsOptional()
+  scheduledEnd?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
+
+  @IsString()
+  @IsOptional()
+  referralCode?: string;
+}
+</file>
+
+<file path="src/modules/admin/dto/update-user.dto.ts">
+import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import { Role } from 'generated/prisma/enums';
+
+export class UpdateUserDto {
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  image?: string;
+
+  @IsEnum(Role)
+  @IsOptional()
+  role?: Role;
+
+  @IsOptional()
+  @IsInt()
+  tokenBalance?: number;
+
+  @IsString()
+  @IsOptional()
+  password?: string;
+}
+</file>
+
+<file path="src/modules/admin/admin.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { AdminController } from './admin.controller';
+import { AdminService } from './services/admin.service';
+
+describe('AdminController', () => {
+  let controller: AdminController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [AdminController],
+      providers: [AdminService],
+    }).compile();
+
+    controller = module.get<AdminController>(AdminController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+</file>
+
+<file path="src/modules/exam/exam.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { ExamService } from './exam.service';
+import { PrismaService } from '../../prisma.service';
+
+const prismaMock = {
+  tryOutAttempt: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
+
+  questionItem: {
+    findUnique: jest.fn(),
+  },
+
+  userAnswer: {
+    upsert: jest.fn(),
+  },
+};
+
+describe('ExamService', () => {
+  let service: ExamService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ExamService,
+
+        { provide: PrismaService, useValue: prismaMock },
+      ],
+    }).compile();
+
+    service = module.get<ExamService>(ExamService);
+
+    jest.clearAllMocks();
+  });
+
+  describe('startExam', () => {
+    it('should resume existing attempt if found', async () => {
+      const mockAttempt = { id: 'attempt-1', status: 'IN_PROGRESS' };
+
+      prismaMock.tryOutAttempt.findFirst.mockResolvedValue(mockAttempt);
+
+      const result = await service.startExam('tryout-1', 'user-1');
+
+      expect(prismaMock.tryOutAttempt.findFirst).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          tryOutId: 'tryout-1',
+          status: 'IN_PROGRESS',
+        },
+      });
+
+      expect(result).toEqual(mockAttempt);
+    });
+
+    it('should create new attempt if not found', async () => {
+      prismaMock.tryOutAttempt.findFirst.mockResolvedValue(null);
+
+      const newAttempt = { id: 'attempt-2', status: 'IN_PROGRESS' };
+
+      prismaMock.tryOutAttempt.create.mockResolvedValue(newAttempt);
+
+      const result = await service.startExam('tryout-1', 'user-1');
+
+      expect(prismaMock.tryOutAttempt.create).toHaveBeenCalled();
+
+      expect(result).toEqual(newAttempt);
+    });
+  });
+
+  describe('saveAnswer', () => {
+    it('should mark answer as CORRECT if selected item is correct', async () => {
+      prismaMock.questionItem.findUnique.mockResolvedValue({
+        id: 'opt-B',
+
+        isCorrect: true, // Jawaban Benar
+      });
+
+      const mockSavedAnswer = { id: 'ans-1', isCorrect: true };
+
+      prismaMock.userAnswer.upsert.mockResolvedValue(mockSavedAnswer);
+
+      const result = await service.saveAnswer('attempt-1', 'q-1', 'opt-B');
+
+      expect(prismaMock.userAnswer.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            isCorrect: true,
+
+            questionItemId: 'opt-B',
+          }),
+
+          update: expect.objectContaining({
+            isCorrect: true,
+
+            questionItemId: 'opt-B',
+          }),
+        }),
+      );
+
+      expect(result.isCorrect).toBe(true);
+    });
+
+    it('should mark answer as INCORRECT if selected item is wrong', async () => {
+      prismaMock.questionItem.findUnique.mockResolvedValue({
+        id: 'opt-A',
+
+        isCorrect: false, // Jawaban Salah
+      });
+
+      const mockSavedAnswer = { id: 'ans-1', isCorrect: false };
+
+      prismaMock.userAnswer.upsert.mockResolvedValue(mockSavedAnswer);
+
+      await service.saveAnswer('attempt-1', 'q-1', 'opt-A');
+
+      expect(prismaMock.userAnswer.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ isCorrect: false }),
+
+          update: expect.objectContaining({ isCorrect: false }),
+        }),
+      );
+    });
+
+    it('should throw error if question item invalid', async () => {
+      prismaMock.questionItem.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.saveAnswer('attempt-1', 'q-1', 'invalid-opt'),
+      ).rejects.toThrow('Pilihan jawaban tidak valid');
+    });
+  });
+
+  describe('finishExam', () => {
+    it('should update attempt status to FINISHED', async () => {
+      const finishedAttempt = { id: 'attempt-1', status: 'FINISHED' };
+
+      prismaMock.tryOutAttempt.update.mockResolvedValue(finishedAttempt);
+
+      await service.finishExam('attempt-1');
+
+      expect(prismaMock.tryOutAttempt.update).toHaveBeenCalledWith({
+        where: { id: 'attempt-1' },
+
+        data: {
+          status: 'FINISHED',
+
+          finishedAt: expect.any(Date),
+        },
+      });
+    });
+  });
+});
+</file>
+
+<file path="src/modules/history/dto/history.dto.ts">
+export class TryoutHistoryDto {
+  id: string;
+  title: string;
+  date: string;
+  score: number;
+  maxScore: number;
+  duration: string;
+  questionsAnswered: number;
+  totalQuestions: number;
+  category: string;
+  status: string;
+  breakdown: {
+    pu: number;
+    ppu: number;
+    pbm: number;
+    pk: number;
+    lbi: number;
+    lbe: number;
+    pm: number;
+  };
+}
+</file>
+
+<file path="src/modules/history/history.controller.ts">
+import { Get, Controller, Session, UseGuards } from '@nestjs/common';
+import { HistoryService } from './history.service';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
+import type { UserSession } from '@thallesp/nestjs-better-auth';
+
+@Controller('history')
+@UseGuards(AuthGuard)
+export class HistoryController {
+  constructor(private readonly historyService: HistoryService) {}
+
+  @Get()
+  async getTryoutsHistory(@Session() session: UserSession) {
+    return await this.historyService.getHistoryTryouts(session.user.id);
+  }
+}
+</file>
+
+<file path="src/modules/history/history.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { HistoryService } from './history.service';
+import { PrismaService } from '../../prisma.service';
+
+const prismaMock = {
+  tryOutAttempt: {
+    findMany: jest.fn(),
+  },
+};
+
+describe('HistoryService', () => {
+  let service: HistoryService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        HistoryService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
+    }).compile();
+
+    service = module.get<HistoryService>(HistoryService);
+    jest.clearAllMocks();
+  });
+
+  describe('getHistoryTryouts', () => {
+    it('should return history with correct calculations', async () => {
+      const userId = 'user-test';
+      // Mock Start: 10:00, End: 11:30 (Durasi 90 menit)
+      const startDate = new Date('2024-01-01T10:00:00Z');
+      const endDate = new Date('2024-01-01T11:30:00Z');
+
+      const mockAttempts = [
+        {
+          id: 'attempt-1',
+          startedAt: startDate,
+          finishedAt: endDate,
+          totalScore: 750,
+          tryOut: {
+            id: 'to-1',
+            title: 'Try Out SNBT 1',
+            batch: 'SNBT',
+            subtests: [
+              { questions: [{}, {}, {}] }, // Subtest 1: 3 soal
+              { questions: [{}, {}] }, // Subtest 2: 2 soal (Total 5 soal)
+            ],
+          },
+          answers: [
+            // Jawaban Benar (PU) -> Poin 20
+            {
+              isCorrect: true,
+              question: { points: 20, subtest: { name: 'PU' } },
+            },
+            // Jawaban Benar (PBM) -> Poin 30
+            {
+              isCorrect: true,
+              question: { points: 30, subtest: { name: 'PBM' } },
+            },
+            // Jawaban Salah (PK) -> Poin 0 (walaupun soal bernilai 50)
+            {
+              isCorrect: false,
+              question: { points: 50, subtest: { name: 'PK' } },
+            },
+          ],
+        },
+      ];
+
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue(
+        mockAttempts,
+      );
+
+      const result = await service.getHistoryTryouts(userId);
+
+      expect(prismaMock.tryOutAttempt.findMany).toHaveBeenCalledWith({
+        where: { userId, status: 'FINISHED' },
+        orderBy: { finishedAt: 'desc' },
+        include: expect.any(Object),
+      });
+
+      expect(result).toHaveLength(1);
+      const history = result[0];
+
+      // Verifikasi Data Dasar
+      expect(history.id).toBe('to-1');
+      expect(history.title).toBe('Try Out SNBT 1');
+      expect(history.score).toBe(750);
+      expect(history.category).toBe('SNBT');
+      expect(history.status).toBe('selesai');
+
+      // Verifikasi Kalkulasi Durasi
+      // 90 menit (beda waktu 10:00 - 11:30)
+      expect(history.duration).toBe('90 Menit');
+
+      // Verifikasi Total Soal & Jawaban
+      expect(history.totalQuestions).toBe(5); // 3 + 2
+      expect(history.questionsAnswered).toBe(3); // Panjang array answers
+
+      // Verifikasi Breakdown Skor
+      expect(history.breakdown).toEqual({
+        pu: 20, // Benar
+        ppu: 0, // Tidak ada jawaban
+        pbm: 30, // Benar
+        pk: 0, // Salah (poin tidak dihitung)
+        lbi: 0,
+        lbe: 0,
+        pm: 0,
+      });
+    });
+
+    it('should return empty array if no history found', async () => {
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.getHistoryTryouts('user-none');
+
+      expect(result).toEqual([]);
+    });
+  });
+});
+</file>
+
+<file path="src/modules/history/history.service.ts">
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma.service';
+import { TryoutHistoryDto } from './dto/history.dto';
+
+@Injectable()
+export class HistoryService {
+  constructor(private prisma: PrismaService) {}
+
+  async getHistoryTryouts(userId: string): Promise<TryoutHistoryDto[]> {
+    const tryouts = await this.prisma.tryOutAttempt.findMany({
+      where: {
+        userId,
+        status: 'FINISHED',
+      },
+      orderBy: {
+        finishedAt: 'desc',
+      },
+      include: {
+        tryOut: {
+          include: {
+            subtests: {
+              include: {
+                questions: {
+                  select: { id: true },
+                },
+              },
+            },
+          },
+        },
+        answers: {
+          include: {
+            question: {
+              select: {
+                points: true,
+                subtest: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return tryouts.map((tryout) => {
+      const start = new Date(tryout.startedAt);
+      const end = tryout.finishedAt ? new Date(tryout.finishedAt) : new Date();
+      const durationMinutes = Math.round(
+        (end.getTime() - start.getTime()) / 60000,
+      );
+
+      let totalQuestion = 0;
+      tryout.tryOut.subtests.forEach((sub) => {
+        totalQuestion += sub.questions.length;
+      });
+
+      const scores = {
+        pu: 0,
+        ppu: 0,
+        pbm: 0,
+        pk: 0,
+        lbi: 0,
+        lbe: 0,
+        pm: 0,
+      };
+
+      tryout.answers.forEach((ans) => {
+        if (ans.isCorrect) {
+          const subtestName = ans.question.subtest.name;
+          const points = ans.question.points;
+
+          if (subtestName === 'PU') scores.pu += points;
+          if (subtestName === 'PPU') scores.ppu += points;
+          if (subtestName === 'PBM') scores.pbm += points;
+          if (subtestName === 'PK') scores.pk += points;
+          if (subtestName === 'LBI') scores.lbi += points;
+          if (subtestName === 'LBE') scores.lbe += points;
+          if (subtestName === 'PM') scores.pm += points;
+        }
+      });
+      return {
+        id: tryout.tryOut.id,
+        title: tryout.tryOut.title,
+        date: tryout.finishedAt?.toISOString() ?? new Date().toISOString(),
+        score: Math.round(tryout.totalScore),
+        maxScore: 1000,
+        duration: `${durationMinutes} Menit`,
+        questionsAnswered: tryout.answers.length,
+        totalQuestions: totalQuestion,
+        category: tryout.tryOut.batch,
+        status: 'selesai',
+        breakdown: scores,
+      };
+    });
+  }
+}
+</file>
+
+<file path="src/modules/shop/shop.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { ShopService } from './shop.service';
+import { PrismaService } from '../../prisma.service';
+import { ConfigService } from '@nestjs/config';
+import { BadRequestException } from '@nestjs/common';
+
+// --- MOCK CONSTANTS ---
+const MOCK_USER_ID = 'user-123';
+const MOCK_TX_ID = 'tx-abc-123';
+const MOCK_QRIS_STATIC =
+  '00020101021126570014ID.LINKAJA.WWW0118936009153355276600021520090815335527660303UMI51440014ID.OR.Q-RIS.WWW0215ID10200211756470303UMI5204581253033605802ID5919JITU STORE TESTING6012KOTA JAKARTA61051211063042A25';
+
+describe('ShopService', () => {
+  let service: ShopService;
+  let prismaService: PrismaService;
+  let configService: ConfigService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ShopService,
+        {
+          provide: PrismaService,
+          useValue: {
+            tokenTransaction: {
+              create: jest.fn(),
+              findUnique: jest.fn(),
+              update: jest.fn(),
+            },
+            user: {
+              update: jest.fn(),
+            },
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockReturnValue(MOCK_QRIS_STATIC),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<ShopService>(ShopService);
+    prismaService = module.get<PrismaService>(PrismaService);
+    configService = module.get<ConfigService>(ConfigService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('createTokenTransaction', () => {
+    it('should create a transaction and return dynamic QRIS', async () => {
+      // Mock data transaksi yang dibuat
+      const mockTx = {
+        id: MOCK_TX_ID,
+        userId: MOCK_USER_ID,
+        amount: 10,
+        type: 'UNPAID',
+        createdAt: new Date(),
+      };
+
+      jest
+        .spyOn(prismaService.tokenTransaction, 'create')
+        .mockResolvedValue(mockTx as any);
+
+      // Panggil fungsi (Paket 1: Rp 99.000)
+      const result = await service.createTokenTransaction(MOCK_USER_ID, 1);
+
+      // Verifikasi:
+      expect(prismaService.tokenTransaction.create).toHaveBeenCalledWith({
+        data: {
+          amount: 10,
+          userId: MOCK_USER_ID,
+          type: 'UNPAID',
+        },
+      });
+
+      // Pastikan QRIS mengandung nominal (Tag 54) -> 99000 (panjang 5) -> "540599000"
+      expect(result.qris).toContain('540599000');
+
+      // Pastikan QRIS mengandung Transaction ID (Tag 62) -> ID: tx-abc-123 (panjang 10) -> "6210tx-abc-123"
+      expect(result.qris).toContain(`6210${MOCK_TX_ID}`);
+
+      // Pastikan Point of Initiation berubah jadi 12 (Dynamic)
+      expect(result.qris).toContain('010212');
+
+      expect(result.totalPrice).toBe(99000);
+    });
+
+    it('should throw BadRequestException if package is invalid', async () => {
+      await expect(
+        service.createTokenTransaction(MOCK_USER_ID, 99 as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('setPaid', () => {
+    it('should update transaction status and increment user token', async () => {
+      const mockUnpaidTx = {
+        id: MOCK_TX_ID,
+        userId: MOCK_USER_ID,
+        amount: 10,
+        type: 'UNPAID',
+      };
+
+      const mockPaidTx = { ...mockUnpaidTx, type: 'PAID' };
+
+      jest
+        .spyOn(prismaService.tokenTransaction, 'findUnique')
+        .mockResolvedValue(mockUnpaidTx as any);
+      jest
+        .spyOn(prismaService.tokenTransaction, 'update')
+        .mockResolvedValue(mockPaidTx as any);
+      jest.spyOn(prismaService.user, 'update').mockResolvedValue({} as any);
+
+      const result = await service.setPaid(MOCK_TX_ID);
+
+      // 1. Cek Transaksi diupdate jadi PAID
+      expect(prismaService.tokenTransaction.update).toHaveBeenCalledWith({
+        where: { id: MOCK_TX_ID },
+        data: { type: 'PAID' },
+      });
+
+      // 2. Cek Saldo User ditambah
+      expect(prismaService.user.update).toHaveBeenCalledWith({
+        where: { id: MOCK_USER_ID },
+        data: {
+          tokenBalance: { increment: 10 },
+        },
+      });
+
+      expect(result.type).toBe('PAID');
+    });
+
+    it('should return immediately if already PAID (Idempotency)', async () => {
+      const mockPaidTx = {
+        id: MOCK_TX_ID,
+        userId: MOCK_USER_ID,
+        type: 'PAID',
+      };
+
+      jest
+        .spyOn(prismaService.tokenTransaction, 'findUnique')
+        .mockResolvedValue(mockPaidTx as any);
+
+      const result = await service.setPaid(MOCK_TX_ID);
+
+      // Tidak boleh update database lagi
+      expect(prismaService.tokenTransaction.update).not.toHaveBeenCalled();
+      expect(prismaService.user.update).not.toHaveBeenCalled();
+      expect(result).toEqual(mockPaidTx);
+    });
+
+    it('should throw error if transaction not found', async () => {
+      jest
+        .spyOn(prismaService.tokenTransaction, 'findUnique')
+        .mockResolvedValue(null);
+
+      await expect(service.setPaid('invalid-id')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  describe('updateQrisAmount (Unit Logic)', () => {
+    it('should generate valid QRIS with correct CRC16', () => {
+      // Kita test logic internalnya saja
+      const nominal = 10000;
+      const txId = 'TEST1234';
+
+      const qris = service.updateQrisAmount(nominal, txId);
+
+      // Format Tag 54: 54 + 05 + 10000 -> 540510000
+      expect(qris).toContain('540510000');
+
+      // Format Tag 62: 62 + 08 + TEST1234 -> 6208TEST1234
+      expect(qris).toContain('6208TEST1234');
+
+      // Pastikan diakhiri dengan CRC (4 digit hex)
+      expect(qris).toMatch(/[0-9A-F]{4}$/);
+    });
+  });
+});
+</file>
+
+<file path="src/modules/tryout/tryout.module.ts">
+import { Module } from '@nestjs/common';
+import { TryoutController } from './tryout.controller';
+import { TryoutService } from './tryout.service';
+
+@Module({
+  controllers: [TryoutController],
+  providers: [TryoutService],
+})
+export class TryoutModule {}
+</file>
+
+<file path="src/modules/admin/services/question.service.ts">
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+import { ConfigService } from '@nestjs/config';
+import { v2 as cloudinary } from 'cloudinary';
+import streamifier from 'streamifier';
+import { CreateQuestionDto } from '../dto/create-question.dto';
+import { UpdateQuestionDto } from '../dto/update-question.dto';
+import { QuestionType } from 'generated/prisma/client';
+
+@Injectable()
+export class AdminQuestionService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {
+    cloudinary.config({
+      cloud_name: this.configService.get('CLOUDINARY_NAME'),
+      api_key: this.configService.get('CLOUDINARY_API_KEY'),
+      api_secret: this.configService.get('CLOUDINARY_API_SECRET'),
+    });
+  }
+
+  async uploadQuestionImageToCloudinary(
+    file: Express.Multer.File,
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'jitu-soal',
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error) {
+            console.error('Cloudinary Upload Error:', error); // DEBUG LOG
+            return reject(error);
+          }
+          if (!result || !result.secure_url) {
+            console.error('Cloudinary Result Empty:', result); // DEBUG LOG
+            return reject(
+              new Error('Gagal mengupload gambar ke Cloudinary: Result kosong'),
+            );
+          }
+          resolve(result.secure_url);
+        },
+      );
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
+
+  async getQuestionBySubtestId(subtestId: string) {
+    const subtest = await this.prisma.subtest.findUnique({
+      where: { id: subtestId },
+    });
+
+    if (!subtest) throw new NotFoundException('Subtest Not Found');
+
+    return await this.prisma.question.findMany({
+      where: { subtestId },
+      select: {
+        id: true,
+        type: true,
+        imageUrl: true,
+        content: true,
+        points: true,
+        explanation: true,
+        items: true,
+      },
+    });
+  }
+
+  private validateQuestionData(
+    type: QuestionType,
+    items?: { isCorrect?: boolean }[],
+    correctAnswer?: string,
+  ) {
+    if (type === 'ISIAN_SINGKAT') {
+      if (!correctAnswer || correctAnswer.trim() === '') {
+        throw new BadRequestException(
+          'Soal Isian Singkat wajib memiliki Kunci Jawaban (correctAnswer).',
+        );
+      }
+    } else if (type === 'PILIHAN_GANDA' || type === 'BENAR_SALAH') {
+      if (!items || items.length === 0) {
+        throw new BadRequestException(
+          'Soal Pilihan Ganda/Benar Salah wajib memiliki opsi jawaban.',
+        );
+      }
+
+      const correctCount = items.filter((i) => i.isCorrect === true).length;
+      if (correctCount !== 1) {
+        throw new BadRequestException(
+          `Soal ${type} harus memiliki TEPAT SATU jawaban benar. Ditemukan: ${correctCount}.`,
+        );
+      }
+    }
+  }
+
+  async createQuestion(dto: CreateQuestionDto, subtestId: string) {
+    if (
+      (dto.type === 'PILIHAN_GANDA' || dto.type === 'BENAR_SALAH') &&
+      (!dto.items || dto.items.length === 0)
+    ) {
+      throw new NotFoundException(
+        'Pilihan jawaban harus diinput untuk tipe soal ini!',
+      );
+    }
+
+    this.validateQuestionData(dto.type, dto.items, dto.correctAnswer);
+
+    return await this.prisma.question.create({
+      data: {
+        subtestId: subtestId,
+        type: dto.type,
+        content: dto.content,
+        explanation: dto.explanation,
+        correctAnswer: dto.correctAnswer,
+        points: dto.points ?? 1,
+        items: {
+          create: dto.items?.map((item) => ({
+            content: item.content,
+            isCorrect: item.isCorrect,
+            order: item.order,
+          })),
+        },
+      },
+      include: {
+        items: true,
+      },
+    });
+  }
+
+  async deleteQuestion(id: string) {
+    // Manually delete related items first to avoid foreign key constraint errors
+    await this.prisma.questionItem.deleteMany({
+      where: { questionId: id },
+    });
+
+    return await this.prisma.question.delete({
+      where: { id },
+    });
+  }
+
+  async updateQuestion(dto: UpdateQuestionDto, id: string) {
+    if (dto.type) {
+      this.validateQuestionData(dto.type, dto.items, dto.correctAnswer);
+    }
+
+    // Delete existing items first to avoid duplicates
+    if (dto.items) {
+      await this.prisma.questionItem.deleteMany({
+        where: { questionId: id },
+      });
+    }
+
+    return await this.prisma.question.update({
+      where: { id },
+      data: {
+        type: dto.type,
+        content: dto.content,
+        explanation: dto.explanation,
+        correctAnswer: dto.correctAnswer,
+        points: dto.points,
+        items: {
+          create: dto.items?.map((item) => ({
+            content: item.content,
+            isCorrect: item.isCorrect,
+            order: item.order,
+          })),
+        },
+      },
+      include: {
+        items: true,
+      },
+    });
+  }
+}
+</file>
+
+<file path="src/modules/admin/services/subtest.service.ts">
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+import { CreateSubtestDto } from '../dto/create-subtest.dto';
+// import { SubtestName } from 'generated/prisma/enums';
+
+enum SubtestName {
+  PU = 'PU',
+  PPU = 'PPU',
+  PBM = 'PBM',
+  PK = 'PK',
+  LBI = 'LBI',
+  LBE = 'LBE',
+  PM = 'PM',
+}
+
+@Injectable()
+export class AdminSubtestService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async createUtbkSubtests(tryOutId: string) {
+    // assign subtest by default (kalau nambah test mandiri harus diubah)
+    const utbkSubtests = [
+      { name: SubtestName.PU, duration: 30, order: 1 },
+      { name: SubtestName.PPU, duration: 15, order: 2 },
+      { name: SubtestName.PBM, duration: 25, order: 3 },
+      { name: SubtestName.PK, duration: 20, order: 4 },
+      { name: SubtestName.LBI, duration: 45, order: 5 },
+      { name: SubtestName.LBE, duration: 30, order: 6 },
+      { name: SubtestName.PM, duration: 45, order: 7 },
+    ];
+
+    const data = utbkSubtests.map((s) => ({
+      tryOutId,
+      name: s.name,
+      durationMinutes: s.duration,
+      order: s.order,
+    }));
+
+    return await this.prisma.subtest.createMany({
+      data: data,
+    });
+  }
+
+  // fungsi buat bikin subtest satu persatu, sekarang ga kepake
+  async createSubtest(dto: CreateSubtestDto) {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id: dto.tryoutId },
+    });
+
+    if (!tryout) throw new NotFoundException('Tryout Not Found');
+
+    return await this.prisma.subtest.create({
+      data: {
+        tryOutId: dto.tryoutId,
+        name: dto.name,
+        durationMinutes: dto.durationMinutes,
+        order: dto.order,
+      },
+    });
+  }
+
+  async getSubtestsByTryoutId(tryoutId: string) {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id: tryoutId },
+    });
+
+    if (!tryout) throw new NotFoundException('Tryout Not Found');
+
+    return await this.prisma.subtest.findMany({
+      where: { tryOutId: tryoutId },
+      orderBy: { order: 'asc' },
+    });
+  }
+
+  async deleteSubtest(id: string) {
+    const existingSubtest = await this.prisma.subtest.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existingSubtest) throw new NotFoundException('Subtest Not Found');
+
+    return await this.prisma.subtest.delete({
+      where: { id },
+    });
+  }
+
+  async getSubtestById(id: string) {
+    const subtest = await this.prisma.subtest.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        durationMinutes: true,
+        _count: {
+          select: { questions: true },
+        },
+      },
+    });
+
+    if (!subtest) throw new NotFoundException('Subtest Not Found');
+
+    return subtest;
+  }
+}
+</file>
+
+<file path="src/modules/exam/exam.controller.ts">
+import { Controller, Get, Post, Body, Param, Sse } from '@nestjs/common';
+import { ExamService } from './exam.service';
+import { Observable } from 'rxjs';
+import { Public } from '@thallesp/nestjs-better-auth';
+
+@Public()
+@Controller('exam')
+export class ExamController {
+  constructor(private readonly examService: ExamService) {}
+
+  @Post(':tryoutId/start')
+  async startExam(
+    @Param('tryoutId') tryoutId: string,
+    @Body('userId') userId: string,
+  ) {
+    return this.examService.startExam(tryoutId, userId);
+  }
+
+  @Sse(':attemptId/stream')
+  streamExamStatus(
+    @Param('attemptId') attemptId: string,
+  ): Observable<MessageEvent> {
+    return this.examService.getExamStream(attemptId);
+  }
+
+  @Post(':attemptId/answer')
+  async submitAnswer(
+    @Param('attemptId') attemptId: string,
+    @Body() answerData: { questionId: string; answerId: string },
+  ) {
+    return this.examService.saveAnswer(
+      attemptId,
+      answerData.questionId,
+      answerData.answerId,
+    );
+  }
+
+  @Get('ping')
+  ping() {
+    return 'pong';
+  }
+}
+</file>
+
+<file path="src/modules/exam/exam.service.ts">
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma.service';
+import { Observable, interval, map, switchMap, of } from 'rxjs';
+
+@Injectable()
+export class ExamService {
+  constructor(private prisma: PrismaService) {}
+
+  async startExam(tryOutId: string, userId: string) {
+    const existing = await this.prisma.tryOutAttempt.findFirst({
+      where: { userId, tryOutId, status: 'IN_PROGRESS' },
+    });
+
+    if (existing) return existing;
+
+    return this.prisma.tryOutAttempt.create({
+      data: {
+        userId,
+        tryOutId,
+        status: 'IN_PROGRESS',
+        totalScore: 0,
+        startedAt: new Date(),
+      },
+    });
+  }
+
+  // SSE untuk memperbarui jam tryout simultaniously
+  getExamStream(attemptId: string): Observable<MessageEvent> {
+    return interval(1000).pipe(
+      switchMap(async () => {
+        const attempt = await this.prisma.tryOutAttempt.findUnique({
+          where: { id: attemptId },
+          include: { tryOut: { include: { subtests: true } } },
+        });
+
+        if (!attempt || attempt.status !== 'IN_PROGRESS') {
+          return { data: { status: 'FINISHED', remainingSeconds: 0 } };
+        }
+
+        const totalDurationMinutes = attempt.tryOut.subtests.reduce(
+          (acc, sub) => acc + sub.durationMinutes,
+          0,
+        );
+        const endTime = new Date(
+          attempt.startedAt.getTime() + totalDurationMinutes * 60000,
+        );
+        const now = new Date();
+        const remainingSeconds = Math.max(
+          0,
+          Math.floor((endTime.getTime() - now.getTime()) / 1000),
+        );
+
+        if (remainingSeconds === 0) await this.finishExam(attemptId);
+
+        return {
+          data: {
+            status: 'IN_PROGRESS',
+            remainingSeconds,
+            serverTime: new Date().toISOString(),
+          },
+        };
+      }),
+      map((data) => ({ data }) as MessageEvent),
+    );
+  }
+
+  async saveAnswer(
+    attemptId: string,
+    questionId: string,
+    questionItemId: string,
+  ) {
+    const selectedItem = await this.prisma.questionItem.findUnique({
+      where: { id: questionItemId },
+    });
+
+    if (!selectedItem) {
+      throw new Error('Pilihan jawaban tidak valid / tidak ditemukan');
+    }
+
+    const isCorrect = selectedItem.isCorrect;
+
+    return this.prisma.userAnswer.upsert({
+      where: {
+        tryOutAttemptId_questionId: {
+          tryOutAttemptId: attemptId,
+          questionId: questionId,
+        },
+      },
+      update: {
+        questionItemId: questionItemId,
+        isCorrect: isCorrect, // Update status benar/salah
+        updatedAt: new Date(),
+      },
+      create: {
+        tryOutAttemptId: attemptId,
+        questionId: questionId,
+        questionItemId: questionItemId,
+        isCorrect: isCorrect, // Simpan status benar/salah
+      },
+    });
+  }
+
+  async finishExam(attemptId: string) {
+    return this.prisma.tryOutAttempt.update({
+      where: { id: attemptId },
+      data: {
+        status: 'FINISHED',
+        finishedAt: new Date(),
+      },
+    });
+  }
+}
+</file>
+
+<file path="src/modules/shop/shop.service.ts">
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma.service';
+import { ConfigService } from '@nestjs/config';
+
+// Untuk sekarang, tipe token yang dibeli hard-coded
+const TOKEN_TYPES = {
+  1: { amount: 10, price: 99000 },
+  2: { amount: 25, price: 249000 },
+  3: { amount: 50, price: 499000 },
+};
+
+@Injectable()
+export class ShopService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  async createTokenTransaction(userId: string, type: keyof typeof TOKEN_TYPES) {
+    // TODO: Add checking logic buat ngecek apakah lagi ada transaksi unpaid sebelumnya
+    const selectedPackage = TOKEN_TYPES[type];
+    if (!selectedPackage) {
+      throw new BadRequestException('Paket tidak valid!');
+    }
+
+    const transaction = await this.prisma.tokenTransaction.create({
+      data: {
+        amount: selectedPackage.amount,
+        userId,
+        type: 'UNPAID',
+      },
+    });
+
+    // Generate mock QRIS dynaamically
+    let qrisString = '';
+    try {
+      qrisString = this.updateQrisAmount(selectedPackage.price, transaction.id);
+    } catch (error) {
+      console.error('Gagal generate QRIS:', error);
+      throw new BadRequestException('Gagal generate QRIS Code');
+    }
+
+    return {
+      ...transaction,
+      qris: qrisString,
+      totalPrice: selectedPackage.price,
+    };
+  }
+
+  async setPaid(transactionId: string) {
+    // TODO: Add checking logic buat ngecek apakah udah paid sebelumnya, biar dia gak nambah token double
+
+    const transaction = await this.prisma.tokenTransaction.findUnique({
+      where: { id: transactionId },
+    });
+
+    if (!transaction)
+      throw new BadRequestException('Transaksi tidak ditemukan!');
+    // kalau transaksi sudah lunas, maka tidak akan mengubah apapun
+    if (transaction.type === 'PAID') return transaction;
+
+    const res = await this.prisma.tokenTransaction.update({
+      where: {
+        id: transactionId,
+      },
+      data: {
+        type: 'PAID',
+      },
+    });
+
+    await this.prisma.user.update({
+      where: {
+        id: res.userId,
+      },
+      data: {
+        tokenBalance: {
+          increment: res.amount,
+        },
+      },
+    });
+
+    return res;
+  }
+
+  checkTransactionStatus(transactionId: string) {
+    return this.prisma.tokenTransaction.findUnique({
+      where: {
+        id: transactionId,
+      },
+    });
+  }
+
+  /**
+   * Update nominal (tag 54) pada QRIS dan hitung ulang CRC.
+   * - Mengubah 010211 -> 010212 (menjadi dynamic)
+   * - Menyisipkan tag 54 sebelum "5802ID"
+   * - Menghitung ulang CRC16-CCITT (poly 0x1021, init 0xFFFF) di akhir payload
+   */
+  updateQrisAmount(nominal: number | string, transactionId?: string): string {
+    const qris = this.configService.get<string>('QRIS_ID');
+
+    if (qris === undefined || qris === null || qris === '') {
+      throw new Error('QRIS_ID belum dikonfigurasi di environment variables.');
+    }
+
+    if (nominal === undefined || nominal === null || nominal === '') {
+      throw new Error('Parameter "nominal" wajib diisi.');
+    }
+
+    // toString nominal; biarkan apa adanya (boleh "10000" atau "10000.50" kalau dibutuhkan)
+    const nominalStr =
+      typeof nominal === 'number'
+        ? String(nominal) // jika ingin selalu 2 desimal: nominal.toFixed(2).replace(/\.?0+$/, '')
+        : String(nominal);
+
+    // Utility lokal agar tetap satu fungsi saja
+    const pad2 = (n: number) => (n < 10 ? '0' + n : String(n));
+    const toCRC16 = (input: string) => {
+      let crc = 0xffff;
+      for (let i = 0; i < input.length; i++) {
+        crc ^= input.charCodeAt(i) << 8;
+        for (let j = 0; j < 8; j++) {
+          crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
+          crc &= 0xffff; // jaga tetap 16-bit
+        }
+      }
+      return (crc & 0xffff).toString(16).toUpperCase().padStart(4, '0');
+    };
+
+    // Buang CRC lama (4 char terakhir) tetapi tetap mempertahankan "6304" di before-end
+    let base = qris?.slice(0, -4);
+
+    // Pastikan jadi dynamic (010212). Abaikan jika sudah dynamic.
+    base = base?.includes('010211') ? base.replace('010211', '010212') : base;
+
+    // Sisipkan amount (tag 54) sebelum country code "5802ID"
+    const splitMarker = '5802ID';
+    const parts = base?.split(splitMarker);
+    if (parts?.length! < 2) {
+      throw new Error('QRIS tidak valid: marker "5802ID" tidak ditemukan.');
+    }
+
+    const amountTag = '54' + pad2(nominalStr.length) + nominalStr;
+    let payloadWithoutCRC = parts?.[0] + amountTag + splitMarker + parts?.[1];
+
+    if (transactionId) {
+      const tag62 = '62' + pad2(transactionId.length) + transactionId;
+      payloadWithoutCRC += tag62;
+    }
+
+    payloadWithoutCRC += '6304'; // Tambahkan kembali tag CRC tanpa value
+
+    // Hitung CRC baru dan gabungkan
+    const newCrc = toCRC16(payloadWithoutCRC);
+    return payloadWithoutCRC + newCrc;
+  }
+}
+</file>
+
+<file path="src/modules/tryout/tryout.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { TryoutController } from './tryout.controller';
+import { TryoutService } from './tryout.service';
+import { PrismaService } from 'src/prisma.service';
+
+describe('TryoutController', () => {
+  let controller: TryoutController;
+  let service: TryoutService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [TryoutController],
+      providers: [TryoutService],
+    }).compile();
+
+    service = module.get<TryoutService>(TryoutService);
+    controller = module.get<TryoutController>(TryoutController);
+  });
+
+  describe('getAllTryouts', () => {
+    it('should be defined', () => {
+      expect(controller).toBeDefined();
+    });
+  })
+});
+</file>
+
+<file path="src/modules/tryout/tryout.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { TryoutService } from './tryout.service';
+import { PrismaService } from '../../prisma.service';
+
+const prismaMock = {
+  tryOut: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+  },
+};
+
+describe('TryoutService', () => {
+  let service: TryoutService;
+
+  const mockTryoutsComplete = [
+    {
+      id: 'cku1tryout1',
+      code: 1,
+      title: 'Try Out UTBK SNBT 1',
+      batch: 'SNBT',
+      description: 'Simulasi UTBK SNBT lengkap',
+      solutionPrice: 0,
+      isPublic: true,
+      referralCode: null,
+      scheduledStart: new Date('2025-01-10T08:00:00Z'),
+      createdAt: new Date(),
+      subtests: [
+        {
+          order: 1,
+          name: 'Penalaran Umum',
+          durationMinutes: 30,
+          questions: [{}, {}, {}], // 3 questions
+        },
+        {
+          order: 2,
+          name: 'Pengetahuan Kuantitatif',
+          durationMinutes: 45,
+          questions: [{}, {}], // 2 questions
+        },
+      ],
+      attempts: [],
+      unlockedSolutions: [],
+      _count: {
+        attempts: 10,
+      },
+    },
+    {
+      id: 'cku1tryout2',
+      code: 2,
+      title: 'Try Out UTBK SNBT 2',
+      batch: 'SNBT',
+      description: 'Try out lanjutan',
+      solutionPrice: 30000,
+      isPublic: true,
+      referralCode: null,
+      scheduledStart: new Date('2025-01-17T08:00:00Z'),
+      createdAt: new Date(),
+      subtests: [],
+      attempts: [],
+      unlockedSolutions: [],
+      _count: {
+        attempts: 5,
+      },
+    },
+  ];
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TryoutService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
+    }).compile();
+
+    service = module.get<TryoutService>(TryoutService);
+
+    prismaMock.tryOut.findMany.mockClear();
+    prismaMock.tryOut.findUnique.mockClear();
+  });
+
+  describe('getTryouts', () => {
+    it('should return mapped tryouts with correct format', async () => {
+      prismaMock.tryOut.findMany.mockResolvedValue(mockTryoutsComplete);
+
+      const result = await service.getTryouts();
+
+      expect(prismaMock.tryOut.findMany).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(2);
+
+      // Verifikasi Item 1
+      expect(result[0]).toEqual({
+        id: 'cku1tryout1', // Sekarang string CUID
+        title: 'Try Out UTBK SNBT 1',
+        number: '1',
+        canEdit: false,
+        participants: 10, // Mengambil dari _count.attempts
+        badge: 'SNBT',
+      });
+
+      // Verifikasi Item 2
+      expect(result[1]).toEqual({
+        id: 'cku1tryout2', // Sekarang string CUID
+        title: 'Try Out UTBK SNBT 2',
+        number: '2',
+        canEdit: false,
+        participants: 5,
+        badge: 'SNBT',
+      });
+    });
+  });
+
+  describe('getTryoutById', () => {
+    it('should return detailed tryout DTO', async () => {
+      // Ambil item pertama dari array mock sebagai target test
+      const targetTryout = mockTryoutsComplete[0];
+      prismaMock.tryOut.findUnique.mockResolvedValue(targetTryout);
+
+      const result = await service.getTryoutById('cku1tryout1', 'user123');
+
+      expect(prismaMock.tryOut.findUnique).toHaveBeenCalledWith({
+        where: { id: 'cku1tryout1' },
+        include: {
+          subtests: {
+            include: {
+              questions: true,
+            },
+          },
+          attempts: { where: { userId: 'user123' } },
+          unlockedSolutions: { where: { userId: 'user123' } },
+        },
+      });
+
+      expect(result).toEqual({
+        id: 'cku1tryout1', // CUID
+        title: 'Try Out UTBK SNBT 1',
+        number: 1,
+        badge: 'SNBT',
+        participants: 0,
+        description: 'Simulasi UTBK SNBT lengkap',
+        duration: 75,
+        totalQuestions: 5,
+        startDate: targetTryout.scheduledStart.toISOString(),
+        endDate: '',
+        isRegistered: false,
+        isFree: true,
+        tokenCost: 0,
+        categories: [
+          {
+            id: 1,
+            name: 'Penalaran Umum',
+            questionCount: 3,
+            duration: 30,
+            isCompleted: false,
+          },
+          {
+            id: 2,
+            name: 'Pengetahuan Kuantitatif',
+            questionCount: 2,
+            duration: 45,
+            isCompleted: false,
+          },
+        ],
+        benefits: expect.any(Array),
+        requirements: expect.any(Array),
+      });
+    });
+  });
+});
+</file>
+
+<file path="src/modules/admin/services/user.service.ts">
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from 'src/prisma.service';
+import { UpdateUserDto } from '../dto/update-user.dto';
+import { TopupTokenDto } from '../dto/topup-token.dto';
+import * as bcrypt from 'bcryptjs';
+import { Prisma, Role } from '../../../../generated/prisma/client';
+
+@Injectable()
+export class AdminUserService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async manualTokenAdjustment(userId: string, dto: TopupTokenDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      await tx.tokenTransaction.create({
+        data: {
+          userId,
+          amount: dto.amount,
+          type: 'MANUAL_ADJUSTMENT',
+          referenceId: `ADMIN: ${dto.description}`,
+        },
+      });
+
+      return await tx.user.update({
+        where: { id: userId },
+        data: {
+          tokenBalance: { increment: dto.amount },
+        },
+      });
+    });
+  }
+
+  async getAllUser(page = 1, limit = 10, search?: string, role?: string) {
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.UserWhereInput = {};
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (role) {
+      where.role = role as Role;
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          createdAt: true,
+          tokenBalance: true,
+          target: true,
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getUserById(userId: string) {
+    return await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        role: true,
+        tokenBalance: true,
+        target: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async getUserTransactions(userId: string, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.tokenTransaction.findMany({
+        where: { userId },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.tokenTransaction.count({ where: { userId } }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, lastPage: Math.ceil(total / limit) },
+    };
+  }
+
+  async getUserTryouts(userId: string, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.tryOutAttempt.findMany({
+        where: { userId },
+        skip,
+        take: limit,
+        orderBy: { startedAt: 'desc' },
+        include: {
+          tryOut: {
+            select: { title: true },
+          },
+        },
+      }),
+      this.prisma.tryOutAttempt.count({ where: { userId } }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, lastPage: Math.ceil(total / limit) },
+    };
+  }
+
+  async resetUserTryoutAttempt(attemptId: string) {
+    const attempt = await this.prisma.tryOutAttempt.findUnique({
+      where: { id: attemptId },
+    });
+
+    if (!attempt) {
+      throw new NotFoundException('Data pengerjaan tryout tidak ditemukan');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      // Hapus semua jawaban user terkait attempt ini
+      await tx.userAnswer.deleteMany({
+        where: { tryOutAttemptId: attemptId },
+      });
+
+      // Hapus data attempt
+      return await tx.tryOutAttempt.delete({
+        where: { id: attemptId },
+      });
+    });
+  }
+
+  async updateUser(dto: UpdateUserDto, userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Update Password if provided
+      if (dto.password) {
+        const hashedPassword = await bcrypt.hash(dto.password, 10);
+        // Better-auth usually stores password in Account table
+        // We update the primary account (or any password account)
+        await tx.account.updateMany({
+          where: { userId: userId, providerId: 'credential' }, // Assuming credential provider
+          data: { password: hashedPassword },
+        });
+      }
+
+      // 2. Update User data
+      return await tx.user.update({
+        where: { id: userId },
+        data: {
+          name: dto.name,
+          role: dto.role,
+          image: dto.image,
+          tokenBalance: dto.tokenBalance,
+        },
+      });
+    });
+  }
+
+  async deleteUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    return await this.prisma.user.delete({
+      where: { id: userId },
+    });
+  }
+}
+</file>
+
+<file path="src/modules/shop/shop.controller.ts">
+import {
+  BadRequestException,
+  Controller,
+  Param,
+  Post,
+  Session,
+  UseGuards,
+  Body,
+} from '@nestjs/common';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
+import type { UserSession } from '@thallesp/nestjs-better-auth';
+import { ShopService } from './shop.service';
+
+@Controller('shop')
+@UseGuards(AuthGuard)
+export class ShopController {
+  constructor(private readonly shopService: ShopService) {}
+
+  @Post('create/:type')
+  async createTransaction(
+    @Session() session: UserSession,
+    @Param('type') type: string,
+  ) {
+    const intType = parseInt(type, 10);
+
+    if (isNaN(intType)) {
+      throw new BadRequestException('Invalid type');
+    }
+
+    if (intType < 1 || intType > 3) {
+      throw new BadRequestException('Invalid type');
+    }
+
+    const res = await this.shopService.createTokenTransaction(
+      session.user.id,
+      intType as 1 | 2 | 3,
+    );
+
+    // Karena cuma simulasi, transaksinya keresolve setelah 3 detik
+    // setTimeout(() => {
+    //   this.shopService.setPaid(res.id);
+    // }, 3000);
+
+    return res;
+  }
+
+  @Post('check/:transactionId')
+  checkTransactionStatus(@Param('transactionId') transactionId: string) {
+    return this.shopService.checkTransactionStatus(transactionId);
+  }
+
+  @Post('webhook')
+  async handlePaymentWebhook(@Body() body: { transactionId: string }) {
+    if (!body.transactionId) {
+      throw new BadRequestException('transactionId is required');
+    }
+    return this.shopService.setPaid(body.transactionId);
+  }
+}
+</file>
+
+<file path="src/modules/tryout/dto/tryout.dto.ts">
+export class TryOutCardDto {
+  id: string;
+  title: string;
+  number: string;
+  canEdit: boolean;
+  participants: number;
+  badge: string;
+}
+
+export class SubjectDto {
+  id: number;
+  title: string;
+  gradient: string;
+  count: number;
+}
+
+export class TryoutDetailDto {
+  id: string;
+  title: string;
+  number: string;
+  badge: string;
+  participants: number;
+  description: string;
+  duration: number;
+  totalQuestions: number;
+  startDate: string;
+  endDate: string;
+  isRegistered: boolean;
+  isFree: boolean;
+  tokenCost?: number;
+  categories: {
+    id: number;
+    name: string;
+    questionCount: number;
+    duration: number;
+    isCompleted: boolean;
+  }[];
+  benefits: string[];
+  requirements: string[];
+}
+
+export class QuestionDto {
+  id: number;
+  questionText: string;
+  options: string[];
+  correctAnswer?: number;
+  solution?: string;
+}
+
+export class SubtestExamDto {
+  subtestId: number;
+  subtestName: string;
+  tryoutId: string;
+  tryoutTitle: string;
+  duration: number;
+  questions: QuestionDto[];
+}
+</file>
+
+<file path=".env.example">
+DATABASE_URL=
+
+PORT=3000
+
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=http://localhost:3000
+
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+# placeholder
+QRIS_ID=00020101021126570014ID.LINKAJA.WWW0118936009153355276600021520090815335527660303UMI51440014ID.OR.Q-RIS.WWW0215ID10200211756470303UMI5204581253033605802ID5919JITU STORE TESTING6012KOTA JAKARTA61051211063042A25
+
+NODE_ENV=development
+
+CLOUDINARY_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+CORS_ORIGIN=http://localhost:5173
+</file>
+
+<file path="src/modules/admin/services/admin.service.ts">
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+
+@Injectable()
+export class AdminService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getDashboardStats() {
+    const now = new Date();
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(now.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(now.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+    
+    const [
+      totalTryout,
+      totalActiveTryout,
+      totalUpcomingTryout,
+      totalEndedTryout,
+      totalUser,
+      activeUser,
+      totalAdmin,
+      totalRevenueAggregate,
+      totalPendingPayment,
+      monthlyRevenueRaw,
+      monthlyUserGrowthRaw,
+      weeklyActivityRaw
+    ] = await Promise.all([
+      this.prisma.tryOut.count(),
+      this.prisma.tryOut.count({
+        where: {
+          scheduledStart: { lte: now },
+          scheduledEnd: { gte: now },
+        },
+      }),
+      this.prisma.tryOut.count({
+        where: {
+          scheduledStart: { gt: now },
+        },
+      }),
+      this.prisma.tryOut.count({
+        where: {
+          scheduledEnd: { lt: now },
+        },
+      }),
+      this.prisma.user.count(),
+      this.prisma.user.count({
+        where: { emailVerified: true },
+      }),
+      this.prisma.user.count({
+        where: { role: 'ADMIN' },
+      }),
+      this.prisma.payment.aggregate({
+        where: { status: 'CONFIRMED' },
+        _sum: { amount: true },
+      }),
+      this.prisma.payment.count({
+        where: { status: 'PENDING' },
+      }),
+      // Monthly Revenue (Confirmed Payments)
+      this.prisma.payment.findMany({
+        where: { status: 'CONFIRMED', createdAt: { gte: sixMonthsAgo } },
+        select: { amount: true, createdAt: true },
+      }),
+      // Monthly User Growth
+      this.prisma.user.findMany({
+        where: { createdAt: { gte: sixMonthsAgo } },
+        select: { createdAt: true },
+      }),
+      // Weekly Active Activity (based on daily question logs)
+      this.prisma.dailyQuestionLog.findMany({
+        where: { completedAt: { gte: sevenDaysAgo } },
+        select: { completedAt: true },
+      })
+    ]);
+
+    // Helper to format Month labels
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    
+    // Process Monthly Revenue
+    const revenueChart = Array.from({ length: 6 }).map((_, i) => {
+      const d = new Date();
+      d.setMonth(now.getMonth() - (5 - i));
+      const monthLabel = `${monthNames[d.getMonth()]}`;
+      const total = monthlyRevenueRaw
+        .filter(p => p.createdAt.getMonth() === d.getMonth() && p.createdAt.getFullYear() === d.getFullYear())
+        .reduce((sum, p) => sum + p.amount, 0);
+      return { label: monthLabel, value: total };
+    });
+
+    // Process Monthly User Growth
+    const userGrowthChart = Array.from({ length: 6 }).map((_, i) => {
+      const d = new Date();
+      d.setMonth(now.getMonth() - (5 - i));
+      const monthLabel = `${monthNames[d.getMonth()]}`;
+      const count = monthlyUserGrowthRaw
+        .filter(u => u.createdAt.getMonth() === d.getMonth() && u.createdAt.getFullYear() === d.getFullYear())
+        .length;
+      return { label: monthLabel, value: count };
+    });
+
+    // Process Weekly Activity
+    const weeklyActivityChart = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date();
+      d.setDate(now.getDate() - (6 - i));
+      const dayLabel = d.toLocaleDateString('id-ID', { weekday: 'short' });
+      const count = weeklyActivityRaw
+        .filter(l => l.completedAt.getDate() === d.getDate() && l.completedAt.getMonth() === d.getMonth())
+        .length;
+      return { label: dayLabel, value: count };
+    });
+
+    return {
+      totalTryout,
+      totalActiveTryout,
+      totalUpcomingTryout,
+      totalEndedTryout,
+      totalUser,
+      activeUser,
+      totalAdmin,
+      totalRevenue: totalRevenueAggregate._sum.amount || 0,
+      totalPendingPayment,
+      charts: {
+        revenue: revenueChart,
+        userGrowth: userGrowthChart,
+        weeklyActivity: weeklyActivityChart
+      }
+    };
+  }
+}
+</file>
+
+<file path="src/modules/dashboard/dto/dashboard.dto.ts">
+import { IsNotEmpty, IsString } from 'class-validator';
+
+export class StatCardDto {
+  label: string;
+  value: string;
+  color?: string;
+  bgColor?: string;
+  suffix?: string;
+}
+
+export class ScoreDataDto {
+  to: string;
+  total: number;
+  pu: number;
+  ppu: number;
+  pbm: number;
+  pk: number;
+  lbi: number;
+  lbe: number;
+  pm: number;
+}
+
+export class SubtestDto {
+  id: string;
+  label: string;
+  color: string;
+  hoverColor: string;
+}
+
+export class MenuItemDto {
+  label: string;
+  description: string;
+  color?: string;
+  bgColor?: string;
+  action?: string;
+  items?: {
+    label: string;
+    description?: string;
+    toggle?: boolean;
+    link?: boolean;
+  }[];
+}
+
+export class DashboardDataDto {
+  stats: StatCardDto[];
+  scoreHistory: ScoreDataDto[];
+  subtests: SubtestDto[];
+  menuItems: MenuItemDto[];
+}
+
+export class UserStatsDto {
+  lastScore: number;
+  personalBest: number;
+  weeklyActivity: number;
+  totalFinished: number;
+}
+
+export class SubmitDailyAnswerDto {
+  @IsString()
+  @IsNotEmpty()
+  questionId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  answerId: string;
+}
+
+export class DailyQuestionDto {
+  id: string;
+  content: string;
+  options: {
+    id: string;
+    content: string;
+  }[];
+}
+
+export class DailyQuestionResponseDto {
+  isCompleted: boolean;
+  streak: number;
+  question: DailyQuestionDto | null;
+}
+
+export class ActiveTryoutDto {
+  id: string;
+  title: string;
+  code: number;
+  batch: string;
+  participants: number;
+  progress: number;
+  totalSubtests: number;
+  endDate: Date | null;
+}
+</file>
+
+<file path="src/modules/tryout/tryout.controller.ts">
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { TryoutService } from './tryout.service';
+import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
+import { AuthGuard, Session } from '@thallesp/nestjs-better-auth';
+import type { UserSession } from '@thallesp/nestjs-better-auth';
+
+@Controller('tryout')
+export class TryoutController {
+  constructor(private readonly tryoutService: TryoutService) {}
+
+  @Get()
+  async getAllTryouts(): Promise<TryOutCardDto[]> {
+    return this.tryoutService.getTryouts();
+  }
+
+  @Get(':id')
+  @UseGuards(AuthGuard)
+  async getTryoutById(
+    @Param('id') id: string,
+    @Session() session: UserSession,
+  ): Promise<TryoutDetailDto> {
+    return this.tryoutService.getTryoutById(id, session.user.id);
+  }
+
+  @Get(':id/exam/:subtestId')
+  @UseGuards(AuthGuard)
+  async getTryoutExam(
+    @Param('id') id: string,
+    @Param('subtestId') subtestId: string,
+  ) {
+    return this.tryoutService.getSubtestQuestions(id, parseInt(subtestId));
+  }
+}
+</file>
+
+<file path="src/modules/tryout/tryout.service.ts">
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma.service';
+import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
+
+@Injectable()
+export class TryoutService {
+  constructor(private prisma: PrismaService) {}
+
+  private mapTryoutToDto(tryout: any): TryoutDetailDto {
+    const totalQuestions = tryout.subtests.reduce(
+      (sum, s) => sum + s.questions.length,
+      0,
+    );
+
+    const totalDuration = tryout.subtests.reduce(
+      (sum, s) => sum + s.durationMinutes,
+      0,
+    );
+
+    return {
+      id: tryout.id, // CUID
+      title: tryout.title,
+      number: tryout.code,
+      badge: tryout.batch, // SNBT / MANDIRI
+      participants: tryout.attempts?.length ?? 0,
+      description: tryout.description ?? '',
+      duration: totalDuration,
+      totalQuestions,
+      startDate: tryout.scheduledStart?.toISOString() ?? '',
+      endDate: '',
+      isRegistered: (tryout.attempts?.length ?? 0) > 0,
+      isFree: tryout.solutionPrice === 0,
+      tokenCost: tryout.solutionPrice,
+      categories: tryout.subtests.map((s) => ({
+        id: Number(s.order),
+        name: s.name,
+        questionCount: s.questions.length,
+        duration: s.durationMinutes,
+        isCompleted: false,
+      })),
+      benefits: ['Pembahasan lengkap', 'Analisis hasil', 'Simulasi UTBK'],
+      requirements: ['Akun terverifikasi', 'Token mencukupi'],
+    };
+  }
+
+  async getTryouts(): Promise<TryOutCardDto[]> {
+    const tryouts = await this.prisma.tryOut.findMany({
+      include: {
+        _count: {
+          select: { attempts: true },
+        },
+      },
+    });
+
+    return tryouts.map((t) => ({
+      id: t.id, // CUID
+      title: t.title,
+      number: t.code.toString(),
+      canEdit: false,
+      participants: t._count.attempts,
+      badge: t.batch,
+    }));
+  }
+
+  async getTryoutById(id: string, userId?: string): Promise<TryoutDetailDto> {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+      include: {
+        subtests: {
+          include: {
+            questions: true,
+          },
+        },
+        attempts: userId ? { where: { userId } } : false,
+        unlockedSolutions: userId ? { where: { userId } } : false,
+      },
+    });
+
+    if (!tryout) {
+      throw new Error('Tryout not found');
+    }
+
+    return this.mapTryoutToDto(tryout);
+  }
+
+  async getSubtestQuestions(tryOutId: string, subtestOrder: number) {
+    const subtest = await this.prisma.subtest.findFirst({
+      where: { tryOutId, order: subtestOrder },
+      include: {
+        tryOut: { select: { title: true } },
+        questions: {
+          include: { items: { orderBy: { order: 'asc' } } },
+        },
+      },
+    });
+
+    if (!subtest) {
+      throw new Error('Subtest not found');
+    }
+
+    return {
+      subtestId: subtest.order,
+      subtestName: subtest.name,
+      tryoutId: tryOutId,
+      tryoutTitle: subtest.tryOut.title,
+      duration: subtest.durationMinutes,
+      questions: subtest.questions.map((q) => ({
+        id: q.id,
+        questionText: q.content,
+        options: q.items.map((i) => i.content),
+        optionIds: q.items.map((i) => i.id),
+      })),
+    };
+  }
+}
+</file>
+
+<file path="prisma/seed.ts">
+import {
+  PrismaClient,
+  SubtestName,
+  TryoutBatch,
+  QuestionType,
+  Role,
+  PaymentStatus,
+} from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+const connectionString = `${process.env.DATABASE_URL}`;
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+async function main() {
+  console.log('🌱 Seeding database...');
+
+  // ===============================
+  // 1. CREATE TOKEN PACKAGES
+  // ===============================
+  const pkg1 = await prisma.tokenPackage.upsert({
+    where: { id: 'pkg-1' },
+    update: {},
+    create: {
+      id: 'pkg-1',
+      name: 'Paket Hemat',
+      tokenAmount: 20,
+      price: 15000,
+    },
+  });
+
+  const pkg2 = await prisma.tokenPackage.upsert({
+    where: { id: 'pkg-2' },
+    update: {},
+    create: {
+      id: 'pkg-2',
+      name: 'Paket Populer',
+      tokenAmount: 50,
+      price: 35000,
+    },
+  });
+
+  const pkg3 = await prisma.tokenPackage.upsert({
+    where: { id: 'pkg-3' },
+    update: {},
+    create: {
+      id: 'pkg-3',
+      name: 'Paket Sultan',
+      tokenAmount: 150,
+      price: 100000,
+    },
+  });
+
+  console.log('✅ Token packages seeded');
+
+  // ===============================
+  // 2. CREATE USERS
+  // ===============================
+  const userSiswa1 = await prisma.user.upsert({
+    where: { email: 'siswa_test@example.com' },
+    update: {},
+    create: {
+      id: 'user-siswa-test-id',
+      name: 'Siswa Teladan',
+      email: 'siswa_test@example.com',
+      role: Role.USER,
+      tokenBalance: 50,
+      emailVerified: true,
+      target: 'ITB - Teknik Informatika',
+    },
+  });
+
+  const userSiswa2 = await prisma.user.upsert({
+    where: { email: 'siswa_2@example.com' },
+    update: {},
+    create: {
+      id: 'user-siswa-2-id',
+      name: 'Budi Santoso',
+      email: 'siswa_2@example.com',
+      role: Role.USER,
+      tokenBalance: 0,
+      emailVerified: true,
+    },
+  });
+
+  const userSiswa3 = await prisma.user.upsert({
+    where: { email: 'siswa_3@example.com' },
+    update: {},
+    create: {
+      id: 'user-siswa-3-id',
+      name: 'Ani Wijaya',
+      email: 'siswa_3@example.com',
+      role: Role.USER,
+      tokenBalance: 10,
+      emailVerified: true,
+    },
+  });
+
+  const userAdmin = await prisma.user.upsert({
+    where: { email: 'admin_test@example.com' },
+    update: { role: Role.ADMIN },
+    create: {
+      id: 'user-admin-test-id',
+      name: 'Admin Jitu',
+      email: 'admin_test@example.com',
+      role: Role.ADMIN,
+      tokenBalance: 9999,
+      emailVerified: true,
+    },
+  });
+
+  console.log('✅ Users seeded');
+
+  // ===============================
+  // 3. CREATE PAYMENTS
+  // ===============================
+  // Note: userId is @unique in Payment schema, so 1 payment per user for now
+  
+  await prisma.payment.upsert({
+    where: { userId: userSiswa1.id },
+    update: {},
+    create: {
+      userId: userSiswa1.id,
+      tokenPackageId: pkg2.id,
+      amount: pkg2.price,
+      tokenAmount: pkg2.tokenAmount,
+      status: PaymentStatus.CONFIRMED,
+      paymentMethod: 'QRIS_STATIC',
+    },
+  });
+
+  await prisma.payment.upsert({
+    where: { userId: userSiswa2.id },
+    update: {},
+    create: {
+      userId: userSiswa2.id,
+      tokenPackageId: pkg1.id,
+      amount: pkg1.price,
+      tokenAmount: pkg1.tokenAmount,
+      status: PaymentStatus.PENDING,
+      paymentMethod: 'MANUAL_TRANSFER',
+    },
+  });
+
+  await prisma.payment.upsert({
+    where: { userId: userSiswa3.id },
+    update: {},
+    create: {
+      userId: userSiswa3.id,
+      tokenPackageId: pkg3.id,
+      amount: pkg3.price,
+      tokenAmount: pkg3.tokenAmount,
+      status: PaymentStatus.DECLINED,
+      paymentMethod: 'QRIS_STATIC',
+    },
+  });
+
+  console.log('✅ Payments seeded');
+
+  // ===============================
+  // 4. CREATE TRYOUTS & QUESTIONS
+  // ===============================
+  const tryout1 = await prisma.tryOut.upsert({
+    where: { id: 'tryout-1' },
+    update: {},
+    create: {
+      id: 'tryout-1',
+      title: 'Tryout Simulasi Reset (In Progress)',
+      description: 'Tryout ini sedang dikerjakan user untuk dites reset.',
+      batch: TryoutBatch.SNBT,
+      isPublic: true,
+      solutionPrice: 0,
+      releaseDate: new Date(),
+      scheduledStart: new Date(),
+      scheduledEnd: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
+      status: 'IN_PROGRESS',
+      subtests: {
+        create: [
+          {
+            name: SubtestName.PU,
+            durationMinutes: 30,
+            order: 1,
+            questions: {
+              create: [
+                {
+                  type: QuestionType.PILIHAN_GANDA,
+                  content: '1 + 1 = ?',
+                  points: 10,
+                  items: {
+                    create: [
+                      { content: '2', isCorrect: true, order: 1 },
+                      { content: '3', isCorrect: false, order: 2 },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  console.log('✅ Tryouts seeded');
+
+  // ===============================
+  // 5. CREATE ATTEMPTS
+  // ===============================
+  const existingAttempt = await prisma.tryOutAttempt.findFirst({
+    where: { userId: userSiswa1.id, tryOutId: tryout1.id }
+  });
+
+  if (!existingAttempt) {
+    await prisma.tryOutAttempt.create({
+      data: {
+        userId: userSiswa1.id,
+        tryOutId: tryout1.id,
+        status: 'IN_PROGRESS',
+        totalScore: 0,
+        startedAt: new Date(),
+      },
+    });
+  }
+
+  console.log('✅ User attempts seeded');
+  console.log('🌱 Seeding finished successfully.');
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Seeding failed:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+</file>
+
+<file path="src/modules/dashboard/dashboard.controller.ts">
+import {
+  Body,
+  Controller,
+  Put,
+  Get,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+  Post,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { AuthGuard, Session } from '@thallesp/nestjs-better-auth';
+import type { UserSession } from '@thallesp/nestjs-better-auth';
+import { DashboardService } from './dashboard.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { SubmitDailyAnswerDto, UserStatsDto } from './dto/dashboard.dto';
+
+@Controller('dashboard')
+@UseGuards(AuthGuard)
+export class DashboardController {
+  constructor(private readonly dashboardService: DashboardService) {}
+
+  @Put('profile')
+  @UseInterceptors(FileInterceptor('image'))
+  async updateProfile(
+    @Body() payload: UpdateProfileDto,
+    @UploadedFile() file: Express.Multer.File,
+    @Session() session: UserSession,
+  ) {
+    return this.dashboardService.updateProfile(session.user.id, payload, file);
+  }
+
+  @Get('stats')
+  async getStats(@Session() session: UserSession): Promise<UserStatsDto> {
+    return this.dashboardService.getUserStats(session.user.id);
+  }
+
+  @Get('daily-question')
+  async getDailyQuestion(@Session() session: UserSession) {
+    return this.dashboardService.getDailyQuestion(session.user.id);
+  }
+
+  @Post('answer-question')
+  async answerDailyQuestion(
+    @Session() session: UserSession,
+    @Body() payload: SubmitDailyAnswerDto,
+  ) {
+    return this.dashboardService.answerDailyQuestion(session.user.id, payload);
+  }
+
+  @Get('score-stats')
+  async getTryoutsScore(@Session() session: UserSession) {
+    return this.dashboardService.getScoreHistory(session.user.id);
+  }
+
+  @Get('active-to')
+  async getActiveTryouts(@Session() session: UserSession) {
+    return this.dashboardService.getActiveTryouts(session.user.id);
+  }
+}
+</file>
+
+<file path="src/modules/dashboard/dashboard.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { DashboardService } from './dashboard.service';
+import { PrismaService } from '../../prisma.service';
+import { v2 as cloudinary } from 'cloudinary';
+import * as streamifier from 'streamifier';
+import { BadRequestException } from '@nestjs/common';
+// Gunakan path relatif ke generated prisma client
+import { TryoutStatus } from '../../../generated/prisma/enums';
+
+jest.mock('cloudinary', () => ({
+  v2: {
+    config: jest.fn(),
+    uploader: {
+      upload_stream: jest.fn(),
+    },
+  },
+}));
+
+jest.mock('streamifier', () => ({
+  createReadStream: jest.fn(),
+}));
+
+const prismaMock = {
+  user: {
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
+  tryOutAttempt: {
+    findFirst: jest.fn(),
+    aggregate: jest.fn(),
+    count: jest.fn(),
+    findMany: jest.fn(),
+  },
+  dailyQuestionLog: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+  },
+  question: {
+    count: jest.fn(),
+    findFirst: jest.fn(),
+  },
+  questionItem: {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+  },
+  $transaction: jest.fn((promises) => Promise.all(promises)),
+};
+
+describe('DashboardService', () => {
+  let service: DashboardService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DashboardService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
+    }).compile();
+
+    service = module.get<DashboardService>(DashboardService);
+    jest.clearAllMocks();
+  });
+
+  // ... (Test updateProfile dan getUserStats yang sudah ada tetap di sini)
+  describe('updateProfile', () => {
+    it('should update profile without image', async () => {
+      const userId = 'user-1';
+      const payload = { name: 'New Name', target: 'UGM' };
+
+      prismaMock.user.update.mockResolvedValue({
+        id: userId,
+        ...payload,
+        email: 'test@test.com',
+        image: null,
+        updatedAt: new Date(),
+      });
+
+      const result = await service.updateProfile(userId, payload);
+
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: payload,
+        select: expect.any(Object),
+      });
+      expect(result.name).toBe('New Name');
+      expect(result.target).toBe('UGM');
+    });
+
+    it('should upload image and update profile', async () => {
+      const userId = 'user-1';
+      const payload = { name: 'New Name' };
+      const mockFile = {
+        buffer: Buffer.from('fake-image'),
+      } as Express.Multer.File;
+
+      const mockUrl = 'https://cloudinary.com/image.jpg';
+
+      (cloudinary.uploader.upload_stream as jest.Mock).mockImplementation(
+        (options, callback) => {
+          callback(null, { secure_url: mockUrl });
+          return {}; // dummy stream
+        },
+      );
+
+      (streamifier.createReadStream as jest.Mock).mockReturnValue({
+        pipe: jest.fn(),
+      });
+
+      prismaMock.user.update.mockResolvedValue({
+        id: userId,
+        name: payload.name,
+        image: mockUrl,
+        email: 'test@test.com',
+        target: 'Bismillah Lolos UTBK 2029',
+        updatedAt: new Date(),
+      });
+
+      const result = await service.updateProfile(userId, payload, mockFile);
+
+      expect(cloudinary.uploader.upload_stream).toHaveBeenCalled();
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: { ...payload, image: mockUrl },
+        select: expect.any(Object),
+      });
+      expect(result.image).toBe(mockUrl);
+    });
+
+    it('should throw BadRequestException if upload fails', async () => {
+      const userId = 'user-1';
+      const payload = {};
+      const mockFile = {
+        buffer: Buffer.from('fake-image'),
+      } as Express.Multer.File;
+
+      (cloudinary.uploader.upload_stream as jest.Mock).mockImplementation(
+        (options, callback) => {
+          callback(new Error('Cloudinary Error'), null);
+          return {};
+        },
+      );
+
+      (streamifier.createReadStream as jest.Mock).mockReturnValue({
+        pipe: jest.fn(),
+      });
+
+      await expect(
+        service.updateProfile(userId, payload, mockFile),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getUserStats', () => {
+    it('should return correct calculated stats when user has activity', async () => {
+      const userId = 'user-active';
+
+      prismaMock.tryOutAttempt.findFirst.mockResolvedValue({ totalScore: 750 });
+      prismaMock.tryOutAttempt.aggregate.mockResolvedValue({
+        _max: { totalScore: 800 },
+      });
+      prismaMock.tryOutAttempt.count
+        .mockResolvedValueOnce(3)
+        .mockResolvedValueOnce(5);
+
+      const result = await service.getUserStats(userId);
+
+      expect(result).toEqual({
+        lastScore: 750,
+        personalBest: 800,
+        weeklyActivity: 3,
+        totalFinished: 5,
+      });
+    });
+
+    it('should return zero stats for new user', async () => {
+      const userId = 'user-new';
+
+      prismaMock.tryOutAttempt.findFirst.mockResolvedValue(null);
+      prismaMock.tryOutAttempt.aggregate.mockResolvedValue({
+        _max: { totalScore: null },
+      });
+      prismaMock.tryOutAttempt.count.mockResolvedValue(0);
+
+      const result = await service.getUserStats(userId);
+
+      expect(result).toEqual({
+        lastScore: 0,
+        personalBest: 0,
+        weeklyActivity: 0,
+        totalFinished: 0,
+      });
+    });
+  });
+
+  describe('getDailyQuestion', () => {
+    it('should return isCompleted=true if user already answered today', async () => {
+      const userId = 'user-1';
+      // Mock existing log
+      prismaMock.dailyQuestionLog.findFirst.mockResolvedValue({ id: 'log-1' });
+      // Mock user streak
+      prismaMock.user.findUnique.mockResolvedValue({ currentStreak: 5 });
+
+      const result = await service.getDailyQuestion(userId);
+
+      expect(result).toEqual({
+        isCompleted: true,
+        streak: 5,
+        question: null,
+      });
+      expect(prismaMock.dailyQuestionLog.findFirst).toHaveBeenCalled();
+    });
+
+    it('should return a random question if user has not answered today', async () => {
+      const userId = 'user-1';
+      // Mock no existing log
+      prismaMock.dailyQuestionLog.findFirst.mockResolvedValue(null);
+      prismaMock.user.findUnique.mockResolvedValue({ currentStreak: 5 });
+
+      // Mock Question Data
+      prismaMock.question.count.mockResolvedValue(100);
+      prismaMock.question.findFirst.mockResolvedValue({
+        id: 'q-1',
+        content: 'Apa ibukota Indonesia?',
+        items: [
+          { id: 'opt-1', content: 'Jakarta' },
+          { id: 'opt-2', content: 'Bandung' },
+        ],
+      });
+
+      const result = await service.getDailyQuestion(userId);
+
+      expect(result).toEqual({
+        isCompleted: false,
+        streak: 5,
+        question: {
+          id: 'q-1',
+          content: 'Apa ibukota Indonesia?',
+          options: [
+            { id: 'opt-1', content: 'Jakarta' },
+            { id: 'opt-2', content: 'Bandung' },
+          ],
+        },
+      });
+      expect(prismaMock.question.findFirst).toHaveBeenCalled();
+    });
+  });
+
+  describe('answerDailyQuestion', () => {
+    it('should increase streak if answer is correct', async () => {
+      const userId = 'user-1';
+      const payload = { questionId: 'q-1', answerId: 'opt-correct' };
+
+      // Mock correct answer
+      prismaMock.questionItem.findUnique.mockResolvedValue({
+        id: 'opt-correct',
+        questionId: 'q-1',
+        isCorrect: true,
+      });
+
+      // Mock user data
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: userId,
+        currentStreak: 5,
+      });
+
+      const result = await service.answerDailyQuestion(userId, payload);
+
+      expect(result.isCorrect).toBe(true);
+      expect(result.newStreak).toBe(6);
+
+      // Verify DB Updates
+      expect(prismaMock.dailyQuestionLog.create).toHaveBeenCalled();
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: expect.objectContaining({ currentStreak: 6 }),
+      });
+    });
+
+    it('should reset streak to 0 if answer is incorrect', async () => {
+      const userId = 'user-1';
+      const payload = { questionId: 'q-1', answerId: 'opt-wrong' };
+
+      // Mock wrong answer
+      prismaMock.questionItem.findUnique.mockResolvedValue({
+        id: 'opt-wrong',
+        questionId: 'q-1',
+        isCorrect: false,
+      });
+
+      // Mock correct answer lookup for feedback
+      prismaMock.questionItem.findFirst.mockResolvedValue({
+        id: 'opt-correct',
+        isCorrect: true,
+      });
+
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: userId,
+        currentStreak: 5,
+      });
+
+      const result = await service.answerDailyQuestion(userId, payload);
+
+      expect(result.isCorrect).toBe(false);
+      expect(result.newStreak).toBe(0);
+      expect(result.correctAnswerId).toBe('opt-correct');
+
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: expect.objectContaining({ currentStreak: 0 }),
+      });
+    });
+  });
+
+  describe('getScoreHistory', () => {
+    it('should return score history with correct subtest aggregation', async () => {
+      const userId = 'user-test';
+      const mockAttempts = [
+        {
+          totalScore: 500,
+          finishedAt: new Date(),
+          tryOut: { code: 1 },
+          answers: [
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PU' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PPU' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PBM' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PK' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'LBI' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'LBE' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PM' } },
+            },
+          ],
+        },
+      ];
+
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue(
+        mockAttempts,
+      );
+
+      const result = await service.getScoreHistory(userId);
+
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          to: 'TO 1',
+          total: 500,
+          pu: 10,
+          ppu: 10,
+          pbm: 10,
+          pk: 10,
+
+          lbi: 10,
+          lbe: 10,
+          pm: 10,
+        }),
+      );
+    });
+
+    it('should return empty array if no finished attempts found', async () => {
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.getScoreHistory('user-no-history');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getActiveTryouts', () => {
+    it('should return active tryouts with correct progress and participant count', async () => {
+      const userId = 'user-active-to';
+      const mockDate = new Date();
+
+      const mockActiveAttempts = [
+        {
+          tryOut: {
+            id: 'to-1',
+            title: 'Try Out SNBT 1',
+            code: 1,
+            batch: 'SNBT',
+            scheduledStart: mockDate,
+            subtests: [{ id: 'sub-1' }, { id: 'sub-2' }, { id: 'sub-3' }],
+            _count: { attempts: 150 },
+          },
+          answers: [
+            { question: { subtestId: 'sub-1' } },
+            { question: { subtestId: 'sub-1' } },
+            { question: { subtestId: 'sub-2' } },
+          ],
+        },
+      ];
+
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue(
+        mockActiveAttempts,
+      );
+
+      const result = await service.getActiveTryouts(userId);
+
+      expect(prismaMock.tryOutAttempt.findMany).toHaveBeenCalledWith({
+        where: { userId, status: 'IN_PROGRESS' },
+        include: expect.any(Object),
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        id: 'to-1',
+        title: 'Try Out SNBT 1',
+        code: 1,
+        batch: 'SNBT',
+        participants: 150,
+        progress: 2, // sub-1 and sub-2
+        totalSubtests: 3,
+        endDate: mockDate,
+      });
+    });
+
+    it('should return empty array if no active tryouts found', async () => {
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.getActiveTryouts('user-idle');
+
+      expect(result).toEqual([]);
+    });
+  });
+});
+</file>
+
+<file path="src/modules/dashboard/dashboard.service.ts">
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../prisma.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { v2 as cloudinary } from 'cloudinary';
+import * as streamifier from 'streamifier';
+import {
+  ActiveTryoutDto,
+  ScoreDataDto,
+  UserStatsDto,
+} from './dto/dashboard.dto';
+import {
+  DailyQuestionDto,
+  SubmitDailyAnswerDto,
+  DailyQuestionResponseDto,
+} from './dto/dashboard.dto';
+import { isISO4217CurrencyCode } from 'class-validator';
+import { un } from 'node_modules/better-auth/dist/index-COnelCGa.mjs';
+
+enum TryoutStatus {
+  IN_PROGRESS = 'IN_PROGRESS',
+  FINISHED = 'FINISHED',
+}
+
+@Injectable()
+export class DashboardService {
+  constructor(private prisma: PrismaService) {
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+  }
+
+  private async uploadToCloudinary(file: Express.Multer.File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'jitu-profile-pictures',
+          resource_type: 'auto',
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          if (!result || !result.secure_url) {
+            return reject(
+              new Error('Gagal mengupload gambar ke Cloudinary: Result kosong'),
+            );
+          }
+          resolve(result.secure_url);
+        },
+      );
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
+
+  async updateProfile(
+    userId: string,
+    payload: UpdateProfileDto,
+    file?: Express.Multer.File,
+  ) {
+    const updateData: any = { ...payload };
+
+    if (file) {
+      try {
+        const imageUrl = await this.uploadToCloudinary(file);
+        updateData.image = imageUrl;
+      } catch (error) {
+        throw new BadRequestException('Gagal mengupload gambar ke Cloudinary');
+      }
+    }
+
+    return await this.prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        target: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async getUserStats(userId: string): Promise<UserStatsDto> {
+    const now = new Date();
+    const oneWeekAgo = new Date(now.setDate(now.getDate() - 7));
+
+    const [lastAttempt, bestScore, weeklyActivity, totalFinished] =
+      await Promise.all([
+        // last tryout score
+        this.prisma.tryOutAttempt.findFirst({
+          where: { userId, status: TryoutStatus.FINISHED },
+          orderBy: { finishedAt: 'desc' },
+          select: { totalScore: true },
+        }),
+
+        // best score
+        this.prisma.tryOutAttempt.aggregate({
+          where: { userId, status: TryoutStatus.FINISHED },
+          _max: { totalScore: true },
+        }),
+
+        //weekly activity
+        this.prisma.tryOutAttempt.count({
+          where: {
+            userId,
+            startedAt: { gte: oneWeekAgo },
+          },
+        }),
+
+        // totalFinished
+        this.prisma.tryOutAttempt.count({
+          where: { userId, status: TryoutStatus.FINISHED },
+        }),
+      ]);
+
+    return {
+      lastScore: lastAttempt?.totalScore
+        ? Math.round(lastAttempt.totalScore)
+        : 0,
+      personalBest: bestScore._max.totalScore
+        ? Math.round(bestScore._max.totalScore)
+        : 0,
+      weeklyActivity: weeklyActivity,
+      totalFinished: totalFinished,
+    };
+  }
+
+  async getDailyQuestion(userId: string): Promise<DailyQuestionResponseDto> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const existingLog = await this.prisma.dailyQuestionLog.findFirst({
+      where: {
+        userId,
+        completedAt: { gte: today },
+      },
+    });
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { currentStreak: true, lastDailyDate: true },
+    });
+
+    if (existingLog) {
+      return {
+        isCompleted: true,
+        streak: user?.currentStreak || 0,
+        question: null,
+      };
+    }
+
+    const totalQuestion = await this.prisma.question.count();
+    const skip = Math.floor(Math.random() * totalQuestion);
+
+    const randomQuestion = await this.prisma.question.findFirst({
+      skip: skip,
+      include: {
+        items: true,
+      },
+    });
+
+    if (!randomQuestion) {
+      return {
+        isCompleted: false,
+        streak: user?.currentStreak || 0,
+        question: null,
+      };
+    }
+
+    return {
+      isCompleted: false,
+      streak: user?.currentStreak || 0,
+      question: {
+        id: randomQuestion.id,
+        content: randomQuestion.content || 'Soal Error!',
+        options: randomQuestion.items.map((item) => ({
+          id: item.id,
+          content: item.content || '',
+        })),
+      },
+    };
+  }
+
+  async answerDailyQuestion(
+    userId: string,
+    payload: SubmitDailyAnswerDto,
+  ): Promise<{
+    isCorrect: boolean;
+    newStreak: number;
+    correctAnswerId?: string;
+  }> {
+    const selectedItem = await this.prisma.questionItem.findUnique({
+      where: { id: payload.answerId },
+    });
+
+    if (!selectedItem) {
+      throw new BadRequestException('Jawaban tidak valid!');
+    }
+    const isCorrect = selectedItem.isCorrect;
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    let newStreak = user?.currentStreak || 0;
+    const lastDate = user?.lastDailyDate;
+
+    const now = new Date();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    if (isCorrect) {
+      newStreak += 1;
+    } else {
+      newStreak = 0;
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.dailyQuestionLog.create({
+        data: {
+          userId,
+          questionId: selectedItem.questionId,
+          isCorrect,
+          completedAt: now,
+        },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          currentStreak: newStreak,
+          lastDailyDate: now,
+        },
+      }),
+    ]);
+
+    let correctAnswerId: string | undefined = undefined;
+    if (!isCorrect) {
+      const correctItem = await this.prisma.questionItem.findFirst({
+        where: { questionId: selectedItem.questionId, isCorrect: true },
+      });
+      correctAnswerId = correctItem?.id;
+    }
+
+    return { isCorrect, newStreak, correctAnswerId };
+  }
+
+  async getScoreHistory(userId: string): Promise<ScoreDataDto[]> {
+    const attempts = await this.prisma.tryOutAttempt.findMany({
+      where: {
+        userId,
+        status: 'FINISHED',
+      },
+      orderBy: {
+        finishedAt: 'asc',
+      },
+      include: {
+        tryOut: {
+          select: {
+            code: true,
+          },
+        },
+        answers: {
+          include: {
+            question: {
+              select: {
+                points: true,
+                subtest: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return attempts.map((attempt) => {
+      const scores = {
+        pu: 0,
+        ppu: 0,
+        pbm: 0,
+        pk: 0,
+        lbi: 0,
+        lbe: 0,
+        pm: 0,
+      };
+
+      attempt.answers.forEach((answer) => {
+        if (answer.isCorrect) {
+          const subtestName = answer.question.subtest.name;
+          const points = answer.question.points;
+
+          if (subtestName === 'PU') scores.pu += points;
+          if (subtestName === 'PPU') scores.ppu += points;
+          if (subtestName === 'PBM') scores.pbm += points;
+          if (subtestName === 'PK') scores.pk += points;
+          if (subtestName === 'LBI') scores.lbi += points;
+          if (subtestName === 'LBE') scores.lbe += points;
+          if (subtestName === 'PM') scores.pm += points;
+        }
+      });
+
+      return {
+        to: `TO ${attempt.tryOut.code}`,
+        total: Math.round(attempt.totalScore),
+        ...scores,
+      };
+    });
+  }
+
+  async getActiveTryouts(userId: string): Promise<ActiveTryoutDto[]> {
+    const registeredTryouts = await this.prisma.tryOutAttempt.findMany({
+      where: {
+        userId,
+        status: 'IN_PROGRESS',
+      },
+      include: {
+        tryOut: {
+          include: {
+            subtests: {
+              select: { id: true },
+            },
+            _count: {
+              select: {
+                attempts: true,
+              },
+            },
+          },
+        },
+        answers: {
+          select: {
+            question: {
+              select: {
+                subtestId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return registeredTryouts.map((tryout) => {
+      const ansSubtestId = new Set(
+        tryout.answers.map((a) => a.question.subtestId),
+      );
+
+      return {
+        id: tryout.tryOut.id,
+        title: tryout.tryOut.title,
+        code: tryout.tryOut.code,
+        batch: tryout.tryOut.batch,
+        participants: tryout.tryOut._count.attempts,
+        progress: ansSubtestId.size,
+        totalSubtests: tryout.tryOut.subtests.length,
+        endDate: tryout.tryOut.scheduledStart,
+      };
+    });
+  }
+}
+</file>
+
+<file path="src/modules/admin/services/tryout.service.ts">
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+import { CreateTryoutDto } from '../dto/create-tryout.dto';
+import { UpdateTryoutDto } from '../dto/update-tryout.dto';
+import { NotFoundException } from '@nestjs/common';
+
+@Injectable()
+export class AdminTryoutService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getTryouts(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const now = new Date();
+
+    const [data, total] = await Promise.all([
+      this.prisma.tryOut.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          code: true,
+          title: true,
+          solutionPrice: true,
+          releaseDate: true,
+          scheduledStart: true,
+          scheduledEnd: true,
+          status: true,
+          isPublic: true,
+          referralCode: true,
+        },
+      }),
+      this.prisma.tryOut.count(),
+    ]);
+
+    // Calculate dynamic status based on time
+    const formattedData = data.map((item) => {
+      let currentStatus = item.status;
+
+      if (item.scheduledStart && item.scheduledEnd) {
+        if (now < item.scheduledStart) {
+          currentStatus = 'NOT_STARTED';
+        } else if (now >= item.scheduledStart && now <= item.scheduledEnd) {
+          currentStatus = 'IN_PROGRESS';
+        } else if (now > item.scheduledEnd) {
+          currentStatus = 'FINISHED';
+        }
+      }
+
+      return {
+        ...item,
+        status: currentStatus,
+      };
+    });
+
+    return {
+      data: formattedData,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getTryoutById(id: string) {
+    return this.prisma.tryOut.findUnique({
+      where: { id },
+    });
+  }
+
+  async createTryout(dto: CreateTryoutDto) {
+    const start = new Date(dto.scheduledStart);
+    const end = new Date(dto.scheduledEnd);
+    const now = new Date();
+
+    let status: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED' = 'NOT_STARTED';
+    if (now > end) {
+      status = 'FINISHED';
+    } else if (now >= start) {
+      status = 'IN_PROGRESS';
+    }
+
+    return await this.prisma.tryOut.create({
+      data: {
+        title: dto.title,
+        description: dto.description,
+        solutionPrice: dto.solutionPrice,
+        batch: dto.batch,
+        releaseDate: new Date(dto.releaseDate),
+        scheduledStart: start,
+        scheduledEnd: end,
+        status: status,
+        isPublic: dto.isPublic ?? true,
+        referralCode: dto.referralCode || null,
+      },
+
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        scheduledStart: true,
+        releaseDate: true,
+        scheduledEnd: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async updateTryout(id: string, dto: UpdateTryoutDto) {
+    const existingTryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+    });
+
+    if (!existingTryout) {
+      throw new NotFoundException('Tryout tidak ditemukan');
+    }
+
+    const start = dto.scheduledStart
+      ? new Date(dto.scheduledStart)
+      : existingTryout.scheduledStart;
+    const end = dto.scheduledEnd
+      ? new Date(dto.scheduledEnd)
+      : existingTryout.scheduledEnd;
+    const now = new Date();
+
+    let newStatus = existingTryout.status;
+    if (start && end) {
+      if (now > end) {
+        newStatus = 'FINISHED';
+      } else if (now >= start) {
+        newStatus = 'IN_PROGRESS';
+      } else {
+        newStatus = 'NOT_STARTED';
+      }
+    }
+
+    return await this.prisma.tryOut.update({
+      where: { id },
+      data: {
+        title: dto.title,
+        solutionPrice: dto.solutionPrice,
+        scheduledStart: start,
+        scheduledEnd: end,
+        releaseDate: dto.releaseDate && new Date(dto.releaseDate),
+        description: dto.description,
+        isPublic: dto.isPublic,
+        referralCode: dto.referralCode || null,
+        status: newStatus,
+      },
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        scheduledStart: true,
+        releaseDate: true,
+        scheduledEnd: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async deleteTryout(id: string) {
+    const existingTryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existingTryout) {
+      throw new NotFoundException('Tryout tidak ditemukan');
+    }
+
+    return await this.prisma.tryOut.delete({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+      },
+    });
+  }
+}
+</file>
+
+<file path="src/modules/admin/admin.module.ts">
+import { Module } from '@nestjs/common';
+import { AdminService } from './services/admin.service';
+import { AdminController } from './admin.controller';
+import { AdminTryoutService } from './services/tryout.service';
+import { AdminSubtestService } from './services/subtest.service';
+import { AdminQuestionService } from './services/question.service';
+import { AdminUserService } from './services/user.service';
+import { AdminPaymentService } from './services/payment.service';
+import { AdminPackageService } from './services/package.service';
+import { AdminDailyService } from './services/daily.service';
+import { AdminTryoutResultService } from './services/result.service';
+import { AdminUserService } from './services/user.service';
+
+@Module({
+  controllers: [AdminController],
+  providers: [
+    AdminService,
+    AdminTryoutService,
+    AdminSubtestService,
+    AdminQuestionService,
+    AdminUserService,
+    AdminPaymentService,
+    AdminPackageService,
+    AdminDailyService,
+    AdminTryoutResultService,
+    AdminUserService,
+  ],
+})
+export class AdminModule {}
+</file>
+
+<file path="src/modules/admin/admin.controller.ts">
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseInterceptors,
+  UploadedFile,
+  Query,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { AdminService } from './services/admin.service';
+import { AdminTryoutService } from './services/tryout.service';
+import { AdminSubtestService } from './services/subtest.service';
+import { AdminQuestionService } from './services/question.service';
+import { CreateTryoutDto } from './dto/create-tryout.dto';
+import { UpdateTryoutDto } from './dto/update-tryout.dto';
+import { CreateQuestionDto } from './dto/create-question.dto';
+import { UpdateQuestionDto } from './dto/update-question.dto';
+import { AdminUserService } from './services/user.service';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { TopupTokenDto } from './dto/topup-token.dto';
+import { AdminPaymentService } from './services/payment.service';
+import { AdminPackageService } from './services/package.service';
+import { CreatePackageDto, UpdatePackageDto } from './dto/package.dto';
+import { AdminDailyService } from './services/daily.service';
+import { AdminTryoutResultService } from './services/result.service';
+import { PaymentStatus } from 'generated/prisma/enums';
+
+@Controller('admin')
+export class AdminController {
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly tryoutService: AdminTryoutService,
+    private readonly subtestService: AdminSubtestService,
+    private readonly questionService: AdminQuestionService,
+    private readonly userService: AdminUserService,
+    private readonly paymentService: AdminPaymentService,
+    private readonly packageService: AdminPackageService,
+    private readonly dailyService: AdminDailyService,
+    private readonly resultService: AdminTryoutResultService,
+  ) {}
+
+  // --- DASHBOARD ---
+  @Get('stats')
+  getDashboardStats() {
+    return this.adminService.getDashboardStats();
+  }
+
+  // --- TRYOUT ---
+  @Get('tryouts')
+  getTryouts(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.tryoutService.getTryouts(Number(page), Number(limit));
+  }
+
+  @Post('tryouts')
+  async createTryout(@Body() createTryoutDto: CreateTryoutDto) {
+    return this.tryoutService.createTryout(createTryoutDto);
+  }
+
+  @Get('tryouts/:id')
+  getTryoutById(@Param('id') id: string) {
+    return this.tryoutService.getTryoutById(id);
+  }
+
+  @Patch('tryouts/:id')
+  updateTryout(
+    @Param('id') id: string,
+    @Body() updateTryoutDto: UpdateTryoutDto,
+  ) {
+    return this.tryoutService.updateTryout(id, updateTryoutDto);
+  }
+
+  @Delete('tryouts/:id')
+  deleteTryout(@Param('id') id: string) {
+    return this.tryoutService.deleteTryout(id);
+  }
+
+  // --- SUBTEST ---
+  @Post('subtests/:tryoutId')
+  createSubtest(@Param('tryoutId') tryoutId: string) {
+    return this.subtestService.createUtbkSubtests(tryoutId);
+  }
+
+  @Get('tryouts/:tryoutId/subtests')
+  getSubtestsByTryout(@Param('tryoutId') tryoutId: string) {
+    return this.subtestService.getSubtestsByTryoutId(tryoutId);
+  }
+
+  @Get('subtests/:id')
+  getSubtestById(@Param('id') id: string) {
+    return this.subtestService.getSubtestById(id);
+  }
+
+  // --- QUESTION ---
+  @Get('subtests/:subtestId/questions')
+  getQuestionsBySubtest(@Param('subtestId') subtestId: string) {
+    return this.questionService.getQuestionBySubtestId(subtestId);
+  }
+
+  @Post('subtests/:subtestId/questions')
+  createQuestion(
+    @Param('subtestId') subtestId: string,
+    @Body() dto: CreateQuestionDto,
+  ) {
+    return this.questionService.createQuestion(dto, subtestId);
+  }
+
+  @Patch('questions/:id')
+  updateQuestion(@Param('id') id: string, @Body() dto: UpdateQuestionDto) {
+    return this.questionService.updateQuestion(dto, id);
+  }
+
+  @Delete('questions/:id')
+  deleteQuestion(@Param('id') id: string) {
+    return this.questionService.deleteQuestion(id);
+  }
+
+  // --- UPLOAD ---
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadImage(@UploadedFile() file: Express.Multer.File) {
+    const url =
+      await this.questionService.uploadQuestionImageToCloudinary(file);
+    return { url };
+  }
+
+  // --- USER ---
+  @Get('user')
+  getAllUsers(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('search') search?: string,
+    @Query('role') role?: string,
+  ) {
+    return this.userService.getAllUser(
+      Number(page),
+      Number(limit),
+      search,
+      role,
+    );
+  }
+
+  @Get('user/:id')
+  getUserById(@Param('id') id: string) {
+    return this.userService.getUserById(id);
+  }
+
+  @Get('user/:id/transactions')
+  getUserTransactions(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.userService.getUserTransactions(
+      id,
+      Number(page),
+      Number(limit),
+    );
+  }
+
+  @Get('user/:id/tryouts')
+  getUserTryouts(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.userService.getUserTryouts(id, Number(page), Number(limit));
+  }
+
+  @Patch('user/:id')
+  updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    return this.userService.updateUser(updateUserDto, id);
+  }
+
+  @Post('user/:id/token')
+  manualTokenAdjustment(
+    @Param('id') id: string,
+    @Body() topupTokenDto: TopupTokenDto,
+  ) {
+    return this.userService.manualTokenAdjustment(id, topupTokenDto);
+  }
+
+  @Delete('user/attempt/:id')
+  resetUserAttempt(@Param('id') id: string) {
+    return this.userService.resetUserTryoutAttempt(id);
+  }
+
+  @Delete('user/:id')
+  removeUser(@Param('id') id: string) {
+    return this.userService.deleteUser(id);
+  }
+
+  @Get('payments')
+  getPayments(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('status') status?: PaymentStatus,
+    @Query('search') search?: string,
+  ) {
+    return this.paymentService.getAllPayments(
+      Number(page),
+      Number(limit),
+      status,
+      search,
+    );
+  }
+
+  @Get('payments/stats')
+  getPaymentStats() {
+    return this.paymentService.getPaymentStats();
+  }
+
+  @Patch('payments/:id/confirm')
+  confirmPayment(@Param('id') id: string) {
+    return this.paymentService.confirmPayment(id);
+  }
+
+  @Patch('payments/:id/reject')
+  rejectPayment(@Param('id') id: string) {
+    return this.paymentService.rejectPayment(id);
+  }
+
+  // --- PACKAGE / SHOP ---
+  @Get('shop/packages')
+  getPackages() {
+    return this.packageService.getAllPackages();
+  }
+
+  @Post('shop/packages')
+  createPackage(@Body() dto: CreatePackageDto) {
+    return this.packageService.createPackage(dto);
+  }
+
+  @Patch('shop/packages/:id')
+  updatePackage(@Param('id') id: string, @Body() dto: UpdatePackageDto) {
+    return this.packageService.updatePackage(id, dto);
+  }
+
+  @Patch('shop/packages/:id/status')
+  togglePackageStatus(@Param('id') id: string) {
+    return this.packageService.togglePackageStatus(id);
+  }
+
+  @Delete('shop/packages/:id')
+  deletePackage(@Param('id') id: string) {
+    return this.packageService.deletePackage(id);
+  }
+
+  // --- DAILY QUESTION ---
+  @Get('daily/today')
+  getTodayDailyQuestion() {
+    return this.dailyService.getTodayQuestion();
+  }
+
+  // --- RESULTS / LEADERBOARD ---
+  @Get('tryouts/:id/leaderboard')
+  getTryoutLeaderboard(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '50',
+  ) {
+    return this.resultService.getLeaderboard(id, Number(page), Number(limit));
+  }
+
+  @Get('tryouts/:id/stats')
+  getTryoutStats(@Param('id') id: string) {
+    return this.resultService.getTryoutStats(id);
+  }
+
+  @Get('tryouts/:id/export')
+  exportTryoutResults(@Param('id') id: string) {
+    return this.resultService.exportResults(id);
+  }
+}
+</file>
+
+<file path="src/app.module.ts">
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { AuthModule } from '@thallesp/nestjs-better-auth';
+import { auth } from './lib/auth';
+import { ConfigModule } from '@nestjs/config';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { HistoryModule } from './modules/history/history.module';
+import { ReferralModule } from './modules/referral/referral.module';
+import { ShopModule } from './modules/shop/shop.module';
+import { TryoutModule } from './modules/tryout/tryout.module';
+import { PrismaModule } from './prisma.module';
+import { ExamModule } from './modules/exam/exam.module';
+import { AdminModule } from './modules/admin/admin.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      envFilePath: '.env',
+      isGlobal: true,
+    }),
+    AuthModule.forRoot({ auth, disableGlobalAuthGuard: true }),
+    PrismaModule,
+    DashboardModule,
+    HistoryModule,
+    ReferralModule,
+    ShopModule,
+    TryoutModule,
+    ExamModule,
+    AdminModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+</file>
+
+<file path="package.json">
+{
+  "name": "jituptn-backend",
+  "version": "0.0.1",
+  "description": "",
+  "author": "",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "prisma generate && nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/mapped-types": "*",
+    "@nestjs/platform-express": "^11.0.1",
+    "@prisma/adapter-pg": "^7.1.0",
+    "@prisma/client": "^7.1.0",
+    "@thallesp/nestjs-better-auth": "^2.2.0",
+    "@types/bcryptjs": "^3.0.0",
+    "bcryptjs": "^3.0.3",
+    "better-auth": "^1.4.5",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "cloudinary": "^2.8.0",
+    "dotenv": "^17.2.3",
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "streamifier": "^0.1.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "@eslint/js": "^9.18.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.1",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^22.19.1",
+    "@types/pg": "^8.15.6",
+    "@types/streamifier": "^0.1.2",
+    "@types/supertest": "^6.0.2",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
+    "globals": "^16.0.0",
+    "jest": "^30.0.0",
+    "prettier": "^3.4.2",
+    "prisma": "^7.1.0",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    }
+  }
+}
+</file>
+
+<file path="src/main.ts">
+import { NestFactory, Reflector } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { json, urlencoded } from 'express';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: false,
+  });
+
+  // Trust proxy is required for cookies/auth to work correctly behind Railway/load balancers
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    }),
+  );
+
+  app.enableCors({
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  await app.listen(process.env.PORT ?? 3000);
+}
+bootstrap();
+</file>
+
+<file path="prisma/schema.prisma">
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TryoutBatch {
+  SNBT
+  MANDIRI
+}
+
+enum TryoutStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  FINISHED
+}
+
+enum SubtestName {
+  PU
+  PPU
+  PBM
+  PK
+  LBI
+  LBE
+  PM
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum QuestionType {
+  PILIHAN_GANDA
+  ISIAN_SINGKAT
+  BENAR_SALAH
+}
+
+enum PaymentStatus {
+  CONFIRMED
+  PENDING
+  DECLINED
+  CANCELLED
+}
+
+model User {
+  id            String  @id
+  name          String
+  email         String
+  emailVerified Boolean @default(false)
+  image         String?
+  target        String? @db.VarChar(100)
+
+  currentStreak Int       @default(0)
+  lastDailyDate DateTime?
+  tokenBalance  Int       @default(0)
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  sessions          Session[]
+  accounts          Account[]
+  tokenTransactions TokenTransaction[]
+  unlockedSolutions UnlockedSolution[]
+  tryOutAttempts    TryOutAttempt[]
+  dailyLogs         DailyQuestionLog[]
+  role              Role               @default(USER) 
+
+
+  @@unique([email])
+  @@map("user")
+  payments Payment[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model TryOut {
+  id            String  @id @default(cuid())
+  title         String
+  description   String? @db.Text
+  solutionPrice Int     @default(0)
+  code          Int     @default(autoincrement())
+
+  // REFERRAL LOGIC
+  isPublic     Boolean @default(true)
+  referralCode String? @unique // Required to see/join if not public
+
+  scheduledStart DateTime?
+  scheduledEnd   DateTime?
+  releaseDate    DateTime
+  createdAt      DateTime  @default(now())
+
+  status         TryoutStatus @default(NOT_STARTED)
+
+  // Relations
+  subtests          Subtest[]
+  unlockedSolutions UnlockedSolution[]
+  attempts          TryOutAttempt[]
+
+  batch TryoutBatch
+}
+
+// --- 3. DAILY RANDOM QUESTION & STREAK ---
+model DailyQuestionLog {
+  id          String   @id @default(cuid())
+  userId      String
+  questionId  String
+  isCorrect   Boolean
+  completedAt DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@index([userId, completedAt], name: "daily_user_date_idx")
+}
+
+// --- 4. UTBK CORE STRUCTURE ---
+model Subtest {
+  id              String      @id @default(cuid())
+  tryOutId        String      @map("try_out_id")
+  name            SubtestName
+  durationMinutes Int         @map("duration_minutes")
+  order           Int
+
+  tryOut    TryOut     @relation(fields: [tryOutId], references: [id], onDelete: Cascade)
+  questions Question[]
+}
+
+model Question {
+  id            String  @id @default(cuid())
+  subtestId     String  @map("subtest_id")
+  type          QuestionType
+  imageUrl      String? @db.Text
+  narration     String? @db.Text
+  content       String? @db.Text
+  explanation   String? @db.Text
+  points        Int     @default(1)
+  correctAnswer String? @map("correct_answer_short_answer")
+
+  subtest   Subtest            @relation(fields: [subtestId], references: [id])
+  items     QuestionItem[]
+  dailyLogs DailyQuestionLog[]
+
+  userAnswers UserAnswer[]
+}
+
+model QuestionItem {
+  id         String  @id @default(cuid())
+  questionId String  @map("question_id")
+  content    String? @db.Text
+  isCorrect  Boolean @default(false) @map("is_correct")
+  order      Int
+
+  question Question @relation(fields: [questionId], references: [id])
+}
+
+// --- 5. TRANSACTIONS & ACCESS ---
+model TokenTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int
+  type        String
+  referenceId String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model TokenPackage {
+  id          String  @id @default(cuid())
+  name        String
+  tokenAmount Int
+  price       Int
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments Payment[]
+}
+
+model Payment {
+  id             String @id @default(cuid())
+  userId         String @unique
+  tokenPackageId String
+
+  amount         Int
+  tokenAmount    Int
+
+  status         PaymentStatus 
+  paymentMethod  String @default("QRIS_STATIC")
+
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User @relation(fields: [userId], references: [id])
+  tokenPackage    TokenPackage @relation(fields: [tokenPackageId], references: [id])
+
+}
+
+model UnlockedSolution {
+  id         String   @id @default(cuid())
+  userId     String
+  tryOutId   String
+  unlockedAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  tryOut TryOut @relation(fields: [tryOutId], references: [id])
+}
+
+model TryOutAttempt {
+  id         String    @id @default(cuid())
+  userId     String
+  tryOutId   String    @map("try_out_id")
+  totalScore Float     @map("total_score")
+  status     String
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+
+  user    User         @relation(fields: [userId], references: [id])
+  tryOut  TryOut       @relation(fields: [tryOutId], references: [id])
+  answers UserAnswer[]
+}
+
+model UserAnswer {
+  id              String @id @default(cuid())
+  tryOutAttemptId String @map("tryout_attempt_id")
+  questionId      String @map("question_id")
+
+  // pilihan jawaban user (jika essay maka null)
+  questionItemId String? @map("question_item_id")
+
+  inputText String?  @db.Text
+  isCorrect Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  question Question      @relation(fields: [questionId], references: [id])
+  attempt  TryOutAttempt @relation(fields: [tryOutAttemptId], references: [id])
+
+  @@unique([tryOutAttemptId, questionId])
+}
+</file>
+
+<file path="src/lib/auth.ts">
+import 'dotenv/config';
+import { betterAuth } from 'better-auth';
+import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { PrismaClient } from '../../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL as string,
+});
+
+const prisma = new PrismaClient({
+  adapter,
+});
+
+export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL,
+  trustedOrigins: ['http://localhost:5173'],
+  database: prismaAdapter(prisma, {
+    provider: 'postgresql',
+  }),
+  emailAndPassword: {
+    enabled: true,
+  },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+    },
+  },
+  user: {
+    additionalFields: {
+      role: {
+        type: 'string',
+        required: false,
+        defaultValue: 'USER',
+        input: false, // Don't allow users to set their own role during signup
+      },
+    },
+  },
+  advanced: {
+    disableOriginCheck: true,
+    disableCSRFCheck: true,
+    // defaultCookieAttributes: {
+    //   sameSite: 'None',
+    // },
+  },
+});
+</file>
+
+</files>
+`````
+
+## File: src/modules/admin/services/user.service.ts
+`````typescript
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from 'src/prisma.service';
+import { UpdateUserDto } from '../dto/update-user.dto';
+import { TopupTokenDto } from '../dto/topup-token.dto';
+import * as bcrypt from 'bcryptjs';
+import { Prisma, Role } from '../../../../generated/prisma/client';
+
+@Injectable()
+export class AdminUserService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async manualTokenAdjustment(userId: string, dto: TopupTokenDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      await tx.tokenTransaction.create({
+        data: {
+          userId,
+          amount: dto.amount,
+          type: 'MANUAL_ADJUSTMENT',
+          referenceId: `ADMIN: ${dto.description}`,
+        },
+      });
+
+      return await tx.user.update({
+        where: { id: userId },
+        data: {
+          tokenBalance: { increment: dto.amount },
+        },
+      });
+    });
+  }
+
+  async getAllUser(page = 1, limit = 10, search?: string, role?: string) {
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.UserWhereInput = {};
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (role) {
+      where.role = role as Role;
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          createdAt: true,
+          tokenBalance: true,
+          target: true,
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getUserById(userId: string) {
+    return await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        role: true,
+        tokenBalance: true,
+        target: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async getUserTransactions(userId: string, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.tokenTransaction.findMany({
+        where: { userId },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.tokenTransaction.count({ where: { userId } }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, lastPage: Math.ceil(total / limit) },
+    };
+  }
+
+  async getUserTryouts(userId: string, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.tryOutAttempt.findMany({
+        where: { userId },
+        skip,
+        take: limit,
+        orderBy: { startedAt: 'desc' },
+        include: {
+          tryOut: {
+            select: { title: true },
+          },
+        },
+      }),
+      this.prisma.tryOutAttempt.count({ where: { userId } }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, lastPage: Math.ceil(total / limit) },
+    };
+  }
+
+  async resetUserTryoutAttempt(attemptId: string) {
+    const attempt = await this.prisma.tryOutAttempt.findUnique({
+      where: { id: attemptId },
+    });
+
+    if (!attempt) {
+      throw new NotFoundException('Data pengerjaan tryout tidak ditemukan');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      // Hapus semua jawaban user terkait attempt ini
+      await tx.userAnswer.deleteMany({
+        where: { tryOutAttemptId: attemptId },
+      });
+
+      // Hapus data attempt
+      return await tx.tryOutAttempt.delete({
+        where: { id: attemptId },
+      });
+    });
+  }
+
+  async updateUser(dto: UpdateUserDto, userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Update Password if provided
+      if (dto.password) {
+        const hashedPassword = await bcrypt.hash(dto.password, 10);
+        // Better-auth usually stores password in Account table
+        // We update the primary account (or any password account)
+        await tx.account.updateMany({
+          where: { userId: userId, providerId: 'credential' }, // Assuming credential provider
+          data: { password: hashedPassword },
+        });
+      }
+
+      // 2. Update User data
+      return await tx.user.update({
+        where: { id: userId },
+        data: {
+          name: dto.name,
+          role: dto.role,
+          image: dto.image,
+          tokenBalance: dto.tokenBalance,
+        },
+      });
+    });
+  }
+
+  async deleteUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    return await this.prisma.user.delete({
+      where: { id: userId },
+    });
+  }
+}
+`````
+
+## File: src/modules/shop/shop.controller.ts
+`````typescript
+import {
+  BadRequestException,
+  Controller,
+  Param,
+  Post,
+  Session,
+  UseGuards,
+  Body,
+} from '@nestjs/common';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
+import type { UserSession } from '@thallesp/nestjs-better-auth';
+import { ShopService } from './shop.service';
+
+@Controller('shop')
+@UseGuards(AuthGuard)
+export class ShopController {
+  constructor(private readonly shopService: ShopService) {}
+
+  @Post('create/:type')
+  async createTransaction(
+    @Session() session: UserSession,
+    @Param('type') type: string,
+  ) {
+    const intType = parseInt(type, 10);
+
+    if (isNaN(intType)) {
+      throw new BadRequestException('Invalid type');
+    }
+
+    if (intType < 1 || intType > 3) {
+      throw new BadRequestException('Invalid type');
+    }
+
+    const res = await this.shopService.createTokenTransaction(
+      session.user.id,
+      intType as 1 | 2 | 3,
+    );
+
+    // Karena cuma simulasi, transaksinya keresolve setelah 3 detik
+    // setTimeout(() => {
+    //   this.shopService.setPaid(res.id);
+    // }, 3000);
+
+    return res;
+  }
+
+  @Post('check/:transactionId')
+  checkTransactionStatus(@Param('transactionId') transactionId: string) {
+    return this.shopService.checkTransactionStatus(transactionId);
+  }
+
+  @Post('webhook')
+  async handlePaymentWebhook(@Body() body: { transactionId: string }) {
+    if (!body.transactionId) {
+      throw new BadRequestException('transactionId is required');
+    }
+    return this.shopService.setPaid(body.transactionId);
+  }
+}
+`````
+
+## File: src/modules/tryout/dto/tryout.dto.ts
+`````typescript
+export class TryOutCardDto {
+  id: string;
+  title: string;
+  number: string;
+  canEdit: boolean;
+  participants: number;
+  badge: string;
+}
+
+export class SubjectDto {
+  id: number;
+  title: string;
+  gradient: string;
+  count: number;
+}
+
+export class TryoutDetailDto {
+  id: string;
+  title: string;
+  number: string;
+  badge: string;
+  participants: number;
+  description: string;
+  duration: number;
+  totalQuestions: number;
+  startDate: string;
+  endDate: string;
+  isRegistered: boolean;
+  isFree: boolean;
+  tokenCost?: number;
+  categories: {
+    id: number;
+    name: string;
+    questionCount: number;
+    duration: number;
+    isCompleted: boolean;
+  }[];
+  benefits: string[];
+  requirements: string[];
+}
+
+export class QuestionDto {
+  id: number;
+  questionText: string;
+  options: string[];
+  correctAnswer?: number;
+  solution?: string;
+}
+
+export class SubtestExamDto {
+  subtestId: number;
+  subtestName: string;
+  tryoutId: string;
+  tryoutTitle: string;
+  duration: number;
+  questions: QuestionDto[];
+}
+`````
+
+## File: .env.example
+`````
+DATABASE_URL=
+
+PORT=3000
+
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=http://localhost:3000
+
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+# placeholder
+QRIS_ID=00020101021126570014ID.LINKAJA.WWW0118936009153355276600021520090815335527660303UMI51440014ID.OR.Q-RIS.WWW0215ID10200211756470303UMI5204581253033605802ID5919JITU STORE TESTING6012KOTA JAKARTA61051211063042A25
+
+NODE_ENV=development
+
+CLOUDINARY_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+CORS_ORIGIN=http://localhost:5173
+`````
+
+## File: src/modules/admin/services/admin.service.ts
+`````typescript
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+
+@Injectable()
+export class AdminService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getDashboardStats() {
+    const now = new Date();
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(now.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(now.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+    
+    const [
+      totalTryout,
+      totalActiveTryout,
+      totalUpcomingTryout,
+      totalEndedTryout,
+      totalUser,
+      activeUser,
+      totalAdmin,
+      totalRevenueAggregate,
+      totalPendingPayment,
+      monthlyRevenueRaw,
+      monthlyUserGrowthRaw,
+      weeklyActivityRaw
+    ] = await Promise.all([
+      this.prisma.tryOut.count(),
+      this.prisma.tryOut.count({
+        where: {
+          scheduledStart: { lte: now },
+          scheduledEnd: { gte: now },
+        },
+      }),
+      this.prisma.tryOut.count({
+        where: {
+          scheduledStart: { gt: now },
+        },
+      }),
+      this.prisma.tryOut.count({
+        where: {
+          scheduledEnd: { lt: now },
+        },
+      }),
+      this.prisma.user.count(),
+      this.prisma.user.count({
+        where: { emailVerified: true },
+      }),
+      this.prisma.user.count({
+        where: { role: 'ADMIN' },
+      }),
+      this.prisma.payment.aggregate({
+        where: { status: 'CONFIRMED' },
+        _sum: { amount: true },
+      }),
+      this.prisma.payment.count({
+        where: { status: 'PENDING' },
+      }),
+      // Monthly Revenue (Confirmed Payments)
+      this.prisma.payment.findMany({
+        where: { status: 'CONFIRMED', createdAt: { gte: sixMonthsAgo } },
+        select: { amount: true, createdAt: true },
+      }),
+      // Monthly User Growth
+      this.prisma.user.findMany({
+        where: { createdAt: { gte: sixMonthsAgo } },
+        select: { createdAt: true },
+      }),
+      // Weekly Active Activity (based on daily question logs)
+      this.prisma.dailyQuestionLog.findMany({
+        where: { completedAt: { gte: sevenDaysAgo } },
+        select: { completedAt: true },
+      })
+    ]);
+
+    // Helper to format Month labels
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    
+    // Process Monthly Revenue
+    const revenueChart = Array.from({ length: 6 }).map((_, i) => {
+      const d = new Date();
+      d.setMonth(now.getMonth() - (5 - i));
+      const monthLabel = `${monthNames[d.getMonth()]}`;
+      const total = monthlyRevenueRaw
+        .filter(p => p.createdAt.getMonth() === d.getMonth() && p.createdAt.getFullYear() === d.getFullYear())
+        .reduce((sum, p) => sum + p.amount, 0);
+      return { label: monthLabel, value: total };
+    });
+
+    // Process Monthly User Growth
+    const userGrowthChart = Array.from({ length: 6 }).map((_, i) => {
+      const d = new Date();
+      d.setMonth(now.getMonth() - (5 - i));
+      const monthLabel = `${monthNames[d.getMonth()]}`;
+      const count = monthlyUserGrowthRaw
+        .filter(u => u.createdAt.getMonth() === d.getMonth() && u.createdAt.getFullYear() === d.getFullYear())
+        .length;
+      return { label: monthLabel, value: count };
+    });
+
+    // Process Weekly Activity
+    const weeklyActivityChart = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date();
+      d.setDate(now.getDate() - (6 - i));
+      const dayLabel = d.toLocaleDateString('id-ID', { weekday: 'short' });
+      const count = weeklyActivityRaw
+        .filter(l => l.completedAt.getDate() === d.getDate() && l.completedAt.getMonth() === d.getMonth())
+        .length;
+      return { label: dayLabel, value: count };
+    });
+
+    return {
+      totalTryout,
+      totalActiveTryout,
+      totalUpcomingTryout,
+      totalEndedTryout,
+      totalUser,
+      activeUser,
+      totalAdmin,
+      totalRevenue: totalRevenueAggregate._sum.amount || 0,
+      totalPendingPayment,
+      charts: {
+        revenue: revenueChart,
+        userGrowth: userGrowthChart,
+        weeklyActivity: weeklyActivityChart
+      }
+    };
+  }
+}
+`````
+
+## File: src/modules/dashboard/dto/dashboard.dto.ts
+`````typescript
+import { IsNotEmpty, IsString } from 'class-validator';
+
+export class StatCardDto {
+  label: string;
+  value: string;
+  color?: string;
+  bgColor?: string;
+  suffix?: string;
+}
+
+export class ScoreDataDto {
+  to: string;
+  total: number;
+  pu: number;
+  ppu: number;
+  pbm: number;
+  pk: number;
+  lbi: number;
+  lbe: number;
+  pm: number;
+}
+
+export class SubtestDto {
+  id: string;
+  label: string;
+  color: string;
+  hoverColor: string;
+}
+
+export class MenuItemDto {
+  label: string;
+  description: string;
+  color?: string;
+  bgColor?: string;
+  action?: string;
+  items?: {
+    label: string;
+    description?: string;
+    toggle?: boolean;
+    link?: boolean;
+  }[];
+}
+
+export class DashboardDataDto {
+  stats: StatCardDto[];
+  scoreHistory: ScoreDataDto[];
+  subtests: SubtestDto[];
+  menuItems: MenuItemDto[];
+}
+
+export class UserStatsDto {
+  lastScore: number;
+  personalBest: number;
+  weeklyActivity: number;
+  totalFinished: number;
+  tokenBalance: number;
+  currentStreak: number;
+}
+
+export class SubmitDailyAnswerDto {
+  @IsString()
+  @IsNotEmpty()
+  questionId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  answerId: string;
+}
+
+export class DailyQuestionDto {
+  id: string;
+  content: string;
+  options: {
+    id: string;
+    content: string;
+  }[];
+}
+
+export class DailyQuestionResponseDto {
+  isCompleted: boolean;
+  streak: number;
+  question: DailyQuestionDto | null;
+}
+
+export class ActiveTryoutDto {
+  id: string;
+  title: string;
+  code: number;
+  batch: string;
+  participants: number;
+  progress: number;
+  totalSubtests: number;
+  endDate: Date | null;
+}
+`````
+
+## File: src/modules/tryout/tryout.controller.ts
+`````typescript
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { TryoutService } from './tryout.service';
+import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
+import { AuthGuard, Session } from '@thallesp/nestjs-better-auth';
+import type { UserSession } from '@thallesp/nestjs-better-auth';
+
+@Controller('tryout')
+export class TryoutController {
+  constructor(private readonly tryoutService: TryoutService) {}
+
+  @Get()
+  async getAllTryouts(): Promise<TryOutCardDto[]> {
+    return this.tryoutService.getTryouts();
+  }
+
+  @Get(':id')
+  @UseGuards(AuthGuard)
+  async getTryoutById(
+    @Param('id') id: string,
+    @Session() session: UserSession,
+  ): Promise<TryoutDetailDto> {
+    return this.tryoutService.getTryoutById(id, session.user.id);
+  }
+
+  @Get(':id/exam/:subtestId')
+  @UseGuards(AuthGuard)
+  async getTryoutExam(
+    @Param('id') id: string,
+    @Param('subtestId') subtestId: string,
+  ) {
+    return this.tryoutService.getSubtestQuestions(id, parseInt(subtestId));
+  }
+}
+`````
+
+## File: src/modules/tryout/tryout.service.ts
+`````typescript
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma.service';
+import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
+
+@Injectable()
+export class TryoutService {
+  constructor(private prisma: PrismaService) {}
+
+  private mapTryoutToDto(tryout: any): TryoutDetailDto {
+    const totalQuestions = tryout.subtests.reduce(
+      (sum, s) => sum + s.questions.length,
+      0,
+    );
+
+    const totalDuration = tryout.subtests.reduce(
+      (sum, s) => sum + s.durationMinutes,
+      0,
+    );
+
+    return {
+      id: tryout.id, // CUID
+      title: tryout.title,
+      number: tryout.code,
+      badge: tryout.batch, // SNBT / MANDIRI
+      participants: tryout.attempts?.length ?? 0,
+      description: tryout.description ?? '',
+      duration: totalDuration,
+      totalQuestions,
+      startDate: tryout.scheduledStart?.toISOString() ?? '',
+      endDate: '',
+      isRegistered: (tryout.attempts?.length ?? 0) > 0,
+      isFree: tryout.solutionPrice === 0,
+      tokenCost: tryout.solutionPrice,
+      categories: tryout.subtests.map((s) => ({
+        id: Number(s.order),
+        name: s.name,
+        questionCount: s.questions.length,
+        duration: s.durationMinutes,
+        isCompleted: false,
+      })),
+      benefits: ['Pembahasan lengkap', 'Analisis hasil', 'Simulasi UTBK'],
+      requirements: ['Akun terverifikasi', 'Token mencukupi'],
+    };
+  }
+
+  async getTryouts(): Promise<TryOutCardDto[]> {
+    const tryouts = await this.prisma.tryOut.findMany({
+      include: {
+        _count: {
+          select: { attempts: true },
+        },
+      },
+    });
+
+    return tryouts.map((t) => ({
+      id: t.id, // CUID
+      title: t.title,
+      number: t.code.toString(),
+      canEdit: false,
+      participants: t._count.attempts,
+      badge: t.batch,
+    }));
+  }
+
+  async getTryoutById(id: string, userId?: string): Promise<TryoutDetailDto> {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+      include: {
+        subtests: {
+          include: {
+            questions: true,
+          },
+        },
+        attempts: userId ? { where: { userId } } : false,
+        unlockedSolutions: userId ? { where: { userId } } : false,
+      },
+    });
+
+    if (!tryout) {
+      throw new Error('Tryout not found');
+    }
+
+    return this.mapTryoutToDto(tryout);
+  }
+
+  async getSubtestQuestions(tryOutId: string, subtestOrder: number) {
+    const subtest = await this.prisma.subtest.findFirst({
+      where: { tryOutId, order: subtestOrder },
+      include: {
+        tryOut: { select: { title: true } },
+        questions: {
+          include: { items: { orderBy: { order: 'asc' } } },
+        },
+      },
+    });
+
+    if (!subtest) {
+      throw new Error('Subtest not found');
+    }
+
+    return {
+      subtestId: subtest.order,
+      subtestName: subtest.name,
+      tryoutId: tryOutId,
+      tryoutTitle: subtest.tryOut.title,
+      duration: subtest.durationMinutes,
+      questions: subtest.questions.map((q) => ({
+        id: q.id,
+        questionText: q.content,
+        options: q.items.map((i) => i.content),
+        optionIds: q.items.map((i) => i.id),
+      })),
+    };
+  }
+}
+`````
+
+## File: prisma/seed.ts
+`````typescript
+import {
+  PrismaClient,
+  SubtestName,
+  TryoutBatch,
+  QuestionType,
+  Role,
+  PaymentStatus,
+} from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+const connectionString = `${process.env.DATABASE_URL}`;
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+async function main() {
+  console.log('🌱 Seeding database...');
+
+  // ===============================
+  // 1. CREATE TOKEN PACKAGES
+  // ===============================
+  const pkg1 = await prisma.tokenPackage.upsert({
+    where: { id: 'pkg-1' },
+    update: {},
+    create: {
+      id: 'pkg-1',
+      name: 'Paket Hemat',
+      tokenAmount: 20,
+      price: 15000,
+    },
+  });
+
+  const pkg2 = await prisma.tokenPackage.upsert({
+    where: { id: 'pkg-2' },
+    update: {},
+    create: {
+      id: 'pkg-2',
+      name: 'Paket Populer',
+      tokenAmount: 50,
+      price: 35000,
+    },
+  });
+
+  const pkg3 = await prisma.tokenPackage.upsert({
+    where: { id: 'pkg-3' },
+    update: {},
+    create: {
+      id: 'pkg-3',
+      name: 'Paket Sultan',
+      tokenAmount: 150,
+      price: 100000,
+    },
+  });
+
+  console.log('✅ Token packages seeded');
+
+  // ===============================
+  // 2. CREATE USERS
+  // ===============================
+  const userSiswa1 = await prisma.user.upsert({
+    where: { email: 'siswa_test@example.com' },
+    update: {},
+    create: {
+      id: 'user-siswa-test-id',
+      name: 'Siswa Teladan',
+      email: 'siswa_test@example.com',
+      role: Role.USER,
+      tokenBalance: 50,
+      emailVerified: true,
+      target: 'ITB - Teknik Informatika',
+    },
+  });
+
+  const userSiswa2 = await prisma.user.upsert({
+    where: { email: 'siswa_2@example.com' },
+    update: {},
+    create: {
+      id: 'user-siswa-2-id',
+      name: 'Budi Santoso',
+      email: 'siswa_2@example.com',
+      role: Role.USER,
+      tokenBalance: 0,
+      emailVerified: true,
+    },
+  });
+
+  const userSiswa3 = await prisma.user.upsert({
+    where: { email: 'siswa_3@example.com' },
+    update: {},
+    create: {
+      id: 'user-siswa-3-id',
+      name: 'Ani Wijaya',
+      email: 'siswa_3@example.com',
+      role: Role.USER,
+      tokenBalance: 10,
+      emailVerified: true,
+    },
+  });
+
+  const userAdmin = await prisma.user.upsert({
+    where: { email: 'admin_test@example.com' },
+    update: { role: Role.ADMIN },
+    create: {
+      id: 'user-admin-test-id',
+      name: 'Admin Jitu',
+      email: 'admin_test@example.com',
+      role: Role.ADMIN,
+      tokenBalance: 9999,
+      emailVerified: true,
+    },
+  });
+
+  console.log('✅ Users seeded');
+
+  // ===============================
+  // 3. CREATE PAYMENTS
+  // ===============================
+  // Note: userId is @unique in Payment schema, so 1 payment per user for now
+  
+  await prisma.payment.upsert({
+    where: { userId: userSiswa1.id },
+    update: {},
+    create: {
+      userId: userSiswa1.id,
+      tokenPackageId: pkg2.id,
+      amount: pkg2.price,
+      tokenAmount: pkg2.tokenAmount,
+      status: PaymentStatus.CONFIRMED,
+      paymentMethod: 'QRIS_STATIC',
+    },
+  });
+
+  await prisma.payment.upsert({
+    where: { userId: userSiswa2.id },
+    update: {},
+    create: {
+      userId: userSiswa2.id,
+      tokenPackageId: pkg1.id,
+      amount: pkg1.price,
+      tokenAmount: pkg1.tokenAmount,
+      status: PaymentStatus.PENDING,
+      paymentMethod: 'MANUAL_TRANSFER',
+    },
+  });
+
+  await prisma.payment.upsert({
+    where: { userId: userSiswa3.id },
+    update: {},
+    create: {
+      userId: userSiswa3.id,
+      tokenPackageId: pkg3.id,
+      amount: pkg3.price,
+      tokenAmount: pkg3.tokenAmount,
+      status: PaymentStatus.DECLINED,
+      paymentMethod: 'QRIS_STATIC',
+    },
+  });
+
+  console.log('✅ Payments seeded');
+
+  // ===============================
+  // 4. CREATE TRYOUTS & QUESTIONS
+  // ===============================
+  const tryout1 = await prisma.tryOut.upsert({
+    where: { id: 'tryout-1' },
+    update: {},
+    create: {
+      id: 'tryout-1',
+      title: 'Tryout Simulasi Reset (In Progress)',
+      description: 'Tryout ini sedang dikerjakan user untuk dites reset.',
+      batch: TryoutBatch.SNBT,
+      isPublic: true,
+      solutionPrice: 0,
+      releaseDate: new Date(),
+      scheduledStart: new Date(),
+      scheduledEnd: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
+      status: 'IN_PROGRESS',
+      subtests: {
+        create: [
+          {
+            name: SubtestName.PU,
+            durationMinutes: 30,
+            order: 1,
+            questions: {
+              create: [
+                {
+                  type: QuestionType.PILIHAN_GANDA,
+                  content: '1 + 1 = ?',
+                  points: 10,
+                  items: {
+                    create: [
+                      { content: '2', isCorrect: true, order: 1 },
+                      { content: '3', isCorrect: false, order: 2 },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  console.log('✅ Tryouts seeded');
+
+  // ===============================
+  // 5. CREATE ATTEMPTS
+  // ===============================
+  const existingAttempt = await prisma.tryOutAttempt.findFirst({
+    where: { userId: userSiswa1.id, tryOutId: tryout1.id }
+  });
+
+  if (!existingAttempt) {
+    await prisma.tryOutAttempt.create({
+      data: {
+        userId: userSiswa1.id,
+        tryOutId: tryout1.id,
+        status: 'IN_PROGRESS',
+        totalScore: 0,
+        startedAt: new Date(),
+      },
+    });
+  }
+
+  console.log('✅ User attempts seeded');
+  console.log('🌱 Seeding finished successfully.');
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Seeding failed:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+`````
+
+## File: src/modules/dashboard/dashboard.controller.ts
+`````typescript
+import {
+  Body,
+  Controller,
+  Put,
+  Get,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+  Post,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { AuthGuard, Session } from '@thallesp/nestjs-better-auth';
+import type { UserSession } from '@thallesp/nestjs-better-auth';
+import { DashboardService } from './dashboard.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { SubmitDailyAnswerDto, UserStatsDto } from './dto/dashboard.dto';
+
+@Controller('dashboard')
+@UseGuards(AuthGuard)
+export class DashboardController {
+  constructor(private readonly dashboardService: DashboardService) {}
+
+  @Get('profile')
+  async getProfile(@Session() session: UserSession) {
+    return this.dashboardService.getProfile(session.user.id);
+  }
+
+  @Put('profile')
+  @UseInterceptors(FileInterceptor('image'))
+  async updateProfile(
+    @Body() payload: UpdateProfileDto,
+    @UploadedFile() file: Express.Multer.File,
+    @Session() session: UserSession,
+  ) {
+    return this.dashboardService.updateProfile(session.user.id, payload, file);
+  }
+
+  @Get('stats')
+  async getStats(@Session() session: UserSession): Promise<UserStatsDto> {
+    return this.dashboardService.getUserStats(session.user.id);
+  }
+
+  @Get('daily-question')
+  async getDailyQuestion(@Session() session: UserSession) {
+    return this.dashboardService.getDailyQuestion(session.user.id);
+  }
+
+  @Post('answer-question')
+  async answerDailyQuestion(
+    @Session() session: UserSession,
+    @Body() payload: SubmitDailyAnswerDto,
+  ) {
+    return this.dashboardService.answerDailyQuestion(session.user.id, payload);
+  }
+
+  @Get('score-stats')
+  async getTryoutsScore(@Session() session: UserSession) {
+    return this.dashboardService.getScoreHistory(session.user.id);
+  }
+
+  @Get('active-to')
+  async getActiveTryouts(@Session() session: UserSession) {
+    return this.dashboardService.getActiveTryouts(session.user.id);
+  }
+}
+`````
+
+## File: src/modules/dashboard/dashboard.service.spec.ts
+`````typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { DashboardService } from './dashboard.service';
+import { PrismaService } from '../../prisma.service';
+import { v2 as cloudinary } from 'cloudinary';
+import * as streamifier from 'streamifier';
+import { BadRequestException } from '@nestjs/common';
+// Gunakan path relatif ke generated prisma client
+import { TryoutStatus } from '../../../generated/prisma/enums';
+
+jest.mock('cloudinary', () => ({
+  v2: {
+    config: jest.fn(),
+    uploader: {
+      upload_stream: jest.fn(),
+    },
+  },
+}));
+
+jest.mock('streamifier', () => ({
+  createReadStream: jest.fn(),
+}));
+
+const prismaMock = {
+  user: {
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
+  tryOutAttempt: {
+    findFirst: jest.fn(),
+    aggregate: jest.fn(),
+    count: jest.fn(),
+    findMany: jest.fn(),
+  },
+  dailyQuestionLog: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+  },
+  question: {
+    count: jest.fn(),
+    findFirst: jest.fn(),
+  },
+  questionItem: {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+  },
+  $transaction: jest.fn((promises) => Promise.all(promises)),
+};
+
+describe('DashboardService', () => {
+  let service: DashboardService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DashboardService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
+    }).compile();
+
+    service = module.get<DashboardService>(DashboardService);
+    jest.clearAllMocks();
+  });
+
+  // ... (Test updateProfile dan getUserStats yang sudah ada tetap di sini)
+  describe('updateProfile', () => {
+    it('should update profile without image', async () => {
+      const userId = 'user-1';
+      const payload = { name: 'New Name', target: 'UGM' };
+
+      prismaMock.user.update.mockResolvedValue({
+        id: userId,
+        ...payload,
+        email: 'test@test.com',
+        image: null,
+        updatedAt: new Date(),
+      });
+
+      const result = await service.updateProfile(userId, payload);
+
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: payload,
+        select: expect.any(Object),
+      });
+      expect(result.name).toBe('New Name');
+      expect(result.target).toBe('UGM');
+    });
+
+    it('should upload image and update profile', async () => {
+      const userId = 'user-1';
+      const payload = { name: 'New Name' };
+      const mockFile = {
+        buffer: Buffer.from('fake-image'),
+      } as Express.Multer.File;
+
+      const mockUrl = 'https://cloudinary.com/image.jpg';
+
+      (cloudinary.uploader.upload_stream as jest.Mock).mockImplementation(
+        (options, callback) => {
+          callback(null, { secure_url: mockUrl });
+          return {}; // dummy stream
+        },
+      );
+
+      (streamifier.createReadStream as jest.Mock).mockReturnValue({
+        pipe: jest.fn(),
+      });
+
+      prismaMock.user.update.mockResolvedValue({
+        id: userId,
+        name: payload.name,
+        image: mockUrl,
+        email: 'test@test.com',
+        target: 'Bismillah Lolos UTBK 2029',
+        updatedAt: new Date(),
+      });
+
+      const result = await service.updateProfile(userId, payload, mockFile);
+
+      expect(cloudinary.uploader.upload_stream).toHaveBeenCalled();
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: { ...payload, image: mockUrl },
+        select: expect.any(Object),
+      });
+      expect(result.image).toBe(mockUrl);
+    });
+
+    it('should throw BadRequestException if upload fails', async () => {
+      const userId = 'user-1';
+      const payload = {};
+      const mockFile = {
+        buffer: Buffer.from('fake-image'),
+      } as Express.Multer.File;
+
+      (cloudinary.uploader.upload_stream as jest.Mock).mockImplementation(
+        (options, callback) => {
+          callback(new Error('Cloudinary Error'), null);
+          return {};
+        },
+      );
+
+      (streamifier.createReadStream as jest.Mock).mockReturnValue({
+        pipe: jest.fn(),
+      });
+
+      await expect(
+        service.updateProfile(userId, payload, mockFile),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getUserStats', () => {
+    it('should return correct calculated stats when user has activity', async () => {
+      const userId = 'user-active';
+
+      prismaMock.tryOutAttempt.findFirst.mockResolvedValue({ totalScore: 750 });
+      prismaMock.tryOutAttempt.aggregate.mockResolvedValue({
+        _max: { totalScore: 800 },
+      });
+      prismaMock.tryOutAttempt.count
+        .mockResolvedValueOnce(3)
+        .mockResolvedValueOnce(5);
+
+      const result = await service.getUserStats(userId);
+
+      expect(result).toEqual({
+        lastScore: 750,
+        personalBest: 800,
+        weeklyActivity: 3,
+        totalFinished: 5,
+      });
+    });
+
+    it('should return zero stats for new user', async () => {
+      const userId = 'user-new';
+
+      prismaMock.tryOutAttempt.findFirst.mockResolvedValue(null);
+      prismaMock.tryOutAttempt.aggregate.mockResolvedValue({
+        _max: { totalScore: null },
+      });
+      prismaMock.tryOutAttempt.count.mockResolvedValue(0);
+
+      const result = await service.getUserStats(userId);
+
+      expect(result).toEqual({
+        lastScore: 0,
+        personalBest: 0,
+        weeklyActivity: 0,
+        totalFinished: 0,
+      });
+    });
+  });
+
+  describe('getDailyQuestion', () => {
+    it('should return isCompleted=true if user already answered today', async () => {
+      const userId = 'user-1';
+      // Mock existing log
+      prismaMock.dailyQuestionLog.findFirst.mockResolvedValue({ id: 'log-1' });
+      // Mock user streak
+      prismaMock.user.findUnique.mockResolvedValue({ currentStreak: 5 });
+
+      const result = await service.getDailyQuestion(userId);
+
+      expect(result).toEqual({
+        isCompleted: true,
+        streak: 5,
+        question: null,
+      });
+      expect(prismaMock.dailyQuestionLog.findFirst).toHaveBeenCalled();
+    });
+
+    it('should return a random question if user has not answered today', async () => {
+      const userId = 'user-1';
+      // Mock no existing log
+      prismaMock.dailyQuestionLog.findFirst.mockResolvedValue(null);
+      prismaMock.user.findUnique.mockResolvedValue({ currentStreak: 5 });
+
+      // Mock Question Data
+      prismaMock.question.count.mockResolvedValue(100);
+      prismaMock.question.findFirst.mockResolvedValue({
+        id: 'q-1',
+        content: 'Apa ibukota Indonesia?',
+        items: [
+          { id: 'opt-1', content: 'Jakarta' },
+          { id: 'opt-2', content: 'Bandung' },
+        ],
+      });
+
+      const result = await service.getDailyQuestion(userId);
+
+      expect(result).toEqual({
+        isCompleted: false,
+        streak: 5,
+        question: {
+          id: 'q-1',
+          content: 'Apa ibukota Indonesia?',
+          options: [
+            { id: 'opt-1', content: 'Jakarta' },
+            { id: 'opt-2', content: 'Bandung' },
+          ],
+        },
+      });
+      expect(prismaMock.question.findFirst).toHaveBeenCalled();
+    });
+  });
+
+  describe('answerDailyQuestion', () => {
+    it('should increase streak if answer is correct', async () => {
+      const userId = 'user-1';
+      const payload = { questionId: 'q-1', answerId: 'opt-correct' };
+
+      // Mock correct answer
+      prismaMock.questionItem.findUnique.mockResolvedValue({
+        id: 'opt-correct',
+        questionId: 'q-1',
+        isCorrect: true,
+      });
+
+      // Mock user data
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: userId,
+        currentStreak: 5,
+      });
+
+      const result = await service.answerDailyQuestion(userId, payload);
+
+      expect(result.isCorrect).toBe(true);
+      expect(result.newStreak).toBe(6);
+
+      // Verify DB Updates
+      expect(prismaMock.dailyQuestionLog.create).toHaveBeenCalled();
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: expect.objectContaining({ currentStreak: 6 }),
+      });
+    });
+
+    it('should reset streak to 0 if answer is incorrect', async () => {
+      const userId = 'user-1';
+      const payload = { questionId: 'q-1', answerId: 'opt-wrong' };
+
+      // Mock wrong answer
+      prismaMock.questionItem.findUnique.mockResolvedValue({
+        id: 'opt-wrong',
+        questionId: 'q-1',
+        isCorrect: false,
+      });
+
+      // Mock correct answer lookup for feedback
+      prismaMock.questionItem.findFirst.mockResolvedValue({
+        id: 'opt-correct',
+        isCorrect: true,
+      });
+
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: userId,
+        currentStreak: 5,
+      });
+
+      const result = await service.answerDailyQuestion(userId, payload);
+
+      expect(result.isCorrect).toBe(false);
+      expect(result.newStreak).toBe(0);
+      expect(result.correctAnswerId).toBe('opt-correct');
+
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: userId },
+        data: expect.objectContaining({ currentStreak: 0 }),
+      });
+    });
+  });
+
+  describe('getScoreHistory', () => {
+    it('should return score history with correct subtest aggregation', async () => {
+      const userId = 'user-test';
+      const mockAttempts = [
+        {
+          totalScore: 500,
+          finishedAt: new Date(),
+          tryOut: { code: 1 },
+          answers: [
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PU' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PPU' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PBM' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PK' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'LBI' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'LBE' } },
+            },
+            {
+              isCorrect: true,
+              question: { points: 10, subtest: { name: 'PM' } },
+            },
+          ],
+        },
+      ];
+
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue(
+        mockAttempts,
+      );
+
+      const result = await service.getScoreHistory(userId);
+
+      expect(result[0]).toEqual(
+        expect.objectContaining({
+          to: 'TO 1',
+          total: 500,
+          pu: 10,
+          ppu: 10,
+          pbm: 10,
+          pk: 10,
+
+          lbi: 10,
+          lbe: 10,
+          pm: 10,
+        }),
+      );
+    });
+
+    it('should return empty array if no finished attempts found', async () => {
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.getScoreHistory('user-no-history');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getActiveTryouts', () => {
+    it('should return active tryouts with correct progress and participant count', async () => {
+      const userId = 'user-active-to';
+      const mockDate = new Date();
+
+      const mockActiveAttempts = [
+        {
+          tryOut: {
+            id: 'to-1',
+            title: 'Try Out SNBT 1',
+            code: 1,
+            batch: 'SNBT',
+            scheduledStart: mockDate,
+            subtests: [{ id: 'sub-1' }, { id: 'sub-2' }, { id: 'sub-3' }],
+            _count: { attempts: 150 },
+          },
+          answers: [
+            { question: { subtestId: 'sub-1' } },
+            { question: { subtestId: 'sub-1' } },
+            { question: { subtestId: 'sub-2' } },
+          ],
+        },
+      ];
+
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue(
+        mockActiveAttempts,
+      );
+
+      const result = await service.getActiveTryouts(userId);
+
+      expect(prismaMock.tryOutAttempt.findMany).toHaveBeenCalledWith({
+        where: { userId, status: 'IN_PROGRESS' },
+        include: expect.any(Object),
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        id: 'to-1',
+        title: 'Try Out SNBT 1',
+        code: 1,
+        batch: 'SNBT',
+        participants: 150,
+        progress: 2, // sub-1 and sub-2
+        totalSubtests: 3,
+        endDate: mockDate,
+      });
+    });
+
+    it('should return empty array if no active tryouts found', async () => {
+      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.getActiveTryouts('user-idle');
+
+      expect(result).toEqual([]);
+    });
+  });
+});
+`````
+
+## File: src/modules/dashboard/dashboard.service.ts
+`````typescript
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../prisma.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { v2 as cloudinary } from 'cloudinary';
+import * as streamifier from 'streamifier';
+import {
+  ActiveTryoutDto,
+  ScoreDataDto,
+  UserStatsDto,
+} from './dto/dashboard.dto';
+import {
+  DailyQuestionDto,
+  SubmitDailyAnswerDto,
+  DailyQuestionResponseDto,
+} from './dto/dashboard.dto';
+
+enum TryoutStatus {
+  IN_PROGRESS = 'IN_PROGRESS',
+  FINISHED = 'FINISHED',
+}
+
+@Injectable()
+export class DashboardService {
+  constructor(private prisma: PrismaService) {
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+  }
+
+  private async uploadToCloudinary(file: Express.Multer.File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'jitu-profile-pictures',
+          resource_type: 'auto',
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          if (!result || !result.secure_url) {
+            return reject(
+              new Error('Gagal mengupload gambar ke Cloudinary: Result kosong'),
+            );
+          }
+          resolve(result.secure_url);
+        },
+      );
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
+
+  async getProfile(userId: string) {
+    return await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        target: true,
+        tokenBalance: true,
+        currentStreak: true,
+        lastDailyDate: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async updateProfile(
+    userId: string,
+    payload: UpdateProfileDto,
+    file?: Express.Multer.File,
+  ) {
+    const updateData: any = { ...payload };
+
+    if (file) {
+      try {
+        const imageUrl = await this.uploadToCloudinary(file);
+        updateData.image = imageUrl;
+      } catch (error) {
+        throw new BadRequestException('Gagal mengupload gambar ke Cloudinary');
+      }
+    }
+
+    return await this.prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        target: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  async getUserStats(userId: string): Promise<UserStatsDto> {
+    const now = new Date();
+    const oneWeekAgo = new Date(now.setDate(now.getDate() - 7));
+
+    const [lastAttempt, bestScore, weeklyActivity, totalFinished, user] =
+      await Promise.all([
+        // last tryout score
+        this.prisma.tryOutAttempt.findFirst({
+          where: { userId, status: TryoutStatus.FINISHED },
+          orderBy: { finishedAt: 'desc' },
+          select: { totalScore: true },
+        }),
+
+        // best score
+        this.prisma.tryOutAttempt.aggregate({
+          where: { userId, status: TryoutStatus.FINISHED },
+          _max: { totalScore: true },
+        }),
+
+        //weekly activity
+        this.prisma.tryOutAttempt.count({
+          where: {
+            userId,
+            startedAt: { gte: oneWeekAgo },
+          },
+        }),
+
+        // totalFinished
+        this.prisma.tryOutAttempt.count({
+          where: { userId, status: TryoutStatus.FINISHED },
+        }),
+
+        // user data for token balance and streak
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { tokenBalance: true, currentStreak: true },
+        }),
+      ]);
+
+    return {
+      lastScore: lastAttempt?.totalScore
+        ? Math.round(lastAttempt.totalScore)
+        : 0,
+      personalBest: bestScore._max.totalScore
+        ? Math.round(bestScore._max.totalScore)
+        : 0,
+      weeklyActivity: weeklyActivity,
+      totalFinished: totalFinished,
+      tokenBalance: user?.tokenBalance || 0,
+      currentStreak: user?.currentStreak || 0,
+    };
+  }
+
+  async getDailyQuestion(userId: string): Promise<DailyQuestionResponseDto> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const existingLog = await this.prisma.dailyQuestionLog.findFirst({
+      where: {
+        userId,
+        completedAt: { gte: today },
+      },
+    });
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { currentStreak: true, lastDailyDate: true },
+    });
+
+    if (existingLog) {
+      return {
+        isCompleted: true,
+        streak: user?.currentStreak || 0,
+        question: null,
+      };
+    }
+
+    // Use deterministic selection based on date
+    // This ensures all users get the same question each day
+    const totalQuestion = await this.prisma.question.count();
+    if (totalQuestion === 0) {
+      return {
+        isCompleted: false,
+        streak: user?.currentStreak || 0,
+        question: null,
+      };
+    }
+
+    const now = new Date();
+    const dateSeed =
+      now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+    const skip = dateSeed % totalQuestion;
+
+    const randomQuestion = await this.prisma.question.findFirst({
+      skip: skip,
+      include: {
+        items: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    if (!randomQuestion) {
+      return {
+        isCompleted: false,
+        streak: user?.currentStreak || 0,
+        question: null,
+      };
+    }
+
+    return {
+      isCompleted: false,
+      streak: user?.currentStreak || 0,
+      question: {
+        id: randomQuestion.id,
+        content: randomQuestion.content || 'Soal Error!',
+        options: randomQuestion.items.map((item) => ({
+          id: item.id,
+          content: item.content || '',
+        })),
+      },
+    };
+  }
+
+  async answerDailyQuestion(
+    userId: string,
+    payload: SubmitDailyAnswerDto,
+  ): Promise<{
+    isCorrect: boolean;
+    newStreak: number;
+    correctAnswerId?: string;
+  }> {
+    // Check if user already answered today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const existingLog = await this.prisma.dailyQuestionLog.findFirst({
+      where: {
+        userId,
+        completedAt: { gte: today },
+      },
+    });
+
+    if (existingLog) {
+      throw new BadRequestException('Anda sudah menjawab soal hari ini!');
+    }
+
+    const selectedItem = await this.prisma.questionItem.findUnique({
+      where: { id: payload.answerId },
+    });
+
+    if (!selectedItem) {
+      throw new BadRequestException('Jawaban tidak valid!');
+    }
+    
+    // Verify the answer belongs to the correct question
+    if (selectedItem.questionId !== payload.questionId) {
+      throw new BadRequestException('Jawaban tidak sesuai dengan soal!');
+    }
+    
+    const isCorrect = selectedItem.isCorrect;
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    let newStreak = user?.currentStreak || 0;
+    const lastDate = user?.lastDailyDate;
+
+    const now = new Date();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+    // Check if user answered yesterday to maintain streak
+    let shouldResetStreak = false;
+    if (lastDate) {
+      const lastDateNormalized = new Date(lastDate);
+      lastDateNormalized.setHours(0, 0, 0, 0);
+      
+      // If last answer was not yesterday, reset streak
+      if (lastDateNormalized.getTime() !== yesterdayStart.getTime()) {
+        shouldResetStreak = true;
+      }
+    }
+
+    if (isCorrect) {
+      // If user should reset (didn't answer yesterday), start from 1
+      // Otherwise increment the current streak
+      newStreak = shouldResetStreak ? 1 : newStreak + 1;
+    } else {
+      // Wrong answer resets streak to 0
+      newStreak = 0;
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.dailyQuestionLog.create({
+        data: {
+          userId,
+          questionId: selectedItem.questionId,
+          isCorrect,
+          completedAt: now,
+        },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          currentStreak: newStreak,
+          lastDailyDate: now,
+        },
+      }),
+    ]);
+
+    let correctAnswerId: string | undefined = undefined;
+    if (!isCorrect) {
+      const correctItem = await this.prisma.questionItem.findFirst({
+        where: { questionId: selectedItem.questionId, isCorrect: true },
+      });
+      correctAnswerId = correctItem?.id;
+    }
+
+    return { isCorrect, newStreak, correctAnswerId };
+  }
+
+  async getScoreHistory(userId: string): Promise<ScoreDataDto[]> {
+    const attempts = await this.prisma.tryOutAttempt.findMany({
+      where: {
+        userId,
+        status: 'FINISHED',
+      },
+      orderBy: {
+        finishedAt: 'asc',
+      },
+      include: {
+        tryOut: {
+          select: {
+            code: true,
+          },
+        },
+        answers: {
+          include: {
+            question: {
+              select: {
+                points: true,
+                subtest: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return attempts.map((attempt) => {
+      const scores = {
+        pu: 0,
+        ppu: 0,
+        pbm: 0,
+        pk: 0,
+        lbi: 0,
+        lbe: 0,
+        pm: 0,
+      };
+
+      attempt.answers.forEach((answer) => {
+        if (answer.isCorrect) {
+          const subtestName = answer.question.subtest.name;
+          const points = answer.question.points;
+
+          if (subtestName === 'PU') scores.pu += points;
+          if (subtestName === 'PPU') scores.ppu += points;
+          if (subtestName === 'PBM') scores.pbm += points;
+          if (subtestName === 'PK') scores.pk += points;
+          if (subtestName === 'LBI') scores.lbi += points;
+          if (subtestName === 'LBE') scores.lbe += points;
+          if (subtestName === 'PM') scores.pm += points;
+        }
+      });
+
+      return {
+        to: `TO ${attempt.tryOut.code}`,
+        total: Math.round(attempt.totalScore),
+        ...scores,
+      };
+    });
+  }
+
+  async getActiveTryouts(userId: string): Promise<ActiveTryoutDto[]> {
+    const registeredTryouts = await this.prisma.tryOutAttempt.findMany({
+      where: {
+        userId,
+        status: 'IN_PROGRESS',
+      },
+      include: {
+        tryOut: {
+          include: {
+            subtests: {
+              select: { id: true },
+            },
+            _count: {
+              select: {
+                attempts: true,
+              },
+            },
+          },
+        },
+        answers: {
+          select: {
+            question: {
+              select: {
+                subtestId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return registeredTryouts.map((tryout) => {
+      const ansSubtestId = new Set(
+        tryout.answers.map((a) => a.question.subtestId),
+      );
+
+      return {
+        id: tryout.tryOut.id,
+        title: tryout.tryOut.title,
+        code: tryout.tryOut.code,
+        batch: tryout.tryOut.batch,
+        participants: tryout.tryOut._count.attempts,
+        progress: ansSubtestId.size,
+        totalSubtests: tryout.tryOut.subtests.length,
+        endDate: tryout.tryOut.scheduledStart,
+      };
+    });
+  }
+}
+`````
+
+## File: src/modules/admin/services/tryout.service.ts
+`````typescript
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+import { CreateTryoutDto } from '../dto/create-tryout.dto';
+import { UpdateTryoutDto } from '../dto/update-tryout.dto';
+import { NotFoundException } from '@nestjs/common';
+
+@Injectable()
+export class AdminTryoutService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getTryouts(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const now = new Date();
+
+    const [data, total] = await Promise.all([
+      this.prisma.tryOut.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          code: true,
+          title: true,
+          solutionPrice: true,
+          releaseDate: true,
+          scheduledStart: true,
+          scheduledEnd: true,
+          status: true,
+          isPublic: true,
+          referralCode: true,
+        },
+      }),
+      this.prisma.tryOut.count(),
+    ]);
+
+    // Calculate dynamic status based on time
+    const formattedData = data.map((item) => {
+      let currentStatus = item.status;
+
+      if (item.scheduledStart && item.scheduledEnd) {
+        if (now < item.scheduledStart) {
+          currentStatus = 'NOT_STARTED';
+        } else if (now >= item.scheduledStart && now <= item.scheduledEnd) {
+          currentStatus = 'IN_PROGRESS';
+        } else if (now > item.scheduledEnd) {
+          currentStatus = 'FINISHED';
+        }
+      }
+
+      return {
+        ...item,
+        status: currentStatus,
+      };
+    });
+
+    return {
+      data: formattedData,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getTryoutById(id: string) {
+    return this.prisma.tryOut.findUnique({
+      where: { id },
+    });
+  }
+
+  async createTryout(dto: CreateTryoutDto) {
+    const start = new Date(dto.scheduledStart);
+    const end = new Date(dto.scheduledEnd);
+    const now = new Date();
+
+    let status: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED' = 'NOT_STARTED';
+    if (now > end) {
+      status = 'FINISHED';
+    } else if (now >= start) {
+      status = 'IN_PROGRESS';
+    }
+
+    return await this.prisma.tryOut.create({
+      data: {
+        title: dto.title,
+        description: dto.description,
+        solutionPrice: dto.solutionPrice,
+        batch: dto.batch,
+        releaseDate: new Date(dto.releaseDate),
+        scheduledStart: start,
+        scheduledEnd: end,
+        status: status,
+        isPublic: dto.isPublic ?? true,
+        referralCode: dto.referralCode || null,
+      },
+
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        scheduledStart: true,
+        releaseDate: true,
+        scheduledEnd: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async updateTryout(id: string, dto: UpdateTryoutDto) {
+    const existingTryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+    });
+
+    if (!existingTryout) {
+      throw new NotFoundException('Tryout tidak ditemukan');
+    }
+
+    const start = dto.scheduledStart
+      ? new Date(dto.scheduledStart)
+      : existingTryout.scheduledStart;
+    const end = dto.scheduledEnd
+      ? new Date(dto.scheduledEnd)
+      : existingTryout.scheduledEnd;
+    const now = new Date();
+
+    let newStatus = existingTryout.status;
+    if (start && end) {
+      if (now > end) {
+        newStatus = 'FINISHED';
+      } else if (now >= start) {
+        newStatus = 'IN_PROGRESS';
+      } else {
+        newStatus = 'NOT_STARTED';
+      }
+    }
+
+    return await this.prisma.tryOut.update({
+      where: { id },
+      data: {
+        title: dto.title,
+        solutionPrice: dto.solutionPrice,
+        scheduledStart: start,
+        scheduledEnd: end,
+        releaseDate: dto.releaseDate && new Date(dto.releaseDate),
+        description: dto.description,
+        isPublic: dto.isPublic,
+        referralCode: dto.referralCode || null,
+        status: newStatus,
+      },
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        scheduledStart: true,
+        releaseDate: true,
+        scheduledEnd: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async deleteTryout(id: string) {
+    const existingTryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existingTryout) {
+      throw new NotFoundException('Tryout tidak ditemukan');
+    }
+
+    return await this.prisma.tryOut.delete({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+      },
+    });
+  }
+}
+`````
+
+## File: src/modules/admin/admin.module.ts
+`````typescript
+import { Module } from '@nestjs/common';
+import { AdminService } from './services/admin.service';
+import { AdminController } from './admin.controller';
+import { AdminTryoutService } from './services/tryout.service';
+import { AdminSubtestService } from './services/subtest.service';
+import { AdminQuestionService } from './services/question.service';
+import { AdminUserService } from './services/user.service';
+import { AdminPaymentService } from './services/payment.service';
+import { AdminPackageService } from './services/package.service';
+import { AdminDailyService } from './services/daily.service';
+import { AdminTryoutResultService } from './services/result.service';
+
+@Module({
+  controllers: [AdminController],
+  providers: [
+    AdminService,
+    AdminTryoutService,
+    AdminSubtestService,
+    AdminQuestionService,
+    AdminUserService,
+    AdminPaymentService,
+    AdminPackageService,
+    AdminDailyService,
+    AdminTryoutResultService,
+  ],
+})
+export class AdminModule {}
+`````
+
+## File: src/modules/admin/admin.controller.ts
+`````typescript
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseInterceptors,
+  UploadedFile,
+  Query,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { AdminService } from './services/admin.service';
+import { AdminTryoutService } from './services/tryout.service';
+import { AdminSubtestService } from './services/subtest.service';
+import { AdminQuestionService } from './services/question.service';
+import { CreateTryoutDto } from './dto/create-tryout.dto';
+import { UpdateTryoutDto } from './dto/update-tryout.dto';
+import { CreateQuestionDto } from './dto/create-question.dto';
+import { UpdateQuestionDto } from './dto/update-question.dto';
+import { AdminUserService } from './services/user.service';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { TopupTokenDto } from './dto/topup-token.dto';
+import { AdminPaymentService } from './services/payment.service';
+import { AdminPackageService } from './services/package.service';
+import { CreatePackageDto, UpdatePackageDto } from './dto/package.dto';
+import { AdminDailyService } from './services/daily.service';
+import { AdminTryoutResultService } from './services/result.service';
+import { PaymentStatus } from 'generated/prisma/enums';
+
+@Controller('admin')
+export class AdminController {
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly tryoutService: AdminTryoutService,
+    private readonly subtestService: AdminSubtestService,
+    private readonly questionService: AdminQuestionService,
+    private readonly userService: AdminUserService,
+    private readonly paymentService: AdminPaymentService,
+    private readonly packageService: AdminPackageService,
+    private readonly dailyService: AdminDailyService,
+    private readonly resultService: AdminTryoutResultService,
+  ) {}
+
+  // --- DASHBOARD ---
+  @Get('stats')
+  getDashboardStats() {
+    return this.adminService.getDashboardStats();
+  }
+
+  // --- TRYOUT ---
+  @Get('tryouts')
+  getTryouts(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.tryoutService.getTryouts(Number(page), Number(limit));
+  }
+
+  @Post('tryouts')
+  async createTryout(@Body() createTryoutDto: CreateTryoutDto) {
+    return this.tryoutService.createTryout(createTryoutDto);
+  }
+
+  @Get('tryouts/:id')
+  getTryoutById(@Param('id') id: string) {
+    return this.tryoutService.getTryoutById(id);
+  }
+
+  @Patch('tryouts/:id')
+  updateTryout(
+    @Param('id') id: string,
+    @Body() updateTryoutDto: UpdateTryoutDto,
+  ) {
+    return this.tryoutService.updateTryout(id, updateTryoutDto);
+  }
+
+  @Delete('tryouts/:id')
+  deleteTryout(@Param('id') id: string) {
+    return this.tryoutService.deleteTryout(id);
+  }
+
+  // --- SUBTEST ---
+  @Post('subtests/:tryoutId')
+  createSubtest(@Param('tryoutId') tryoutId: string) {
+    return this.subtestService.createUtbkSubtests(tryoutId);
+  }
+
+  @Get('tryouts/:tryoutId/subtests')
+  getSubtestsByTryout(@Param('tryoutId') tryoutId: string) {
+    return this.subtestService.getSubtestsByTryoutId(tryoutId);
+  }
+
+  @Get('subtests/:id')
+  getSubtestById(@Param('id') id: string) {
+    return this.subtestService.getSubtestById(id);
+  }
+
+  // --- QUESTION ---
+  @Get('subtests/:subtestId/questions')
+  getQuestionsBySubtest(@Param('subtestId') subtestId: string) {
+    return this.questionService.getQuestionBySubtestId(subtestId);
+  }
+
+  @Post('subtests/:subtestId/questions')
+  createQuestion(
+    @Param('subtestId') subtestId: string,
+    @Body() dto: CreateQuestionDto,
+  ) {
+    return this.questionService.createQuestion(dto, subtestId);
+  }
+
+  @Patch('questions/:id')
+  updateQuestion(@Param('id') id: string, @Body() dto: UpdateQuestionDto) {
+    return this.questionService.updateQuestion(dto, id);
+  }
+
+  @Delete('questions/:id')
+  deleteQuestion(@Param('id') id: string) {
+    return this.questionService.deleteQuestion(id);
+  }
+
+  // --- UPLOAD ---
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadImage(@UploadedFile() file: Express.Multer.File) {
+    const url =
+      await this.questionService.uploadQuestionImageToCloudinary(file);
+    return { url };
+  }
+
+  // --- USER ---
+  @Get('user')
+  getAllUsers(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('search') search?: string,
+    @Query('role') role?: string,
+  ) {
+    return this.userService.getAllUser(
+      Number(page),
+      Number(limit),
+      search,
+      role,
+    );
+  }
+
+  @Get('user/:id')
+  getUserById(@Param('id') id: string) {
+    return this.userService.getUserById(id);
+  }
+
+  @Get('user/:id/transactions')
+  getUserTransactions(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.userService.getUserTransactions(
+      id,
+      Number(page),
+      Number(limit),
+    );
+  }
+
+  @Get('user/:id/tryouts')
+  getUserTryouts(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    return this.userService.getUserTryouts(id, Number(page), Number(limit));
+  }
+
+  @Patch('user/:id')
+  updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    return this.userService.updateUser(updateUserDto, id);
+  }
+
+  @Post('user/:id/token')
+  manualTokenAdjustment(
+    @Param('id') id: string,
+    @Body() topupTokenDto: TopupTokenDto,
+  ) {
+    return this.userService.manualTokenAdjustment(id, topupTokenDto);
+  }
+
+  @Delete('user/attempt/:id')
+  resetUserAttempt(@Param('id') id: string) {
+    return this.userService.resetUserTryoutAttempt(id);
+  }
+
+  @Delete('user/:id')
+  removeUser(@Param('id') id: string) {
+    return this.userService.deleteUser(id);
+  }
+
+  @Get('payments')
+  getPayments(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('status') status?: PaymentStatus,
+    @Query('search') search?: string,
+  ) {
+    return this.paymentService.getAllPayments(
+      Number(page),
+      Number(limit),
+      status,
+      search,
+    );
+  }
+
+  @Get('payments/stats')
+  getPaymentStats() {
+    return this.paymentService.getPaymentStats();
+  }
+
+  @Patch('payments/:id/confirm')
+  confirmPayment(@Param('id') id: string) {
+    return this.paymentService.confirmPayment(id);
+  }
+
+  @Patch('payments/:id/reject')
+  rejectPayment(@Param('id') id: string) {
+    return this.paymentService.rejectPayment(id);
+  }
+
+  // --- PACKAGE / SHOP ---
+  @Get('shop/packages')
+  getPackages() {
+    return this.packageService.getAllPackages();
+  }
+
+  @Post('shop/packages')
+  createPackage(@Body() dto: CreatePackageDto) {
+    return this.packageService.createPackage(dto);
+  }
+
+  @Patch('shop/packages/:id')
+  updatePackage(@Param('id') id: string, @Body() dto: UpdatePackageDto) {
+    return this.packageService.updatePackage(id, dto);
+  }
+
+  @Patch('shop/packages/:id/status')
+  togglePackageStatus(@Param('id') id: string) {
+    return this.packageService.togglePackageStatus(id);
+  }
+
+  @Delete('shop/packages/:id')
+  deletePackage(@Param('id') id: string) {
+    return this.packageService.deletePackage(id);
+  }
+
+  // --- DAILY QUESTION ---
+  @Get('daily/today')
+  getTodayDailyQuestion() {
+    return this.dailyService.getTodayQuestion();
+  }
+
+  // --- RESULTS / LEADERBOARD ---
+  @Get('tryouts/:id/leaderboard')
+  getTryoutLeaderboard(
+    @Param('id') id: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '50',
+  ) {
+    return this.resultService.getLeaderboard(id, Number(page), Number(limit));
+  }
+
+  @Get('tryouts/:id/stats')
+  getTryoutStats(@Param('id') id: string) {
+    return this.resultService.getTryoutStats(id);
+  }
+
+  @Get('tryouts/:id/export')
+  exportTryoutResults(@Param('id') id: string) {
+    return this.resultService.exportResults(id);
+  }
+}
+`````
+
+## File: src/app.module.ts
+`````typescript
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { AuthModule } from '@thallesp/nestjs-better-auth';
+import { auth } from './lib/auth';
+import { ConfigModule } from '@nestjs/config';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { HistoryModule } from './modules/history/history.module';
+import { ReferralModule } from './modules/referral/referral.module';
+import { ShopModule } from './modules/shop/shop.module';
+import { TryoutModule } from './modules/tryout/tryout.module';
+import { PrismaModule } from './prisma.module';
+import { ExamModule } from './modules/exam/exam.module';
+import { AdminModule } from './modules/admin/admin.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      envFilePath: '.env',
+      isGlobal: true,
+    }),
+    AuthModule.forRoot({ auth, disableGlobalAuthGuard: true }),
+    PrismaModule,
+    DashboardModule,
+    HistoryModule,
+    ReferralModule,
+    ShopModule,
+    TryoutModule,
+    ExamModule,
+    AdminModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+`````
+
+## File: package.json
+`````json
+{
+  "name": "jituptn-backend",
+  "version": "0.0.1",
+  "description": "",
+  "author": "",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "prisma generate && nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/mapped-types": "*",
+    "@nestjs/platform-express": "^11.0.1",
+    "@prisma/adapter-pg": "^7.1.0",
+    "@prisma/client": "^7.1.0",
+    "@thallesp/nestjs-better-auth": "^2.2.0",
+    "@types/bcryptjs": "^3.0.0",
+    "bcryptjs": "^3.0.3",
+    "better-auth": "^1.4.5",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "cloudinary": "^2.8.0",
+    "dotenv": "^17.2.3",
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "streamifier": "^0.1.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "@eslint/js": "^9.18.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.1",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^22.19.1",
+    "@types/pg": "^8.15.6",
+    "@types/streamifier": "^0.1.2",
+    "@types/supertest": "^6.0.2",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
+    "globals": "^16.0.0",
+    "jest": "^30.0.0",
+    "prettier": "^3.4.2",
+    "prisma": "^7.1.0",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    }
+  }
+}
+`````
+
+## File: src/main.ts
+`````typescript
+import { NestFactory, Reflector } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { json, urlencoded } from 'express';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: false,
+  });
+
+  // Trust proxy is required for cookies/auth to work correctly behind Railway/load balancers
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    }),
+  );
+
+  app.enableCors({
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  await app.listen(process.env.PORT ?? 3000);
+}
+bootstrap();
+`````
+
+## File: prisma/schema.prisma
+`````prisma
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TryoutBatch {
+  SNBT
+  MANDIRI
+}
+
+enum TryoutStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  FINISHED
+}
+
+enum SubtestName {
+  PU
+  PPU
+  PBM
+  PK
+  LBI
+  LBE
+  PM
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum QuestionType {
+  PILIHAN_GANDA
+  ISIAN_SINGKAT
+  BENAR_SALAH
+}
+
+enum PaymentStatus {
+  CONFIRMED
+  PENDING
+  DECLINED
+  CANCELLED
+}
+
+model User {
+  id            String  @id
+  name          String
+  email         String
+  emailVerified Boolean @default(false)
+  image         String?
+  target        String? @db.VarChar(100)
+
+  currentStreak Int       @default(0)
+  lastDailyDate DateTime?
+  tokenBalance  Int       @default(0)
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  sessions          Session[]
+  accounts          Account[]
+  tokenTransactions TokenTransaction[]
+  unlockedSolutions UnlockedSolution[]
+  tryOutAttempts    TryOutAttempt[]
+  dailyLogs         DailyQuestionLog[]
+  role              Role               @default(USER) 
+
+
+  @@unique([email])
+  @@map("user")
+  payments Payment[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model TryOut {
+  id            String  @id @default(cuid())
+  title         String
+  description   String? @db.Text
+  solutionPrice Int     @default(0)
+  code          Int     @default(autoincrement())
+
+  // REFERRAL LOGIC
+  isPublic     Boolean @default(true)
+  referralCode String? @unique // Required to see/join if not public
+
+  scheduledStart DateTime?
+  scheduledEnd   DateTime?
+  releaseDate    DateTime
+  createdAt      DateTime  @default(now())
+
+  status         TryoutStatus @default(NOT_STARTED)
+
+  // Relations
+  subtests          Subtest[]
+  unlockedSolutions UnlockedSolution[]
+  attempts          TryOutAttempt[]
+
+  batch TryoutBatch
+}
+
+// --- 3. DAILY RANDOM QUESTION & STREAK ---
+model DailyQuestionLog {
+  id          String   @id @default(cuid())
+  userId      String
+  questionId  String
+  isCorrect   Boolean
+  completedAt DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@index([userId, completedAt], name: "daily_user_date_idx")
+}
+
+// --- 4. UTBK CORE STRUCTURE ---
+model Subtest {
+  id              String      @id @default(cuid())
+  tryOutId        String      @map("try_out_id")
+  name            SubtestName
+  durationMinutes Int         @map("duration_minutes")
+  order           Int
+
+  tryOut    TryOut     @relation(fields: [tryOutId], references: [id], onDelete: Cascade)
+  questions Question[]
+}
+
+model Question {
+  id            String  @id @default(cuid())
+  subtestId     String  @map("subtest_id")
+  type          QuestionType
+  imageUrl      String? @db.Text
+  narration     String? @db.Text
+  content       String? @db.Text
+  explanation   String? @db.Text
+  points        Int     @default(1)
+  correctAnswer String? @map("correct_answer_short_answer")
+
+  subtest   Subtest            @relation(fields: [subtestId], references: [id])
+  items     QuestionItem[]
+  dailyLogs DailyQuestionLog[]
+
+  userAnswers UserAnswer[]
+}
+
+model QuestionItem {
+  id         String  @id @default(cuid())
+  questionId String  @map("question_id")
+  content    String? @db.Text
+  isCorrect  Boolean @default(false) @map("is_correct")
+  order      Int
+
+  question Question @relation(fields: [questionId], references: [id])
+}
+
+// --- 5. TRANSACTIONS & ACCESS ---
+model TokenTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int
+  type        String
+  referenceId String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model TokenPackage {
+  id          String  @id @default(cuid())
+  name        String
+  tokenAmount Int
+  price       Int
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments Payment[]
+}
+
+model Payment {
+  id             String @id @default(cuid())
+  userId         String @unique
+  tokenPackageId String
+
+  amount         Int
+  tokenAmount    Int
+
+  status         PaymentStatus 
+  paymentMethod  String @default("QRIS_STATIC")
+
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User @relation(fields: [userId], references: [id])
+  tokenPackage    TokenPackage @relation(fields: [tokenPackageId], references: [id])
+
+}
+
+model UnlockedSolution {
+  id         String   @id @default(cuid())
+  userId     String
+  tryOutId   String
+  unlockedAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  tryOut TryOut @relation(fields: [tryOutId], references: [id])
+}
+
+model TryOutAttempt {
+  id         String    @id @default(cuid())
+  userId     String
+  tryOutId   String    @map("try_out_id")
+  totalScore Float     @map("total_score")
+  status     String
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+
+  user    User         @relation(fields: [userId], references: [id])
+  tryOut  TryOut       @relation(fields: [tryOutId], references: [id])
+  answers UserAnswer[]
+}
+
+model UserAnswer {
+  id              String @id @default(cuid())
+  tryOutAttemptId String @map("tryout_attempt_id")
+  questionId      String @map("question_id")
+
+  // pilihan jawaban user (jika essay maka null)
+  questionItemId String? @map("question_item_id")
+
+  inputText String?  @db.Text
+  isCorrect Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  question Question      @relation(fields: [questionId], references: [id])
+  attempt  TryOutAttempt @relation(fields: [tryOutAttemptId], references: [id])
+
+  @@unique([tryOutAttemptId, questionId])
+}
+`````
+
+## File: src/lib/auth.ts
+`````typescript
+import 'dotenv/config';
+import { betterAuth } from 'better-auth';
+import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { PrismaClient } from '../../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL as string,
+});
+
+const prisma = new PrismaClient({
+  adapter,
+});
+
+export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL,
+  trustedOrigins: ['http://localhost:5173'],
+  database: prismaAdapter(prisma, {
+    provider: 'postgresql',
+  }),
+  emailAndPassword: {
+    enabled: true,
+  },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+    },
+  },
+  user: {
+    additionalFields: {
+      role: {
+        type: 'string',
+        required: false,
+        defaultValue: 'USER',
+        input: false, // Don't allow users to set their own role during signup
+      },
+    },
+  },
+  advanced: {
+    disableOriginCheck: true,
+    disableCSRFCheck: true,
+    // defaultCookieAttributes: {
+    //   sameSite: 'None',
+    // },
+  },
+});
+`````
