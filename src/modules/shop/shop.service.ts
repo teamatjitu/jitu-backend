@@ -4,9 +4,9 @@ import { ConfigService } from '@nestjs/config';
 
 // Untuk sekarang, tipe token yang dibeli hard-coded
 const TOKEN_TYPES = {
-  1: { amount: 10, price: 99000 },
-  2: { amount: 25, price: 249000 },
-  3: { amount: 50, price: 499000 },
+  1: { title: 'Paket Starter', amount: 10, price: 99000 },
+  2: { title: 'Paket Reguler', amount: 25, price: 249000 },
+  3: { title: 'Paket Intensif', amount: 50, price: 499000 },
 };
 
 @Injectable()
@@ -31,7 +31,97 @@ export class ShopService {
       },
     });
 
-    // Generate mock QRIS dynaamically
+    // Generate mock QRIS dynamically
+    let qrisString = '';
+    try {
+      qrisString = this.updateQrisAmount(selectedPackage.price, transaction.id);
+    } catch (error) {
+      console.error('Gagal generate QRIS:', error);
+      throw new BadRequestException('Gagal generate QRIS Code');
+    }
+
+    return {
+      ...transaction,
+      qris: qrisString,
+      totalPrice: selectedPackage.price,
+    };
+  }
+
+  async getPendingTransactions(userId: string) {
+    const transactions = await this.prisma.tokenTransaction.findMany({
+      where: {
+        userId,
+        type: 'UNPAID',
+      },
+    });
+
+    const results: any[] = [];
+    for (const transaction of transactions) {
+      const selectedPackage = Object.values(TOKEN_TYPES).find(
+        (pkg) => pkg.amount === transaction.amount,
+      );
+
+      if (!selectedPackage) {
+        continue; // skip jika paket tidak valid
+      }
+
+      results.push({
+        ...transaction,
+        totalPrice: selectedPackage.price,
+        packageName: selectedPackage.title,
+      });
+    }
+
+    return results;
+  }
+
+  async getPastTransactions(userId: string) {
+    const transactions = await this.prisma.tokenTransaction.findMany({
+      where: {
+        userId,
+        type: { not: 'UNPAID' },
+      },
+    });
+
+    const results: any[] = [];
+    for (const transaction of transactions) {
+      const selectedPackage = Object.values(TOKEN_TYPES).find(
+        (pkg) => pkg.amount === transaction.amount,
+      );
+
+      if (!selectedPackage) {
+        continue; // skip jika paket tidak valid
+      }
+
+      results.push({
+        ...transaction,
+        totalPrice: selectedPackage.price,
+        packageName: selectedPackage.title,
+      });
+    }
+
+    return results;
+  }
+
+  async getData(userId: string, transactionId: string) {
+    const transaction = await this.prisma.tokenTransaction.findFirst({
+      where: {
+        id: transactionId,
+        userId,
+      },
+    });
+
+    if (!transaction)
+      throw new BadRequestException('Transaksi tidak ditemukan!');
+
+    const selectedPackage = Object.values(TOKEN_TYPES).find(
+      (pkg) => pkg.amount === transaction.amount,
+    );
+
+    if (!selectedPackage) {
+      throw new BadRequestException('Paket tidak valid!');
+    }
+
     let qrisString = '';
     try {
       qrisString = this.updateQrisAmount(selectedPackage.price, transaction.id);
@@ -48,8 +138,6 @@ export class ShopService {
   }
 
   async setPaid(transactionId: string) {
-    // TODO: Add checking logic buat ngecek apakah udah paid sebelumnya, biar dia gak nambah token double
-
     const transaction = await this.prisma.tokenTransaction.findUnique({
       where: { id: transactionId },
     });

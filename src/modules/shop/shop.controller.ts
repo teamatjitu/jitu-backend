@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  Get,
   Param,
   Post,
   Session,
@@ -55,5 +56,23 @@ export class ShopController {
       throw new BadRequestException('transactionId is required');
     }
     return this.shopService.setPaid(body.transactionId);
+  }
+
+  @Get('pending')
+  async getPendingTransactions(@Session() session: UserSession) {
+    return this.shopService.getPendingTransactions(session.user.id);
+  }
+
+  @Get('past')
+  async getPastTransactions(@Session() session: UserSession) {
+    return this.shopService.getPastTransactions(session.user.id);
+  }
+
+  @Get('data/:transactionId')
+  async getTransactionData(
+    @Session() session: UserSession,
+    @Param('transactionId') transactionId: string,
+  ) {
+    return this.shopService.getData(session.user.id, transactionId);
   }
 }
