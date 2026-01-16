@@ -1,4 +1,10 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { TryoutService } from './tryout.service';
 import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
 import { AuthGuard, Session } from '@thallesp/nestjs-better-auth';
@@ -26,8 +32,8 @@ export class TryoutController {
   @UseGuards(AuthGuard)
   async getTryoutExam(
     @Param('id') id: string,
-    @Param('subtestId') subtestId: string,
+    @Param('subtestId', ParseIntPipe) subtestId: number,
   ) {
-    return this.tryoutService.getSubtestQuestions(id, parseInt(subtestId));
+    return this.tryoutService.getSubtestQuestions(id, subtestId);
   }
 }
