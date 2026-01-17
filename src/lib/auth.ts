@@ -55,6 +55,7 @@ export const auth = betterAuth({
   },
 
   advanced: {
+    disableOriginCheck: true,
     cookies: {
       session_token: {
         attributes: {
