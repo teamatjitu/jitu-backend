@@ -40,6 +40,7 @@ export class TryoutDetailDto {
   benefits: string[];
   requirements: string[];
   unlockedSolutions: any[];
+  
 }
 
 export class QuestionDto {

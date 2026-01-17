@@ -36,7 +36,7 @@ export class TryoutController {
 
     return this.tryoutService.getSubtestQuestions(id, subtestId, userId, attemptId);
   }
-
+  
   @Post(':id/unlock')
   @UseGuards(AuthGuard)
   async unlockTryoutSolution(

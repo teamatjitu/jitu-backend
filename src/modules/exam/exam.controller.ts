@@ -23,20 +23,14 @@ export class ExamController {
     return this.examService.startExam(tryoutId, userId);
   }
 
-  @Sse(':attemptId/stream')
-  streamExamStatus(
-    @Param('attemptId') attemptId: string,
-  ): Observable<MessageEvent> {
-    return this.examService.getExamStream(attemptId);
-  }
-
   @Post(':attemptId/answer')
   async submitAnswer(
     @Param('attemptId') attemptId: string,
-    @Body() answerData: { 
-      questionId: string; 
-      answerId?: string; 
-      inputText?: string; 
+    @Body()
+    answerData: {
+      questionId: string;
+      answerId?: string;
+      inputText?: string;
     },
   ) {
     return this.examService.saveAnswer(
@@ -47,10 +41,16 @@ export class ExamController {
     );
   }
 
-  @Post(':attemptId/finish')
-  async finish(
+  @Sse(':attemptId/stream/:order') // Tambahkan :order di sini
+  streamExamStatus(
     @Param('attemptId') attemptId: string,
-  ) {
+    @Param('order') order: string, // Ambil parameter order
+  ): Observable<MessageEvent> {
+    return this.examService.getExamStream(attemptId, Number(order));
+  }
+
+  @Post(':attemptId/finish')
+  async finish(@Param('attemptId') attemptId: string) {
     return this.examService.finishExam(attemptId);
   }
 
