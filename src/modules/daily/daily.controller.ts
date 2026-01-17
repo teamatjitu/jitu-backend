@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { AuthGuard, Session } from '@thallesp/nestjs-better-auth';
-import type { UserSession } from '@thallesp/nestjs-better-auth';
+import { AuthGuard } from '../../guards/auth.guard';
+import { Session } from '../../decorators/session.decorator';
+import type { UserSession } from '../../decorators/session.decorator'; // Gunakan import type!
+
 import { DailyService } from './daily.service';
 import { SubmitDailyAnswerDto } from './dto/daily.dto';
 

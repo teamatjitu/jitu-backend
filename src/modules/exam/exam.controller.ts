@@ -1,9 +1,8 @@
 import { Controller, Get, Post, Body, Param, Sse } from '@nestjs/common';
 import { ExamService } from './exam.service';
 import { Observable } from 'rxjs';
-import { Public } from '@thallesp/nestjs-better-auth';
+// [FIX] Hapus import Public dari thallesp
 
-@Public()
 @Controller('exam')
 export class ExamController {
   constructor(private readonly examService: ExamService) {}

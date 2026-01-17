@@ -3,12 +3,12 @@ import {
   Controller,
   Param,
   Post,
-  Session,
   UseGuards,
   Body,
 } from '@nestjs/common';
-import { AuthGuard } from '@thallesp/nestjs-better-auth';
-import type { UserSession } from '@thallesp/nestjs-better-auth';
+import { AuthGuard } from '../../guards/auth.guard';
+import { Session } from '../../decorators/session.decorator';
+import type { UserSession } from '../../decorators/session.decorator'; // Gunakan import type!
 import { ShopService } from './shop.service';
 
 @Controller('shop')
@@ -35,12 +35,6 @@ export class ShopController {
       session.user.id,
       intType as 1 | 2 | 3,
     );
-
-    // Karena cuma simulasi, transaksinya keresolve setelah 3 detik
-    // setTimeout(() => {
-    //   this.shopService.setPaid(res.id);
-    // }, 3000);
-
     return res;
   }
 
