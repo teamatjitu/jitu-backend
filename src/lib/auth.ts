@@ -111,7 +111,6 @@ const getResetPasswordEmailTemplate = (url: string, email: string) => {
   `;
 };
 
-// --- BETTER AUTH CONFIG ---
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
   trustedOrigins: ['http://localhost:5173', 'http://localhost:3000'],
@@ -136,6 +135,7 @@ export const auth = betterAuth({
       }
     },
   },
+
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
@@ -150,6 +150,12 @@ export const auth = betterAuth({
         type: 'string',
         required: false,
         defaultValue: 'USER',
+        input: false,
+      },
+      target: {
+        type: 'string',
+        required: false,
+        defaultValue: 'UTBK 2026',
         input: false,
       },
     },
