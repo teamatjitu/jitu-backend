@@ -8,8 +8,6 @@ async function bootstrap() {
     bodyParser: false,
   });
 
-  app.getHttpAdapter().getInstance().set('trust proxy', 1);
-
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
