@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  ParseIntPipe,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Req,Param,Query, UseGuards, Post } from '@nestjs/common';
 import { TryoutService } from './tryout.service';
 import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
 import { AuthGuard, Session } from '@thallesp/nestjs-better-auth';
@@ -29,11 +23,27 @@ export class TryoutController {
   }
 
   @Get(':id/exam/:subtestId')
-  @UseGuards(AuthGuard)
+  // @UseGuards(AuthGuard) // Opsional: Boleh di-comment jika ingin Public, atau nyalakan jika wajib login
   async getTryoutExam(
     @Param('id') id: string,
-    @Param('subtestId', ParseIntPipe) subtestId: number,
+    @Param('subtestId') subtestId: string,
+    @Query('userId') userIdFromQuery: string,
+    @Query('attemptId') attemptId: string,
+    @Req() req: any,
   ) {
-    return this.tryoutService.getSubtestQuestions(id, subtestId);
+    // Ambil userId dari Query (prioritas) atau Session
+    const userId = userIdFromQuery || req.session?.user?.id || req.user?.id;
+
+    return this.tryoutService.getSubtestQuestions(id, subtestId, userId, attemptId);
   }
+
+  @Post(':id/unlock')
+  @UseGuards(AuthGuard)
+  async unlockTryoutSolution(
+    @Param('id') id: string,
+    @Session() session: UserSession,
+  ) {
+    return this.tryoutService.unlockSolution(session.user.id, id);
+  }
+  
 }
