@@ -17,85 +17,38 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log('🌱 Seeding database...');
+  console.log('🌱 Memulai seeding database Jitu...');
 
-  // ===============================
-  // 1. CREATE TOKEN PACKAGES
-  // ===============================
-  const pkg1 = await prisma.tokenPackage.upsert({
-    where: { id: 'pkg-1' },
-    update: {},
-    create: {
-      id: 'pkg-1',
-      name: 'Paket Hemat',
-      tokenAmount: 20,
-      price: 15000,
-    },
-  });
+  // =========================================================
+  // 1. TOKEN PACKAGES (Menggunakan Upsert agar tidak duplikat)
+  // =========================================================
+  const packages = [
+    { id: 'pkg-1', name: 'Paket Hemat', tokens: 20, price: 15000 },
+    { id: 'pkg-2', name: 'Paket Populer', tokens: 50, price: 35000 },
+    { id: 'pkg-3', name: 'Paket Sultan', tokens: 150, price: 100000 },
+  ];
 
-  const pkg2 = await prisma.tokenPackage.upsert({
-    where: { id: 'pkg-2' },
-    update: {},
-    create: {
-      id: 'pkg-2',
-      name: 'Paket Populer',
-      tokenAmount: 50,
-      price: 35000,
-    },
-  });
-
-  const pkg3 = await prisma.tokenPackage.upsert({
-    where: { id: 'pkg-3' },
-    update: {},
-    create: {
-      id: 'pkg-3',
-      name: 'Paket Sultan',
-      tokenAmount: 150,
-      price: 100000,
-    },
-  });
-
+  for (const pkg of packages) {
+    await prisma.tokenPackage.upsert({
+      where: { id: pkg.id },
+      update: { name: pkg.name, tokenAmount: pkg.tokens, price: pkg.price },
+      create: { id: pkg.id, name: pkg.name, tokenAmount: pkg.tokens, price: pkg.price },
+    });
+  }
   console.log('✅ Token packages seeded');
 
-  // ===============================
-  // 2. CREATE USERS
-  // ===============================
-  const userSiswa1 = await prisma.user.upsert({
+  // =========================================================
+  // 2. USERS (Menggunakan Upsert berdasarkan Email)
+  // =========================================================
+  const userSiswa = await prisma.user.upsert({
     where: { email: 'siswa_test@example.com' },
     update: {},
     create: {
       id: 'user-siswa-test-id',
-      name: 'Siswa Teladan',
+      name: 'Siswa Jitu',
       email: 'siswa_test@example.com',
       role: Role.USER,
-      tokenBalance: 50,
-      emailVerified: true,
-      target: 'ITB - Teknik Informatika',
-    },
-  });
-
-  const userSiswa2 = await prisma.user.upsert({
-    where: { email: 'siswa_2@example.com' },
-    update: {},
-    create: {
-      id: 'user-siswa-2-id',
-      name: 'Budi Santoso',
-      email: 'siswa_2@example.com',
-      role: Role.USER,
-      tokenBalance: 0,
-      emailVerified: true,
-    },
-  });
-
-  const userSiswa3 = await prisma.user.upsert({
-    where: { email: 'siswa_3@example.com' },
-    update: {},
-    create: {
-      id: 'user-siswa-3-id',
-      name: 'Ani Wijaya',
-      email: 'siswa_3@example.com',
-      role: Role.USER,
-      tokenBalance: 10,
+      tokenBalance: 100, // Saldo awal untuk testing
       emailVerified: true,
     },
   });
@@ -108,126 +61,99 @@ async function main() {
       name: 'Admin Jitu',
       email: 'admin_test@example.com',
       role: Role.ADMIN,
-      tokenBalance: 9999,
+      tokenBalance: 999,
       emailVerified: true,
     },
   });
-
   console.log('✅ Users seeded');
 
-  // ===============================
-  // 3. CREATE PAYMENTS
-  // ===============================
-  // Note: userId is @unique in Payment schema, so 1 payment per user for now
+  // =========================================================
+  // 3. HELPERS UNTUK SOAL (Mencegah bug "Kosong jadi Benar")
+  // =========================================================
+  const createMCQ = (content: string, correctIdx: number, explanation: string) => ({
+    type: QuestionType.PILIHAN_GANDA,
+    content,
+    points: 10,
+    explanation,
+    items: {
+      create: ['A', 'B', 'C', 'D', 'E'].map((l, i) => ({
+        content: `Pilihan ${l}`,
+        isCorrect: i === correctIdx, // Pastikan TEPAT SATU yang true
+        order: i + 1,
+      })),
+    },
+  });
+
+  const createShort = (content: string, ans: string, expl: string) => ({
+    type: QuestionType.ISIAN_SINGKAT,
+    content,
+    points: 10,
+    correctAnswer: ans,
+    explanation: expl,
+  });
+
+  // =========================================================
+  // 4. TRYOUTS (Cek keberadaan sebelum create agar data lama aman)
+  // =========================================================
+  const TRYOUT_ID_PREMIUM = 'tryout-premium-snbt-1';
   
-  await prisma.payment.upsert({
-    where: { userId: userSiswa1.id },
-    update: {},
-    create: {
-      userId: userSiswa1.id,
-      tokenPackageId: pkg2.id,
-      amount: pkg2.price,
-      tokenAmount: pkg2.tokenAmount,
-      status: PaymentStatus.CONFIRMED,
-      paymentMethod: 'QRIS_STATIC',
-    },
+  const existingTryout = await prisma.tryOut.findUnique({
+    where: { id: TRYOUT_ID_PREMIUM }
   });
 
-  await prisma.payment.upsert({
-    where: { userId: userSiswa2.id },
-    update: {},
-    create: {
-      userId: userSiswa2.id,
-      tokenPackageId: pkg1.id,
-      amount: pkg1.price,
-      tokenAmount: pkg1.tokenAmount,
-      status: PaymentStatus.PENDING,
-      paymentMethod: 'MANUAL_TRANSFER',
-    },
-  });
-
-  await prisma.payment.upsert({
-    where: { userId: userSiswa3.id },
-    update: {},
-    create: {
-      userId: userSiswa3.id,
-      tokenPackageId: pkg3.id,
-      amount: pkg3.price,
-      tokenAmount: pkg3.tokenAmount,
-      status: PaymentStatus.DECLINED,
-      paymentMethod: 'QRIS_STATIC',
-    },
-  });
-
-  console.log('✅ Payments seeded');
-
-  // ===============================
-  // 4. CREATE TRYOUTS & QUESTIONS
-  // ===============================
-  const tryout1 = await prisma.tryOut.upsert({
-    where: { id: 'tryout-1' },
-    update: {},
-    create: {
-      id: 'tryout-1',
-      title: 'Tryout Simulasi Reset (In Progress)',
-      description: 'Tryout ini sedang dikerjakan user untuk dites reset.',
-      batch: TryoutBatch.SNBT,
-      isPublic: true,
-      solutionPrice: 0,
-      releaseDate: new Date(),
-      scheduledStart: new Date(),
-      scheduledEnd: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
-      status: 'IN_PROGRESS',
-      subtests: {
-        create: [
-          {
-            name: SubtestName.PU,
-            durationMinutes: 30,
-            order: 1,
-            questions: {
-              create: [
-                {
-                  type: QuestionType.PILIHAN_GANDA,
-                  content: '1 + 1 = ?',
-                  points: 10,
-                  items: {
-                    create: [
-                      { content: '2', isCorrect: true, order: 1 },
-                      { content: '3', isCorrect: false, order: 2 },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  });
-
-  console.log('✅ Tryouts seeded');
-
-  // ===============================
-  // 5. CREATE ATTEMPTS
-  // ===============================
-  const existingAttempt = await prisma.tryOutAttempt.findFirst({
-    where: { userId: userSiswa1.id, tryOutId: tryout1.id }
-  });
-
-  if (!existingAttempt) {
-    await prisma.tryOutAttempt.create({
+  if (!existingTryout) {
+    console.log('📝 Membuat Tryout baru dengan 7 Subtest...');
+    await prisma.tryOut.create({
       data: {
-        userId: userSiswa1.id,
-        tryOutId: tryout1.id,
-        status: 'IN_PROGRESS',
-        totalScore: 0,
-        startedAt: new Date(),
+        id: TRYOUT_ID_PREMIUM,
+        title: 'Simulasi UTBK SNBT - Premium',
+        description: 'Tryout lengkap 7 subtest. Selesaikan pengerjaan untuk membuka pembahasan (50 Token).',
+        batch: TryoutBatch.SNBT,
+        isPublic: true,
+        solutionPrice: 50,
+        releaseDate: new Date(),
+        scheduledStart: new Date(),
+        scheduledEnd: new Date(new Date().getTime() + 365 * 24 * 60 * 60 * 1000),
+        subtests: {
+          create: [
+            { name: SubtestName.PU, durationMinutes: 30, order: 1, questions: { create: [createMCQ('Soal Penalaran Umum 1', 0, 'Analisis logika untuk pilihan A...')] } },
+            { name: SubtestName.PPU, durationMinutes: 15, order: 2, questions: { create: [createMCQ('Soal PPU 1', 1, 'Makna kata pada pilihan B adalah...')] } },
+            { name: SubtestName.PBM, durationMinutes: 25, order: 3, questions: { create: [createMCQ('Soal PBM 1', 2, 'Ejaan yang benar adalah C...')] } },
+            { name: SubtestName.PK, durationMinutes: 20, order: 4, questions: { create: [createShort('Hasil dari 15 + 25 adalah?', '40', 'Penjumlahan dasar 15+25=40')] } },
+            { name: SubtestName.LBI, durationMinutes: 45, order: 5, questions: { create: [createMCQ('Soal Literasi Indonesia 1', 3, 'Ide pokok paragraf tersebut...')] } },
+            { name: SubtestName.LBE, durationMinutes: 30, order: 6, questions: { create: [createMCQ('English Literacy Question 1', 4, 'The main theme of the text...')] } },
+            { name: SubtestName.PM, durationMinutes: 45, order: 7, questions: { create: [createShort('Jika x=2, berapakah 3x + 4?', '10', 'Substitusi: 3(2)+4 = 6+4 = 10')] } },
+          ],
+        },
       },
     });
+    console.log('✅ Tryout & 7 Subtests seeded');
+  } else {
+    console.log('⏩ Tryout sudah ada, melewati proses pembuatan.');
   }
 
-  console.log('✅ User attempts seeded');
-  console.log('🌱 Seeding finished successfully.');
+  // =========================================================
+  // 5. PAYMENTS (Contoh untuk testing Dashboard)
+  // =========================================================
+  const existingPayment = await prisma.payment.findUnique({
+    where: { userId: userSiswa.id }
+  });
+
+  if (!existingPayment) {
+    await prisma.payment.create({
+      data: {
+        userId: userSiswa.id,
+        tokenPackageId: 'pkg-2',
+        amount: 35000,
+        tokenAmount: 50,
+        status: PaymentStatus.CONFIRMED,
+        paymentMethod: 'QRIS_STATIC',
+      },
+    });
+    console.log('✅ Payment sample seeded');
+  }
+
+  console.log('🌱 Seeding selesai dengan sukses!');
 }
 
 main()
@@ -237,4 +163,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end().catch(() => undefined);
   });
