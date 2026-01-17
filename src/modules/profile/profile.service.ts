@@ -41,6 +41,7 @@ export class ProfileService {
         email: user.email,
         image: user.image,
         tokenBalance: user.tokenBalance,
+        target: user.target,
       },
       stats: {
         totalTryout: user._count.tryOutAttempts,
@@ -56,5 +57,15 @@ export class ProfileService {
         status: attempt.totalScore > 700 ? 'EXCELLENT' : 'COMPLETED',
       })),
     };
+  }
+
+  async updateProfile(userId: string, data: { name?: string; target?: string }) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: data.name,
+        target: data.target,
+      },
+    });
   }
 }
