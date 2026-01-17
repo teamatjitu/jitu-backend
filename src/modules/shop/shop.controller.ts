@@ -17,24 +17,23 @@ import { ShopService } from './shop.service';
 export class ShopController {
   constructor(private readonly shopService: ShopService) {}
 
-  @Post('create/:type')
+  @Get('packages')
+  async getPackages() {
+    return this.shopService.getPackages();
+  }
+
+  @Post('create/:packageId')
   async createTransaction(
     @Session() session: UserSession,
-    @Param('type') type: string,
+    @Param('packageId') packageId: string,
   ) {
-    const intType = parseInt(type, 10);
-
-    if (isNaN(intType)) {
-      throw new BadRequestException('Invalid type');
-    }
-
-    if (intType < 1 || intType > 3) {
-      throw new BadRequestException('Invalid type');
+    if (!packageId) {
+      throw new BadRequestException('Package ID required');
     }
 
     const res = await this.shopService.createTokenTransaction(
       session.user.id,
-      intType as 1 | 2 | 3,
+      packageId,
     );
     return res;
   }

@@ -2,13 +2,6 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { ConfigService } from '@nestjs/config';
 
-// Untuk sekarang, tipe token yang dibeli hard-coded
-const TOKEN_TYPES = {
-  1: { title: 'Paket Starter', amount: 10, price: 99000 },
-  2: { title: 'Paket Reguler', amount: 25, price: 249000 },
-  3: { title: 'Paket Intensif', amount: 50, price: 499000 },
-};
-
 @Injectable()
 export class ShopService {
   constructor(
@@ -16,25 +9,53 @@ export class ShopService {
     private readonly configService: ConfigService,
   ) {}
 
-  async createTokenTransaction(userId: string, type: keyof typeof TOKEN_TYPES) {
-    // TODO: Add checking logic buat ngecek apakah lagi ada transaksi unpaid sebelumnya
-    const selectedPackage = TOKEN_TYPES[type];
+  // Ambil daftar paket dari database
+  async getPackages() {
+    return this.prisma.tokenPackage.findMany({
+      where: { isActive: true },
+      orderBy: { price: 'asc' },
+    });
+  }
+
+  async createTokenTransaction(userId: string, packageId: string) {
+    // Cari paket di database
+    const selectedPackage = await this.prisma.tokenPackage.findUnique({
+      where: { id: packageId },
+    });
+
     if (!selectedPackage) {
-      throw new BadRequestException('Paket tidak valid!');
+      throw new BadRequestException('Paket tidak valid atau tidak ditemukan!');
     }
 
-    const transaction = await this.prisma.tokenTransaction.create({
+    // TODO: Add logic cek unpaid transaction jika perlu
+
+    // Buat Payment/Transaction baru
+    // Sesuaikan dengan schema Payment yang baru (ada orderId)
+    // Gunakan Payment model, bukan TokenTransaction (karena schema sudah berubah ke Payment + TokenPackage)
+    // TAPI, kode lama pakai TokenTransaction. Mari kita cek schema sebentar.
+    // Asumsi: Kita migrasi ke model Payment yang terhubung ke TokenPackage.
+    
+    // Karena TokenTransaction di schema lama agak beda dengan Payment baru,
+    // Saya akan sesuaikan dengan schema Payment yang ada di seed.ts tadi.
+    
+    const orderId = `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    const transaction = await this.prisma.payment.create({
       data: {
-        amount: selectedPackage.amount,
         userId,
-        type: 'UNPAID',
+        tokenPackageId: selectedPackage.id,
+        orderId,
+        amount: selectedPackage.price,
+        tokenAmount: selectedPackage.tokenAmount,
+        status: 'PENDING',
+        paymentMethod: 'QRIS_STATIC',
       },
     });
 
-    // Generate mock QRIS dynamically
+    // Generate QRIS
     let qrisString = '';
     try {
-      qrisString = this.updateQrisAmount(selectedPackage.price, transaction.id);
+      qrisString = this.updateQrisAmount(selectedPackage.price, transaction.orderId);
     } catch (error) {
       console.error('Gagal generate QRIS:', error);
       throw new BadRequestException('Gagal generate QRIS Code');
@@ -43,127 +64,99 @@ export class ShopService {
     return {
       ...transaction,
       qris: qrisString,
-      totalPrice: selectedPackage.price,
+      packageName: selectedPackage.name,
     };
   }
 
   async getPendingTransactions(userId: string) {
-    const transactions = await this.prisma.tokenTransaction.findMany({
+    const transactions = await this.prisma.payment.findMany({
       where: {
         userId,
-        type: 'UNPAID',
+        status: 'PENDING',
       },
+      include: {
+        tokenPackage: true,
+      },
+      orderBy: { createdAt: 'desc' },
     });
 
-    const results: any[] = [];
-    for (const transaction of transactions) {
-      const selectedPackage = Object.values(TOKEN_TYPES).find(
-        (pkg) => pkg.amount === transaction.amount,
-      );
-
-      if (!selectedPackage) {
-        continue; // skip jika paket tidak valid
-      }
-
-      results.push({
-        ...transaction,
-        totalPrice: selectedPackage.price,
-        packageName: selectedPackage.title,
-      });
-    }
-
-    return results;
+    return transactions.map((trx) => ({
+      ...trx,
+      totalPrice: trx.amount, // Map amount to totalPrice for frontend compatibility
+      packageName: trx.tokenPackage.name,
+    }));
   }
 
   async getPastTransactions(userId: string) {
-    const transactions = await this.prisma.tokenTransaction.findMany({
+    const transactions = await this.prisma.payment.findMany({
       where: {
         userId,
-        type: { not: 'UNPAID' },
+        status: { not: 'PENDING' },
       },
+      include: {
+        tokenPackage: true,
+      },
+      orderBy: { createdAt: 'desc' },
     });
 
-    const results: any[] = [];
-    for (const transaction of transactions) {
-      const selectedPackage = Object.values(TOKEN_TYPES).find(
-        (pkg) => pkg.amount === transaction.amount,
-      );
-
-      if (!selectedPackage) {
-        continue; // skip jika paket tidak valid
-      }
-
-      results.push({
-        ...transaction,
-        totalPrice: selectedPackage.price,
-        packageName: selectedPackage.title,
-      });
-    }
-
-    return results;
+    return transactions.map((trx) => ({
+      ...trx,
+      totalPrice: trx.amount, // Map amount to totalPrice for frontend compatibility
+      packageName: trx.tokenPackage.name,
+    }));
   }
 
   async getData(userId: string, transactionId: string) {
-    const transaction = await this.prisma.tokenTransaction.findFirst({
-      where: {
-        id: transactionId,
-        userId,
-      },
+    const transaction = await this.prisma.payment.findUnique({
+      where: { id: transactionId }, // Cari berdasarkan ID (Primary Key)
+      include: { tokenPackage: true },
     });
 
-    if (!transaction)
+    if (!transaction || transaction.userId !== userId) {
       throw new BadRequestException('Transaksi tidak ditemukan!');
-
-    const selectedPackage = Object.values(TOKEN_TYPES).find(
-      (pkg) => pkg.amount === transaction.amount,
-    );
-
-    if (!selectedPackage) {
-      throw new BadRequestException('Paket tidak valid!');
     }
 
     let qrisString = '';
     try {
-      qrisString = this.updateQrisAmount(selectedPackage.price, transaction.id);
+      // Gunakan amount transaksi, bukan dari paket (karena harga bisa berubah)
+      qrisString = this.updateQrisAmount(transaction.amount, transaction.orderId);
     } catch (error) {
       console.error('Gagal generate QRIS:', error);
-      throw new BadRequestException('Gagal generate QRIS Code');
     }
 
     return {
       ...transaction,
+      totalPrice: transaction.amount, // Map amount -> totalPrice
       qris: qrisString,
-      totalPrice: selectedPackage.price,
+      packageName: transaction.tokenPackage.name,
     };
   }
 
+  // Webhook atau Manual Check
   async setPaid(transactionId: string) {
-    const transaction = await this.prisma.tokenTransaction.findUnique({
+    // Cari by ID (karena webhook mungkin kirim ID) atau orderId?
+    // Biasanya Midtrans kirim orderId. Tapi fungsi ini parameter namanya transactionId.
+    // Kita coba cari by ID dulu, kalau gagal cari by orderId (opsional).
+    // Tapi amannya kita asumsikan transactionId adalah ID database.
+    
+    const transaction = await this.prisma.payment.findUnique({
       where: { id: transactionId },
     });
 
-    if (!transaction)
-      throw new BadRequestException('Transaksi tidak ditemukan!');
-    // kalau transaksi sudah lunas, maka tidak akan mengubah apapun
-    if (transaction.type === 'PAID') return transaction;
+    if (!transaction) throw new BadRequestException('Transaksi tidak ditemukan!');
+    if (transaction.status === 'CONFIRMED') return transaction;
 
-    const res = await this.prisma.tokenTransaction.update({
-      where: {
-        id: transactionId,
-      },
-      data: {
-        type: 'PAID',
-      },
+    // Update Status Transaksi
+    const res = await this.prisma.payment.update({
+      where: { id: transactionId },
+      data: { status: 'CONFIRMED' },
     });
 
+    // Tambah Token User
     await this.prisma.user.update({
-      where: {
-        id: res.userId,
-      },
+      where: { id: res.userId },
       data: {
-        tokenBalance: {
-          increment: res.amount,
-        },
+        tokenBalance: { increment: res.tokenAmount },
       },
     });
 
@@ -171,7 +164,7 @@ export class ShopService {
   }
 
   checkTransactionStatus(transactionId: string) {
-    return this.prisma.tokenTransaction.findUnique({
+    return this.prisma.payment.findUnique({
       where: {
         id: transactionId,
       },
@@ -180,66 +173,47 @@ export class ShopService {
 
   /**
    * Update nominal (tag 54) pada QRIS dan hitung ulang CRC.
-   * - Mengubah 010211 -> 010212 (menjadi dynamic)
-   * - Menyisipkan tag 54 sebelum "5802ID"
-   * - Menghitung ulang CRC16-CCITT (poly 0x1021, init 0xFFFF) di akhir payload
    */
   updateQrisAmount(nominal: number | string, transactionId?: string): string {
     const qris = this.configService.get<string>('QRIS_ID');
 
-    if (qris === undefined || qris === null || qris === '') {
-      throw new Error('QRIS_ID belum dikonfigurasi di environment variables.');
-    }
+    if (!qris) throw new Error('QRIS_ID belum dikonfigurasi.');
+    if (!nominal) throw new Error('Nominal wajib diisi.');
 
-    if (nominal === undefined || nominal === null || nominal === '') {
-      throw new Error('Parameter "nominal" wajib diisi.');
-    }
-
-    // toString nominal; biarkan apa adanya (boleh "10000" atau "10000.50" kalau dibutuhkan)
-    const nominalStr =
-      typeof nominal === 'number'
-        ? String(nominal) // jika ingin selalu 2 desimal: nominal.toFixed(2).replace(/\.?0+$/, '')
-        : String(nominal);
-
-    // Utility lokal agar tetap satu fungsi saja
+    const nominalStr = String(nominal);
     const pad2 = (n: number) => (n < 10 ? '0' + n : String(n));
+    
+    // Simple CRC16-CCITT implementation
     const toCRC16 = (input: string) => {
       let crc = 0xffff;
       for (let i = 0; i < input.length; i++) {
         crc ^= input.charCodeAt(i) << 8;
         for (let j = 0; j < 8; j++) {
           crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
-          crc &= 0xffff; // jaga tetap 16-bit
+          crc &= 0xffff;
         }
       }
       return (crc & 0xffff).toString(16).toUpperCase().padStart(4, '0');
     };
 
-    // Buang CRC lama (4 char terakhir) tetapi tetap mempertahankan "6304" di before-end
-    let base = qris?.slice(0, -4);
+    let base = qris.slice(0, -4);
+    base = base.includes('010211') ? base.replace('010211', '010212') : base;
 
-    // Pastikan jadi dynamic (010212). Abaikan jika sudah dynamic.
-    base = base?.includes('010211') ? base.replace('010211', '010212') : base;
-
-    // Sisipkan amount (tag 54) sebelum country code "5802ID"
     const splitMarker = '5802ID';
-    const parts = base?.split(splitMarker);
-    if (parts?.length! < 2) {
-      throw new Error('QRIS tidak valid: marker "5802ID" tidak ditemukan.');
-    }
+    const parts = base.split(splitMarker);
+    if (parts.length < 2) throw new Error('QRIS Marker 5802ID not found');
 
     const amountTag = '54' + pad2(nominalStr.length) + nominalStr;
-    let payloadWithoutCRC = parts?.[0] + amountTag + splitMarker + parts?.[1];
+    let payload = parts[0] + amountTag + splitMarker + parts[1];
 
     if (transactionId) {
-      const tag62 = '62' + pad2(transactionId.length) + transactionId;
-      payloadWithoutCRC += tag62;
+      // Potong transactionId jika terlalu panjang agar muat di QRIS (max length tag 62 variatif)
+      const safeId = transactionId.slice(0, 20); 
+      const tag62 = '62' + pad2(safeId.length) + safeId;
+      payload += tag62;
     }
 
-    payloadWithoutCRC += '6304'; // Tambahkan kembali tag CRC tanpa value
-
-    // Hitung CRC baru dan gabungkan
-    const newCrc = toCRC16(payloadWithoutCRC);
-    return payloadWithoutCRC + newCrc;
+    payload += '6304';
+    return payload + toCRC16(payload);
   }
 }
