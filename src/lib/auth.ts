@@ -5,7 +5,17 @@ import { PrismaClient } from '../../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as nodemailer from 'nodemailer';
 
-// --- SETUP DATABASE ---
+const getOrigin = (req: Request) => {
+  // Fly sets x-forwarded-proto to "https"
+  const proto = req.headers.get('x-forwarded-proto') || 'http';
+  const host = req.headers.get('host');
+
+  // If running locally and FRONTEND_URL is set, use that
+  if (!host && process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
+
+  return `${proto}://${host}`;
+};
+
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL as string,
 });
@@ -112,7 +122,7 @@ export const auth = betterAuth({
     enabled: true,
     async sendResetPassword(data) {
       console.log(`[AUTH] Sending reset email to: ${data.user.email}`);
-      
+
       try {
         await transporter.sendMail({
           from: process.env.SMTP_FROM,
@@ -130,10 +140,31 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+      redirectUri: (req: Request) =>
+        `${getOrigin(req)}/api/auth/callback/google`,
     },
   },
+  user: {
+    additionalFields: {
+      role: {
+        type: 'string',
+        required: false,
+        defaultValue: 'USER',
+        input: false,
+      },
+    },
+  },
+
   advanced: {
     disableOriginCheck: true,
-    disableCSRFCheck: true,
+    cookies: {
+      session_token: {
+        attributes: {
+          sameSite: 'None',
+          secure: true,
+          httpOnly: true,
+        },
+      },
+    },
   },
 });

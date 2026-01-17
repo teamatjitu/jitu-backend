@@ -63,6 +63,7 @@ src/
         update-user.dto.ts
       services/
         admin.service.ts
+        question.service.ts
         daily.service.ts
         package.service.ts
         payment.service.ts
@@ -481,43 +482,39 @@ export class CreateSubtestDto {
 }
 </file>
 
-<file path="src/modules/admin/dto/package.dto.ts">
-import { IsString, IsInt, IsNotEmpty, IsBoolean, IsOptional } from 'class-validator';
+<file path="src/modules/admin/dto/create-tryout.dto.ts">
+import {
+  IsString,
+  IsInt,
+  IsEnum,
+  IsDateString,
+  IsOptional,
+} from 'class-validator';
+import { TryoutBatch } from 'generated/prisma/client';
 
-export class CreatePackageDto {
+export class CreateTryoutDto {
   @IsString()
-  @IsNotEmpty()
-  name: string;
+  title: string;
 
-  @IsInt()
-  @IsNotEmpty()
-  tokenAmount: number;
-
-  @IsInt()
-  @IsNotEmpty()
-  price: number;
-
-  @IsBoolean()
-  @IsOptional()
-  isActive?: boolean;
-}
-
-export class UpdatePackageDto {
   @IsString()
   @IsOptional()
-  name?: string;
+  description?: string;
 
+  // ini harga token
   @IsInt()
-  @IsOptional()
-  tokenAmount?: number;
+  solutionPrice: number;
 
-  @IsInt()
-  @IsOptional()
-  price?: number;
+  @IsEnum(TryoutBatch)
+  batch: TryoutBatch;
 
-  @IsBoolean()
-  @IsOptional()
-  isActive?: boolean;
+  @IsDateString()
+  releaseDate: string;
+
+  @IsDateString()
+  scheduledEnd: string;
+
+  @IsDateString()
+  scheduledStart: string;
 }
 </file>
 
@@ -542,440 +539,34 @@ import { CreateQuestionDto } from './create-question.dto';
 export class UpdateQuestionDto extends PartialType(CreateQuestionDto) {}
 </file>
 
-<file path="src/modules/admin/services/daily.service.ts">
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma.service';
+<file path="src/modules/admin/dto/update-tryout.dto.ts">
+import { IsString, IsInt, IsDateString, IsOptional } from 'class-validator';
 
-@Injectable()
-export class AdminDailyService {
-  constructor(private readonly prisma: PrismaService) {}
+export class UpdateTryoutDto {
+  @IsString()
+  @IsOptional()
+  title?: string;
 
-  /**
-   * Mengambil soal hari ini menggunakan algoritma Deterministik Random.
-   * Soal akan berubah setiap hari secara otomatis, tapi tetap sama untuk semua user di hari tersebut.
-   */
-  async getTodayQuestion() {
-    const totalQuestions = await this.prisma.question.count();
-    if (totalQuestions === 0) return null;
+  // ini harga token
+  @IsInt()
+  @IsOptional()
+  solutionPrice?: number;
 
-    // Gunakan tanggal (YYYYMMDD) sebagai SEED
-    const now = new Date();
-    const dateSeed = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
-    
-    // Pilih index berdasarkan modulus
-    const randomIndex = dateSeed % totalQuestions;
+  @IsDateString()
+  @IsDateString()
+  @IsOptional()
+  releaseDate?: string;
 
-    const question = await this.prisma.question.findFirst({
-      skip: randomIndex,
-      orderBy: { id: 'asc' }, // Pastikan urutan stabil agar random tidak berubah-ubah
-      include: {
-        items: true,
-        subtest: {
-          select: {
-            name: true,
-            tryOut: { select: { title: true } }
-          }
-        }
-      }
-    });
+  @IsOptional()
+  scheduledStart?: string;
 
-    if (!question) return null;
+  @IsDateString()
+  @IsOptional()
+  scheduledEnd?: string;
 
-    // Ambil Statistik Pengerjaan untuk soal ini HARI INI
-    const todayStart = new Date(now.setHours(0, 0, 0, 0));
-    const todayEnd = new Date(now.setHours(23, 59, 59, 999));
-
-    const [totalAttempts, correctAnswers] = await Promise.all([
-      this.prisma.dailyQuestionLog.count({
-        where: {
-          questionId: question.id,
-          completedAt: { gte: todayStart, lte: todayEnd }
-        }
-      }),
-      this.prisma.dailyQuestionLog.count({
-        where: {
-          questionId: question.id,
-          isCorrect: true,
-          completedAt: { gte: todayStart, lte: todayEnd }
-        }
-      })
-    ]);
-
-    return {
-      ...question,
-      stats: {
-        totalAttempts,
-        correctAnswers,
-        incorrectAnswers: totalAttempts - correctAnswers,
-        successRate: totalAttempts > 0 ? (correctAnswers / totalAttempts) * 100 : 0
-      }
-    };
-  }
-}
-</file>
-
-<file path="src/modules/admin/services/package.service.ts">
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../../prisma.service';
-import { CreatePackageDto, UpdatePackageDto } from '../dto/package.dto';
-
-@Injectable()
-export class AdminPackageService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async getAllPackages() {
-    return await this.prisma.tokenPackage.findMany({
-      orderBy: { price: 'asc' },
-      include: {
-        _count: {
-          select: { payments: true }
-        }
-      }
-    });
-  }
-
-  async getPackageById(id: string) {
-    const pkg = await this.prisma.tokenPackage.findUnique({
-      where: { id }
-    });
-    if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
-    return pkg;
-  }
-
-  async createPackage(dto: CreatePackageDto) {
-    return await this.prisma.tokenPackage.create({
-      data: {
-        name: dto.name,
-        tokenAmount: dto.tokenAmount,
-        price: dto.price,
-        isActive: dto.isActive ?? true,
-      }
-    });
-  }
-
-  async updatePackage(id: string, dto: UpdatePackageDto) {
-    const pkg = await this.prisma.tokenPackage.findUnique({ where: { id } });
-    if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
-
-    return await this.prisma.tokenPackage.update({
-      where: { id },
-      data: dto
-    });
-  }
-
-  async togglePackageStatus(id: string) {
-    const pkg = await this.prisma.tokenPackage.findUnique({ where: { id } });
-    if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
-
-    return await this.prisma.tokenPackage.update({
-      where: { id },
-      data: { isActive: !pkg.isActive }
-    });
-  }
-
-  async deletePackage(id: string) {
-    const pkg = await this.prisma.tokenPackage.findUnique({
-      where: { id },
-      include: { _count: { select: { payments: true } } }
-    });
-
-    if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
-
-    // JANGAN HAPUS jika sudah ada transaksi (Payment) terkait demi integritas data
-    if (pkg._count.payments > 0) {
-      throw new BadRequestException(
-        'Tidak bisa menghapus paket yang sudah memiliki riwayat transaksi. Gunakan fitur Nonaktifkan saja.'
-      );
-    }
-
-    return await this.prisma.tokenPackage.delete({
-      where: { id }
-    });
-  }
-}
-</file>
-
-<file path="src/modules/admin/services/payment.service.ts">
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
-import { PrismaService } from '../../../prisma.service';
-import { PaymentStatus, Prisma } from '../../../../generated/prisma/client';
-
-@Injectable()
-export class AdminPaymentService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async getAllPayments(
-    page = 1,
-    limit = 10,
-    status?: PaymentStatus,
-    search?: string,
-  ) {
-    const skip = (page - 1) * limit;
-
-    const where: Prisma.PaymentWhereInput = {};
-
-    if (status) {
-      where.status = status;
-    }
-
-    if (search) {
-      where.user = {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ],
-      };
-    }
-
-    const [data, total] = await Promise.all([
-      this.prisma.payment.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: {
-            select: {
-              name: true,
-              email: true,
-            },
-          },
-          tokenPackage: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      }),
-      this.prisma.payment.count({ where }),
-    ]);
-
-    return {
-      data,
-      meta: {
-        total,
-        page,
-        lastPage: Math.ceil(total / limit),
-      },
-    };
-  }
-
-  async getPaymentStats() {
-    const [totalRevenue, totalSuccess, totalPending] = await Promise.all([
-      this.prisma.payment.aggregate({
-        where: { status: PaymentStatus.CONFIRMED },
-        _sum: { amount: true },
-      }),
-      this.prisma.payment.count({
-        where: { status: PaymentStatus.CONFIRMED },
-      }),
-      this.prisma.payment.count({
-        where: { status: PaymentStatus.PENDING },
-      }),
-    ]);
-
-    return {
-      totalRevenue: totalRevenue._sum.amount || 0,
-      totalSuccess,
-      totalPending,
-    };
-  }
-
-  async confirmPayment(paymentId: string) {
-    const payment = await this.prisma.payment.findUnique({
-      where: { id: paymentId },
-    });
-
-    if (!payment) {
-      throw new NotFoundException('Data pembayaran tidak ditemukan');
-    }
-
-    if (payment.status !== PaymentStatus.PENDING) {
-      throw new BadRequestException(
-        'Hanya pembayaran berstatus PENDING yang bisa dikonfirmasi',
-      );
-    }
-
-    // CRITICAL: Database Transaction
-    return await this.prisma.$transaction(async (tx) => {
-      // 1. Update Status Payment
-      const updatedPayment = await tx.payment.update({
-        where: { id: paymentId },
-        data: { status: PaymentStatus.CONFIRMED },
-      });
-
-      // 2. Tambah Token User
-      await tx.user.update({
-        where: { id: payment.userId },
-        data: {
-          tokenBalance: { increment: payment.tokenAmount },
-        },
-      });
-
-      // 3. Catat di Riwayat Transaksi Token
-      await tx.tokenTransaction.create({
-        data: {
-          userId: payment.userId,
-          amount: payment.tokenAmount,
-          type: 'TOPUP',
-          referenceId: `PAYMENT_ID: ${paymentId}`,
-        },
-      });
-
-      return updatedPayment;
-    });
-  }
-
-  async rejectPayment(paymentId: string) {
-    const payment = await this.prisma.payment.findUnique({
-      where: { id: paymentId },
-    });
-
-    if (!payment) {
-      throw new NotFoundException('Data pembayaran tidak ditemukan');
-    }
-
-    if (payment.status !== PaymentStatus.PENDING) {
-      throw new BadRequestException(
-        'Hanya pembayaran berstatus PENDING yang bisa ditolak',
-      );
-    }
-
-    return await this.prisma.payment.update({
-      where: { id: paymentId },
-      data: { status: PaymentStatus.DECLINED },
-    });
-  }
-}
-</file>
-
-<file path="src/modules/admin/services/result.service.ts">
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../../prisma.service';
-
-@Injectable()
-export class AdminTryoutResultService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async getLeaderboard(tryoutId: string, page = 1, limit = 50) {
-    const skip = (page - 1) * limit;
-
-    const [data, total] = await Promise.all([
-      this.prisma.tryOutAttempt.findMany({
-        where: {
-          tryOutId: tryoutId,
-          status: 'FINISHED',
-        },
-        orderBy: { totalScore: 'desc' },
-        skip,
-        take: limit,
-        include: {
-          user: {
-            select: {
-              name: true,
-              email: true,
-              image: true,
-              target: true,
-            },
-          },
-        },
-      }),
-      this.prisma.tryOutAttempt.count({
-        where: { tryOutId: tryoutId, status: 'FINISHED' },
-      }),
-    ]);
-
-    // Tambahkan posisi rank (1, 2, 3...)
-    const rankedData = data.map((item, index) => ({
-      ...item,
-      rank: skip + index + 1,
-    }));
-
-    return {
-      data: rankedData,
-      meta: {
-        total,
-        page,
-        lastPage: Math.ceil(total / limit),
-      },
-    };
-  }
-
-  async getTryoutStats(tryoutId: string) {
-    const tryout = await this.prisma.tryOut.findUnique({
-      where: { id: tryoutId },
-      select: { title: true },
-    });
-
-    if (!tryout) throw new NotFoundException('Tryout tidak ditemukan');
-
-    const aggregate = await this.prisma.tryOutAttempt.aggregate({
-      where: { tryOutId: tryoutId, status: 'FINISHED' },
-      _avg: { totalScore: true },
-      _max: { totalScore: true },
-      _min: { totalScore: true },
-      _count: { id: true },
-    });
-
-    // Distribusi Nilai (Kelompokkan skor)
-    const attempts = await this.prisma.tryOutAttempt.findMany({
-      where: { tryOutId: tryoutId, status: 'FINISHED' },
-      select: { totalScore: true },
-    });
-
-    const distribution = {
-      under400: attempts.filter((a) => a.totalScore < 400).length,
-      range400to600: attempts.filter(
-        (a) => a.totalScore >= 400 && a.totalScore < 600,
-      ).length,
-      range600to800: attempts.filter(
-        (a) => a.totalScore >= 600 && a.totalScore < 800,
-      ).length,
-      above800: attempts.filter((a) => a.totalScore >= 800).length,
-    };
-
-    return {
-      title: tryout.title,
-      totalParticipants: aggregate._count.id,
-      averageScore: aggregate._avg.totalScore || 0,
-      highestScore: aggregate._max.totalScore || 0,
-      lowestScore: aggregate._min.totalScore || 0,
-      distribution,
-    };
-  }
-
-  async exportResults(tryoutId: string) {
-    const data = await this.prisma.tryOutAttempt.findMany({
-      where: {
-        tryOutId: tryoutId,
-        status: 'FINISHED',
-      },
-      orderBy: { totalScore: 'desc' },
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
-            target: true,
-          },
-        },
-      },
-    });
-
-    return data.map((item, index) => ({
-      Rank: index + 1,
-      Nama: item.user.name,
-      Email: item.user.email,
-      Target: item.user.target || '-',
-      Skor: item.totalScore,
-      Waktu_Mulai: item.startedAt,
-      Waktu_Selesai: item.finishedAt,
-    }));
-  }
+  @IsString()
+  @IsOptional()
+  description?: string;
 }
 </file>
 
@@ -2219,1103 +1810,6 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
 </file>
 
-<file path="repomix-output.md">
-This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
-
-# File Summary
-
-## Purpose
-This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
-It is designed to be easily consumable by AI systems for analysis, code review,
-or other automated processes.
-
-## File Format
-The content is organized as follows:
-1. This summary section
-2. Repository information
-3. Directory structure
-4. Repository files (if enabled)
-5. Multiple file entries, each consisting of:
-  a. A header with the file path (## File: path/to/file)
-  b. The full contents of the file in a code block
-
-## Usage Guidelines
-- This file should be treated as read-only. Any changes should be made to the
-  original repository files, not this packed version.
-- When processing this file, use the file path to distinguish
-  between different files in the repository.
-- Be aware that this file may contain sensitive information. Handle it with
-  the same level of security as you would the original repository.
-- Pay special attention to the Repository Description. These contain important context and guidelines specific to this project.
-
-## Notes
-- Some files may have been excluded based on .gitignore rules and Repomix's configuration
-- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: **/*
-- Files matching these patterns are excluded: pnpm-lock.yaml, repomix-output.*, node_modules, dist, *.log
-- Files matching patterns in .gitignore are excluded
-- Files matching default ignore patterns are excluded
-- Files are sorted by Git change count (files with more changes are at the bottom)
-
-# User Provided Header
-Custom header information for the packed file.
-
-# Directory Structure
-```
-prisma/
-  migrations/
-    20251209053635_init/
-      migration.sql
-    20251227070826_first_update/
-      migration.sql
-    migration_lock.toml
-  schema.prisma
-src/
-  lib/
-    auth.ts
-  app.controller.spec.ts
-  app.controller.ts
-  app.module.ts
-  app.service.ts
-  main.ts
-  prisma.service.ts
-test/
-  app.e2e-spec.ts
-  jest-e2e.json
-.env.example
-.gitignore
-.prettierrc
-eslint.config.mjs
-nest-cli.json
-package.json
-prisma.config.ts
-README.md
-repomix.config.json
-tsconfig.build.json
-tsconfig.json
-```
-
-# Files
-
-## File: prisma/migrations/20251209053635_init/migration.sql
-````sql
--- CreateTable
-CREATE TABLE "user" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "emailVerified" BOOLEAN NOT NULL DEFAULT false,
-    "image" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "user_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "session" (
-    "id" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    "token" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "ipAddress" TEXT,
-    "userAgent" TEXT,
-    "userId" TEXT NOT NULL,
-
-    CONSTRAINT "session_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "account" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "providerId" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "accessToken" TEXT,
-    "refreshToken" TEXT,
-    "idToken" TEXT,
-    "accessTokenExpiresAt" TIMESTAMP(3),
-    "refreshTokenExpiresAt" TIMESTAMP(3),
-    "scope" TEXT,
-    "password" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "account_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "verification" (
-    "id" TEXT NOT NULL,
-    "identifier" TEXT NOT NULL,
-    "value" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "verification_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex
-CREATE UNIQUE INDEX "user_email_key" ON "user"("email");
-
--- CreateIndex
-CREATE INDEX "session_userId_idx" ON "session"("userId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "session_token_key" ON "session"("token");
-
--- CreateIndex
-CREATE INDEX "account_userId_idx" ON "account"("userId");
-
--- CreateIndex
-CREATE INDEX "verification_identifier_idx" ON "verification"("identifier");
-
--- AddForeignKey
-ALTER TABLE "session" ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "account" ADD CONSTRAINT "account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-````
-
-## File: prisma/migrations/20251227070826_first_update/migration.sql
-````sql
--- AlterTable
-ALTER TABLE "user" ADD COLUMN     "currentStreak" INTEGER NOT NULL DEFAULT 0,
-ADD COLUMN     "lastDailyDate" TIMESTAMP(3),
-ADD COLUMN     "tokenBalance" INTEGER NOT NULL DEFAULT 0;
-
--- CreateTable
-CREATE TABLE "TryOut" (
-    "id" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "description" TEXT,
-    "solutionPrice" INTEGER NOT NULL DEFAULT 0,
-    "isPublic" BOOLEAN NOT NULL DEFAULT true,
-    "referralCode" TEXT,
-    "scheduledStart" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "TryOut_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "DailyQuestionLog" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "questionId" TEXT NOT NULL,
-    "isCorrect" BOOLEAN NOT NULL,
-    "completedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "DailyQuestionLog_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Subtest" (
-    "id" TEXT NOT NULL,
-    "try_out_id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "duration_minutes" INTEGER NOT NULL,
-    "order" INTEGER NOT NULL,
-
-    CONSTRAINT "Subtest_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Question" (
-    "id" TEXT NOT NULL,
-    "subtest_id" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "imageUrl" TEXT,
-    "narration" TEXT,
-    "content" TEXT,
-    "explanation" TEXT,
-    "points" INTEGER NOT NULL DEFAULT 1,
-    "correct_answer_short_answer" TEXT,
-
-    CONSTRAINT "Question_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "QuestionItem" (
-    "id" TEXT NOT NULL,
-    "question_id" TEXT NOT NULL,
-    "content" TEXT,
-    "is_correct" BOOLEAN NOT NULL DEFAULT false,
-    "order" INTEGER NOT NULL,
-
-    CONSTRAINT "QuestionItem_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "TokenTransaction" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "amount" INTEGER NOT NULL,
-    "type" TEXT NOT NULL,
-    "referenceId" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "TokenTransaction_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "UnlockedSolution" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "tryOutId" TEXT NOT NULL,
-    "unlockedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "UnlockedSolution_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "TryOutAttempt" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "try_out_id" TEXT NOT NULL,
-    "total_score" DOUBLE PRECISION NOT NULL,
-    "status" TEXT NOT NULL,
-    "started_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "TryOutAttempt_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex
-CREATE UNIQUE INDEX "TryOut_referralCode_key" ON "TryOut"("referralCode");
-
--- CreateIndex
-CREATE INDEX "daily_user_date_idx" ON "DailyQuestionLog"("userId", "completedAt");
-
--- AddForeignKey
-ALTER TABLE "DailyQuestionLog" ADD CONSTRAINT "DailyQuestionLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "DailyQuestionLog" ADD CONSTRAINT "DailyQuestionLog_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Subtest" ADD CONSTRAINT "Subtest_try_out_id_fkey" FOREIGN KEY ("try_out_id") REFERENCES "TryOut"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Question" ADD CONSTRAINT "Question_subtest_id_fkey" FOREIGN KEY ("subtest_id") REFERENCES "Subtest"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "QuestionItem" ADD CONSTRAINT "QuestionItem_question_id_fkey" FOREIGN KEY ("question_id") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "TokenTransaction" ADD CONSTRAINT "TokenTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UnlockedSolution" ADD CONSTRAINT "UnlockedSolution_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UnlockedSolution" ADD CONSTRAINT "UnlockedSolution_tryOutId_fkey" FOREIGN KEY ("tryOutId") REFERENCES "TryOut"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "TryOutAttempt" ADD CONSTRAINT "TryOutAttempt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "TryOutAttempt" ADD CONSTRAINT "TryOutAttempt_try_out_id_fkey" FOREIGN KEY ("try_out_id") REFERENCES "TryOut"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-````
-
-## File: prisma/migrations/migration_lock.toml
-````toml
-# Please do not edit this file manually
-# It should be added in your version-control system (e.g., Git)
-provider = "postgresql"
-````
-
-## File: src/app.controller.spec.ts
-````typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-
-describe('AppController', () => {
-  let appController: AppController;
-
-  beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
-      controllers: [AppController],
-      providers: [AppService],
-    }).compile();
-
-    appController = app.get<AppController>(AppController);
-  });
-
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
-    });
-  });
-});
-````
-
-## File: src/app.controller.ts
-````typescript
-import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
-
-@Controller()
-export class AppController {
-  constructor(private readonly appService: AppService) {}
-
-  @Get()
-  getHello(): string {
-    return this.appService.getHello();
-  }
-}
-````
-
-## File: src/app.service.ts
-````typescript
-import { Injectable } from '@nestjs/common';
-
-@Injectable()
-export class AppService {
-  getHello(): string {
-    return 'Hello World!';
-  }
-}
-````
-
-## File: src/main.ts
-````typescript
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    bodyParser: false,
-  });
-  await app.listen(process.env.PORT ?? 3000);
-}
-bootstrap();
-````
-
-## File: src/prisma.service.ts
-````typescript
-import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '../generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-@Injectable()
-export class PrismaService extends PrismaClient {
-  constructor() {
-    const adapter = new PrismaPg({
-      connectionString: process.env.DATABASE_URL as string,
-    });
-
-    super({ adapter });
-  }
-}
-````
-
-## File: test/app.e2e-spec.ts
-````typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
-
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
-
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
-  });
-
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
-  });
-});
-````
-
-## File: test/jest-e2e.json
-````json
-{
-  "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": ".",
-  "testEnvironment": "node",
-  "testRegex": ".e2e-spec.ts$",
-  "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
-  }
-}
-````
-
-## File: .prettierrc
-````
-{
-  "singleQuote": true,
-  "trailingComma": "all"
-}
-````
-
-## File: eslint.config.mjs
-````javascript
-// @ts-check
-import eslint from '@eslint/js';
-import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
-import globals from 'globals';
-import tseslint from 'typescript-eslint';
-
-export default tseslint.config(
-  {
-    ignores: ['eslint.config.mjs'],
-  },
-  eslint.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
-  eslintPluginPrettierRecommended,
-  {
-    languageOptions: {
-      globals: {
-        ...globals.node,
-        ...globals.jest,
-      },
-      sourceType: 'commonjs',
-      parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname,
-      },
-    },
-  },
-  {
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn'
-    },
-  },
-);
-````
-
-## File: nest-cli.json
-````json
-{
-  "$schema": "https://json.schemastore.org/nest-cli",
-  "collection": "@nestjs/schematics",
-  "sourceRoot": "src",
-  "compilerOptions": {
-    "deleteOutDir": true
-  }
-}
-````
-
-## File: README.md
-````markdown
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
-
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
-
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ pnpm install
-```
-
-## Compile and run the project
-
-```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
-```
-
-## Run tests
-
-```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-````
-
-## File: repomix.config.json
-````json
-{
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "output": {
-    "filePath": "repomix-output.md",
-    "style": "markdown",
-    "parsableStyle": false,
-    "compress": false,
-    "headerText": "Custom header information for the packed file.",
-    "fileSummary": true,
-    "directoryStructure": true,
-    "files": true,
-    "removeComments": false,
-    "removeEmptyLines": false,
-    "topFilesLength": 5,
-    "showLineNumbers": false,
-    "truncateBase64": false,
-    "copyToClipboard": false,
-    "includeEmptyDirectories": false,
-    "git": {
-      "sortByChanges": true,
-      "sortByChangesMaxCommits": 100,
-      "includeDiffs": false,
-      "includeLogs": false,
-      "includeLogsCount": 50
-    }
-  },
-  "include": ["**/*"],
-  "ignore": {
-    "useGitignore": true,
-    "useDefaultPatterns": true,
-    "customPatterns": [
-      "pnpm-lock.yaml",
-      "repomix-output.*",
-      "node_modules",
-      "dist",
-      "*.log"
-    ]
-  },
-  "security": {
-    "enableSecurityCheck": true
-  },
-  "tokenCount": {
-    "encoding": "o200k_base"
-  }
-}
-````
-
-## File: tsconfig.build.json
-````json
-{
-  "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
-}
-````
-
-## File: tsconfig.json
-````json
-{
-  "compilerOptions": {
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "resolvePackageJsonExports": true,
-    "esModuleInterop": true,
-    "isolatedModules": true,
-    "declaration": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "target": "ES2023",
-    "sourceMap": true,
-    "outDir": "./dist",
-    "baseUrl": "./",
-    "incremental": true,
-    "skipLibCheck": true,
-    "strictNullChecks": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
-  }
-}
-````
-
-## File: src/lib/auth.ts
-````typescript
-import { betterAuth } from 'better-auth';
-import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { PrismaClient } from '../../generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL as string,
-});
-
-const prisma = new PrismaClient({
-  adapter,
-});
-
-export const auth = betterAuth({
-  database: prismaAdapter(prisma, {
-    provider: 'postgresql',
-  }),
-  emailAndPassword: {
-    enabled: true,
-  },
-  advanced: {
-    disableCSRFCheck: true,
-    disableOriginCheck: true,
-  },
-});
-````
-
-## File: src/app.module.ts
-````typescript
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { AuthModule } from '@thallesp/nestjs-better-auth';
-import { auth } from './lib/auth';
-import { ConfigModule } from '@nestjs/config';
-
-@Module({
-  imports: [
-    ConfigModule.forRoot({
-      envFilePath: '.env',
-    }),
-    AuthModule.forRoot({ auth }),
-  ],
-  controllers: [AppController],
-  providers: [AppService],
-})
-export class AppModule {}
-````
-
-## File: .gitignore
-````
-# compiled output
-/dist
-/node_modules
-/build
-
-# Logs
-logs
-*.log
-npm-debug.log*
-pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-
-# OS
-.DS_Store
-
-# Tests
-/coverage
-/.nyc_output
-
-# IDEs and editors
-/.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-
-# IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-# dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
-
-# temp directory
-.temp
-.tmp
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Diagnostic reports (https://nodejs.org/api/report.html)
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
-/generated/prisma
-
-repomix-output.*
-.vscode/
-````
-
-## File: package.json
-````json
-{
-  "name": "jituptn-backend",
-  "version": "0.0.1",
-  "description": "",
-  "author": "",
-  "private": true,
-  "license": "UNLICENSED",
-  "scripts": {
-    "build": "nest build --env-file .env",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start --env-file .env",
-    "start:dev": "nest start --env-file .env --watch",
-    "start:debug": "nest start --env-file .env --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
-  },
-  "dependencies": {
-    "@nestjs/common": "^11.0.1",
-    "@nestjs/config": "^4.0.2",
-    "@nestjs/core": "^11.0.1",
-    "@nestjs/platform-express": "^11.0.1",
-    "@prisma/adapter-pg": "^7.1.0",
-    "@prisma/client": "^7.1.0",
-    "@thallesp/nestjs-better-auth": "^2.2.0",
-    "better-auth": "^1.4.5",
-    "dotenv": "^17.2.3",
-    "pg": "^8.16.3",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3.2.0",
-    "@eslint/js": "^9.18.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.1",
-    "@types/express": "^5.0.0",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^22.19.1",
-    "@types/pg": "^8.15.6",
-    "@types/supertest": "^6.0.2",
-    "eslint": "^9.18.0",
-    "eslint-config-prettier": "^10.0.1",
-    "eslint-plugin-prettier": "^5.2.2",
-    "globals": "^16.0.0",
-    "jest": "^30.0.0",
-    "prettier": "^3.4.2",
-    "prisma": "^7.1.0",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.0.0",
-    "ts-jest": "^29.2.5",
-    "ts-loader": "^9.5.2",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.3",
-    "typescript-eslint": "^8.20.0"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
-  }
-}
-````
-
-## File: prisma.config.ts
-````typescript
-// This file was generated by Prisma and assumes you have installed the following:
-// npm install --save-dev prisma dotenv
-import 'dotenv/config';
-import { defineConfig, env } from 'prisma/config';
-
-export default defineConfig({
-  schema: 'prisma/schema.prisma',
-  migrations: {
-    path: 'prisma/migrations',
-  },
-  datasource: {
-    url: env('DATABASE_URL'),
-  },
-});
-````
-
-## File: prisma/schema.prisma
-````prisma
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
-
-  moduleFormat = "cjs"
-}
-
-datasource db {
-  provider = "postgresql"
-}
-
-model User {
-  id            String  @id
-  name          String
-  email         String
-  emailVerified Boolean @default(false)
-  image         String?
-
-  currentStreak Int       @default(0)
-  lastDailyDate DateTime?
-  tokenBalance  Int       @default(0)
-
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  sessions          Session[]
-  accounts          Account[]
-  tokenTransactions TokenTransaction[]
-  unlockedSolutions UnlockedSolution[]
-  tryOutAttempts    TryOutAttempt[]
-  dailyLogs         DailyQuestionLog[]
-
-  @@unique([email])
-  @@map("user")
-}
-
-model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([token])
-  @@index([userId])
-  @@map("session")
-}
-
-model Account {
-  id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  @@index([userId])
-  @@map("account")
-}
-
-model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([identifier])
-  @@map("verification")
-}
-
-model TryOut {
-  id            String  @id @default(cuid())
-  title         String
-  description   String? @db.Text
-  solutionPrice Int     @default(0)
-
-  // REFERRAL LOGIC
-  isPublic     Boolean @default(true)
-  referralCode String? @unique // Required to see/join if not public
-
-  scheduledStart DateTime?
-  createdAt      DateTime  @default(now())
-
-  // Relations
-  subtests          Subtest[]
-  unlockedSolutions UnlockedSolution[]
-  attempts          TryOutAttempt[]
-}
-
-// --- 3. DAILY RANDOM QUESTION & STREAK ---
-model DailyQuestionLog {
-  id          String   @id @default(cuid())
-  userId      String
-  questionId  String
-  isCorrect   Boolean
-  completedAt DateTime @default(now())
-
-  user     User     @relation(fields: [userId], references: [id])
-  question Question @relation(fields: [questionId], references: [id])
-
-  @@index([userId, completedAt], name: "daily_user_date_idx")
-}
-
-// --- 4. UTBK CORE STRUCTURE ---
-model Subtest {
-  id              String @id @default(cuid())
-  tryOutId        String @map("try_out_id")
-  name            String
-  durationMinutes Int    @map("duration_minutes")
-  order           Int
-
-  tryOut    TryOut     @relation(fields: [tryOutId], references: [id])
-  questions Question[]
-}
-
-model Question {
-  id            String  @id @default(cuid())
-  subtestId     String  @map("subtest_id")
-  type          String
-  imageUrl      String? @db.Text
-  narration     String? @db.Text
-  content       String? @db.Text
-  explanation   String? @db.Text
-  points        Int     @default(1)
-  correctAnswer String? @map("correct_answer_short_answer")
-
-  subtest   Subtest            @relation(fields: [subtestId], references: [id])
-  items     QuestionItem[]
-  dailyLogs DailyQuestionLog[]
-}
-
-model QuestionItem {
-  id         String  @id @default(cuid())
-  questionId String  @map("question_id")
-  content    String? @db.Text
-  isCorrect  Boolean @default(false) @map("is_correct")
-  order      Int
-
-  question Question @relation(fields: [questionId], references: [id])
-}
-
-// --- 5. TRANSACTIONS & ACCESS ---
-model TokenTransaction {
-  id          String   @id @default(cuid())
-  userId      String
-  amount      Int
-  type        String
-  referenceId String?
-  createdAt   DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
-}
-
-model UnlockedSolution {
-  id         String   @id @default(cuid())
-  userId     String
-  tryOutId   String
-  unlockedAt DateTime @default(now())
-
-  user   User   @relation(fields: [userId], references: [id])
-  tryOut TryOut @relation(fields: [tryOutId], references: [id])
-}
-
-model TryOutAttempt {
-  id         String   @id @default(cuid())
-  userId     String
-  tryOutId   String   @map("try_out_id")
-  totalScore Float    @map("total_score")
-  status     String
-  startedAt  DateTime @default(now()) @map("started_at")
-
-  user   User   @relation(fields: [userId], references: [id])
-  tryOut TryOut @relation(fields: [tryOutId], references: [id])
-}
-````
-</file>
-
 <file path="tsconfig.build.json">
 {
   "extends": "./tsconfig.json",
@@ -3403,95 +1897,6 @@ export class CreateQuestionDto {
   @Type(() => CreateQuestionItemDto)
   @IsOptional()
   items?: CreateQuestionItemDto[];
-}
-</file>
-
-<file path="src/modules/admin/dto/create-tryout.dto.ts">
-import {
-  IsString,
-  IsInt,
-  IsEnum,
-  IsDateString,
-  IsOptional,
-  IsBoolean,
-} from 'class-validator';
-import { TryoutBatch } from 'generated/prisma/client';
-
-export class CreateTryoutDto {
-  @IsString()
-  title: string;
-
-  @IsString()
-  @IsOptional()
-  description?: string;
-
-  // ini harga token
-  @IsInt()
-  solutionPrice: number;
-
-  @IsEnum(TryoutBatch)
-  batch: TryoutBatch;
-
-  @IsDateString()
-  releaseDate: string;
-
-  @IsDateString()
-  scheduledEnd: string;
-
-  @IsDateString()
-  scheduledStart: string;
-
-  @IsBoolean()
-  @IsOptional()
-  isPublic?: boolean;
-
-  @IsString()
-  @IsOptional()
-  referralCode?: string;
-}
-</file>
-
-<file path="src/modules/admin/dto/update-tryout.dto.ts">
-import {
-  IsString,
-  IsInt,
-  IsDateString,
-  IsOptional,
-  IsBoolean,
-} from 'class-validator';
-
-export class UpdateTryoutDto {
-  @IsString()
-  @IsOptional()
-  title?: string;
-
-  @IsInt()
-  @IsOptional()
-  solutionPrice?: number;
-
-  @IsDateString()
-  @IsOptional()
-  releaseDate?: string;
-
-  @IsDateString()
-  @IsOptional()
-  scheduledStart?: string;
-
-  @IsDateString()
-  @IsOptional()
-  scheduledEnd?: string;
-
-  @IsString()
-  @IsOptional()
-  description?: string;
-
-  @IsBoolean()
-  @IsOptional()
-  isPublic?: boolean;
-
-  @IsString()
-  @IsOptional()
-  referralCode?: string;
 }
 </file>
 
@@ -4978,6 +3383,186 @@ describe('TryoutService', () => {
 });
 </file>
 
+<file path="src/modules/admin/services/admin.service.ts">
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+
+@Injectable()
+export class AdminService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getDashboardStats() {
+    const totalTryout = await this.prisma.tryOut.count();
+    const totalActiveTryout = await this.prisma.tryOut.count({
+      where: {
+        scheduledStart: { lte: new Date() },
+        scheduledEnd: { gte: new Date() },
+      },
+    });
+    const totalUpcomingTryout = await this.prisma.tryOut.count({
+      where: {
+        scheduledStart: { gt: new Date() },
+      },
+    });
+    const totalEndedTryout = await this.prisma.tryOut.count({
+      where: {
+        scheduledEnd: { lt: new Date() },
+      },
+    });
+
+    const totalUser = await this.prisma.user.count();
+    const activeUser = await this.prisma.user.count({
+      where: { emailVerified: true },
+    });
+    const totalAdmin = await this.prisma.user.count({
+      where: { role: 'ADMIN' },
+    });
+
+    return {
+      totalTryout,
+      totalActiveTryout,
+      totalUpcomingTryout,
+      totalEndedTryout,
+      totalUser,
+      activeUser,
+      totalAdmin,
+    };
+  }
+}
+</file>
+
+<file path="src/modules/admin/services/tryout.service.ts">
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../../prisma.service';
+import { CreateTryoutDto } from '../dto/create-tryout.dto';
+import { UpdateTryoutDto } from '../dto/update-tryout.dto';
+import { NotFoundException } from '@nestjs/common';
+
+@Injectable()
+export class AdminTryoutService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getTryouts(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.tryOut.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' }, // Changed to desc for newest first
+        select: {
+          id: true,
+          code: true,
+          title: true,
+          solutionPrice: true,
+          releaseDate: true,
+          status: true,
+        },
+      }),
+      this.prisma.tryOut.count(),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        lastPage: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getTryoutById(id: string) {
+    return this.prisma.tryOut.findUnique({
+      where: { id },
+    });
+  }
+
+  async createTryout(dto: CreateTryoutDto) {
+    const scheduledDate = new Date(dto.scheduledStart);
+    const now = new Date();
+
+    let status: 'NOT_STARTED' | 'IN_PROGRESS' = 'NOT_STARTED';
+    if (scheduledDate <= now) {
+      status = 'IN_PROGRESS';
+    }
+
+    return await this.prisma.tryOut.create({
+      data: {
+        title: dto.title,
+        description: dto.description,
+        solutionPrice: dto.solutionPrice,
+        batch: dto.batch,
+        releaseDate: new Date(dto.releaseDate),
+        scheduledEnd: new Date(dto.scheduledEnd),
+        scheduledStart: scheduledDate,
+        status: status,
+      },
+
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        scheduledStart: true,
+        releaseDate: true,
+        scheduledEnd: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async updateTryout(id: string, dto: UpdateTryoutDto) {
+    const existingTryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existingTryout) {
+      throw new NotFoundException('Tryout tidak ditemukan');
+    }
+
+    return await this.prisma.tryOut.update({
+      where: { id },
+      data: {
+        title: dto.title,
+        solutionPrice: dto.solutionPrice,
+        scheduledStart: dto.scheduledStart && new Date(dto.scheduledStart),
+        scheduledEnd: dto.scheduledEnd && new Date(dto.scheduledEnd),
+        releaseDate: dto.releaseDate && new Date(dto.releaseDate),
+        description: dto.description,
+      },
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        scheduledStart: true,
+        releaseDate: true,
+        scheduledEnd: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async deleteTryout(id: string) {
+    const existingTryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existingTryout) {
+      throw new NotFoundException('Tryout tidak ditemukan');
+    }
+
+    return await this.prisma.tryOut.delete({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+      },
+    });
+  }
+}
+</file>
+
 <file path="src/modules/admin/services/user.service.ts">
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
@@ -5338,141 +3923,213 @@ CLOUDINARY_API_SECRET=
 CORS_ORIGIN=http://localhost:5173
 </file>
 
-<file path="src/modules/admin/services/admin.service.ts">
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma.service';
+<file path="prisma/seed.ts">
+import {
+  PrismaClient,
+  SubtestName,
+  TryoutBatch,
+  QuestionType,
+  Role,
+} from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+import * as dotenv from 'dotenv';
 
-@Injectable()
-export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+dotenv.config();
+const connectionString = `${process.env.DATABASE_URL}`;
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
-  async getDashboardStats() {
-    const now = new Date();
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(now.getMonth() - 5);
-    sixMonthsAgo.setDate(1);
-    sixMonthsAgo.setHours(0, 0, 0, 0);
+async function main() {
+  console.log('🌱 Seeding database...');
 
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(now.getDate() - 6);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
-    
-    const [
-      totalTryout,
-      totalActiveTryout,
-      totalUpcomingTryout,
-      totalEndedTryout,
-      totalUser,
-      activeUser,
-      totalAdmin,
-      totalRevenueAggregate,
-      totalPendingPayment,
-      monthlyRevenueRaw,
-      monthlyUserGrowthRaw,
-      weeklyActivityRaw
-    ] = await Promise.all([
-      this.prisma.tryOut.count(),
-      this.prisma.tryOut.count({
-        where: {
-          scheduledStart: { lte: now },
-          scheduledEnd: { gte: now },
+  // ===============================
+  // 1. CLEANUP (Optional - be careful in prod)
+  // ===============================
+  // await prisma.tryOutAttempt.deleteMany();
+  // await prisma.tokenTransaction.deleteMany();
+  // await prisma.user.deleteMany({ where: { email: { contains: 'test' } } });
+
+  // ===============================
+  // 2. CREATE USERS
+  // ===============================
+  const userSiswa = await prisma.user.upsert({
+    where: { email: 'siswa_test@example.com' },
+    update: {},
+    create: {
+      id: 'user-siswa-test-id',
+      name: 'Siswa Teladan',
+      email: 'siswa_test@example.com',
+      role: Role.USER,
+      tokenBalance: 50,
+      emailVerified: true,
+      target: 'ITB - Teknik Informatika',
+    },
+  });
+
+  const userAdmin = await prisma.user.upsert({
+    where: { email: 'admin_test@example.com' },
+    update: { role: Role.ADMIN },
+    create: {
+      id: 'user-admin-test-id',
+      name: 'Admin Jitu',
+      email: 'admin_test@example.com',
+      role: Role.ADMIN,
+      tokenBalance: 9999,
+      emailVerified: true,
+    },
+  });
+
+  console.log('✅ Users seeded:', userSiswa.name, userAdmin.name);
+
+  // ===============================
+  // 3. CREATE TOKEN TRANSACTIONS
+  // ===============================
+  await prisma.tokenTransaction.createMany({
+    data: [
+      {
+        userId: userSiswa.id,
+        amount: 100,
+        type: 'TOPUP',
+        referenceId: 'ORDER-001',
+      },
+      {
+        userId: userSiswa.id,
+        amount: -50,
+        type: 'PURCHASE',
+        referenceId: 'TO-BUNDLE-A',
+      },
+    ],
+  });
+  console.log('✅ Token transactions seeded');
+
+  // ===============================
+  // 4. CREATE TRYOUTS & QUESTIONS
+  // ===============================
+  const tryout1 = await prisma.tryOut.create({
+    data: {
+      title: 'Tryout Simulasi Reset (In Progress)',
+      description: 'Tryout ini sedang dikerjakan user untuk dites reset.',
+      batch: TryoutBatch.SNBT,
+      isPublic: true,
+      solutionPrice: 0,
+      releaseDate: new Date(),
+      scheduledStart: new Date(),
+      scheduledEnd: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000), // +7 days
+      status: 'IN_PROGRESS',
+      subtests: {
+        create: [
+          {
+            name: SubtestName.PU,
+            durationMinutes: 30,
+            order: 1,
+            questions: {
+              create: [
+                {
+                  type: QuestionType.PILIHAN_GANDA,
+                  content: '1 + 1 = ?',
+                  points: 10,
+                  items: {
+                    create: [
+                      { content: '2', isCorrect: true, order: 1 },
+                      { content: '3', isCorrect: false, order: 2 },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    include: { subtests: { include: { questions: true } } },
+  });
+
+  const tryout2 = await prisma.tryOut.create({
+    data: {
+      title: 'Tryout Selesai (Finished)',
+      description: 'Tryout ini sudah selesai dikerjakan.',
+      batch: TryoutBatch.SNBT,
+      isPublic: true,
+      solutionPrice: 0,
+      releaseDate: new Date(),
+      scheduledStart: new Date(),
+      scheduledEnd: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
+      status: 'IN_PROGRESS',
+    },
+  });
+
+  console.log('✅ Tryouts seeded');
+
+  // ===============================
+  // 5. CREATE ATTEMPTS (PENGERJAAN)
+  // ===============================
+  
+  // Attempt 1: IN_PROGRESS (Untuk di-reset)
+  await prisma.tryOutAttempt.create({
+    data: {
+      userId: userSiswa.id,
+      tryOutId: tryout1.id,
+      status: 'IN_PROGRESS',
+      totalScore: 0,
+      startedAt: new Date(),
+      answers: {
+        create: {
+          questionId: tryout1.subtests[0].questions[0].id,
+          isCorrect: true,
+          inputText: '2',
         },
-      }),
-      this.prisma.tryOut.count({
-        where: {
-          scheduledStart: { gt: now },
-        },
-      }),
-      this.prisma.tryOut.count({
-        where: {
-          scheduledEnd: { lt: now },
-        },
-      }),
-      this.prisma.user.count(),
-      this.prisma.user.count({
-        where: { emailVerified: true },
-      }),
-      this.prisma.user.count({
-        where: { role: 'ADMIN' },
-      }),
-      this.prisma.payment.aggregate({
-        where: { status: 'CONFIRMED' },
-        _sum: { amount: true },
-      }),
-      this.prisma.payment.count({
-        where: { status: 'PENDING' },
-      }),
-      // Monthly Revenue (Confirmed Payments)
-      this.prisma.payment.findMany({
-        where: { status: 'CONFIRMED', createdAt: { gte: sixMonthsAgo } },
-        select: { amount: true, createdAt: true },
-      }),
-      // Monthly User Growth
-      this.prisma.user.findMany({
-        where: { createdAt: { gte: sixMonthsAgo } },
-        select: { createdAt: true },
-      }),
-      // Weekly Active Activity (based on daily question logs)
-      this.prisma.dailyQuestionLog.findMany({
-        where: { completedAt: { gte: sevenDaysAgo } },
-        select: { completedAt: true },
-      })
-    ]);
+      },
+    },
+  });
 
-    // Helper to format Month labels
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-    
-    // Process Monthly Revenue
-    const revenueChart = Array.from({ length: 6 }).map((_, i) => {
-      const d = new Date();
-      d.setMonth(now.getMonth() - (5 - i));
-      const monthLabel = `${monthNames[d.getMonth()]}`;
-      const total = monthlyRevenueRaw
-        .filter(p => p.createdAt.getMonth() === d.getMonth() && p.createdAt.getFullYear() === d.getFullYear())
-        .reduce((sum, p) => sum + p.amount, 0);
-      return { label: monthLabel, value: total };
-    });
+  // Attempt 2: FINISHED (History)
+  await prisma.tryOutAttempt.create({
+    data: {
+      userId: userSiswa.id,
+      tryOutId: tryout2.id,
+      status: 'FINISHED',
+      totalScore: 850,
+      startedAt: new Date(new Date().getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
+      finishedAt: new Date(new Date().getTime() - 1 * 60 * 60 * 1000), // 1 hour ago
+    },
+  });
 
-    // Process Monthly User Growth
-    const userGrowthChart = Array.from({ length: 6 }).map((_, i) => {
-      const d = new Date();
-      d.setMonth(now.getMonth() - (5 - i));
-      const monthLabel = `${monthNames[d.getMonth()]}`;
-      const count = monthlyUserGrowthRaw
-        .filter(u => u.createdAt.getMonth() === d.getMonth() && u.createdAt.getFullYear() === d.getFullYear())
-        .length;
-      return { label: monthLabel, value: count };
-    });
-
-    // Process Weekly Activity
-    const weeklyActivityChart = Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date();
-      d.setDate(now.getDate() - (6 - i));
-      const dayLabel = d.toLocaleDateString('id-ID', { weekday: 'short' });
-      const count = weeklyActivityRaw
-        .filter(l => l.completedAt.getDate() === d.getDate() && l.completedAt.getMonth() === d.getMonth())
-        .length;
-      return { label: dayLabel, value: count };
-    });
-
-    return {
-      totalTryout,
-      totalActiveTryout,
-      totalUpcomingTryout,
-      totalEndedTryout,
-      totalUser,
-      activeUser,
-      totalAdmin,
-      totalRevenue: totalRevenueAggregate._sum.amount || 0,
-      totalPendingPayment,
-      charts: {
-        revenue: revenueChart,
-        userGrowth: userGrowthChart,
-        weeklyActivity: weeklyActivityChart
-      }
-    };
-  }
+  console.log('✅ User attempts seeded');
+  console.log('🌱 Seeding finished successfully.');
 }
+
+main()
+  .catch((e) => {
+    console.error('❌ Seeding failed:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+</file>
+
+<file path="src/modules/admin/admin.module.ts">
+import { Module } from '@nestjs/common';
+import { AdminService } from './services/admin.service';
+import { AdminController } from './admin.controller';
+import { AdminTryoutService } from './services/tryout.service';
+import { AdminSubtestService } from './services/subtest.service';
+import { AdminQuestionService } from './services/question.service';
+import { AdminUserService } from './services/user.service';
+
+@Module({
+  controllers: [AdminController],
+  providers: [
+    AdminService,
+    AdminTryoutService,
+    AdminSubtestService,
+    AdminQuestionService,
+    AdminUserService,
+  ],
+})
+export class AdminModule {}
 </file>
 
 <file path="src/modules/dashboard/dto/dashboard.dto.ts">
@@ -5722,249 +4379,6 @@ export class TryoutService {
     };
   }
 }
-</file>
-
-<file path="prisma/seed.ts">
-import {
-  PrismaClient,
-  SubtestName,
-  TryoutBatch,
-  QuestionType,
-  Role,
-  PaymentStatus,
-} from '../generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
-import * as dotenv from 'dotenv';
-
-dotenv.config();
-const connectionString = `${process.env.DATABASE_URL}`;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
-
-async function main() {
-  console.log('🌱 Seeding database...');
-
-  // ===============================
-  // 1. CREATE TOKEN PACKAGES
-  // ===============================
-  const pkg1 = await prisma.tokenPackage.upsert({
-    where: { id: 'pkg-1' },
-    update: {},
-    create: {
-      id: 'pkg-1',
-      name: 'Paket Hemat',
-      tokenAmount: 20,
-      price: 15000,
-    },
-  });
-
-  const pkg2 = await prisma.tokenPackage.upsert({
-    where: { id: 'pkg-2' },
-    update: {},
-    create: {
-      id: 'pkg-2',
-      name: 'Paket Populer',
-      tokenAmount: 50,
-      price: 35000,
-    },
-  });
-
-  const pkg3 = await prisma.tokenPackage.upsert({
-    where: { id: 'pkg-3' },
-    update: {},
-    create: {
-      id: 'pkg-3',
-      name: 'Paket Sultan',
-      tokenAmount: 150,
-      price: 100000,
-    },
-  });
-
-  console.log('✅ Token packages seeded');
-
-  // ===============================
-  // 2. CREATE USERS
-  // ===============================
-  const userSiswa1 = await prisma.user.upsert({
-    where: { email: 'siswa_test@example.com' },
-    update: {},
-    create: {
-      id: 'user-siswa-test-id',
-      name: 'Siswa Teladan',
-      email: 'siswa_test@example.com',
-      role: Role.USER,
-      tokenBalance: 50,
-      emailVerified: true,
-      target: 'ITB - Teknik Informatika',
-    },
-  });
-
-  const userSiswa2 = await prisma.user.upsert({
-    where: { email: 'siswa_2@example.com' },
-    update: {},
-    create: {
-      id: 'user-siswa-2-id',
-      name: 'Budi Santoso',
-      email: 'siswa_2@example.com',
-      role: Role.USER,
-      tokenBalance: 0,
-      emailVerified: true,
-    },
-  });
-
-  const userSiswa3 = await prisma.user.upsert({
-    where: { email: 'siswa_3@example.com' },
-    update: {},
-    create: {
-      id: 'user-siswa-3-id',
-      name: 'Ani Wijaya',
-      email: 'siswa_3@example.com',
-      role: Role.USER,
-      tokenBalance: 10,
-      emailVerified: true,
-    },
-  });
-
-  const userAdmin = await prisma.user.upsert({
-    where: { email: 'admin_test@example.com' },
-    update: { role: Role.ADMIN },
-    create: {
-      id: 'user-admin-test-id',
-      name: 'Admin Jitu',
-      email: 'admin_test@example.com',
-      role: Role.ADMIN,
-      tokenBalance: 9999,
-      emailVerified: true,
-    },
-  });
-
-  console.log('✅ Users seeded');
-
-  // ===============================
-  // 3. CREATE PAYMENTS
-  // ===============================
-  // Note: userId is @unique in Payment schema, so 1 payment per user for now
-  
-  await prisma.payment.upsert({
-    where: { userId: userSiswa1.id },
-    update: {},
-    create: {
-      userId: userSiswa1.id,
-      tokenPackageId: pkg2.id,
-      amount: pkg2.price,
-      tokenAmount: pkg2.tokenAmount,
-      status: PaymentStatus.CONFIRMED,
-      paymentMethod: 'QRIS_STATIC',
-    },
-  });
-
-  await prisma.payment.upsert({
-    where: { userId: userSiswa2.id },
-    update: {},
-    create: {
-      userId: userSiswa2.id,
-      tokenPackageId: pkg1.id,
-      amount: pkg1.price,
-      tokenAmount: pkg1.tokenAmount,
-      status: PaymentStatus.PENDING,
-      paymentMethod: 'MANUAL_TRANSFER',
-    },
-  });
-
-  await prisma.payment.upsert({
-    where: { userId: userSiswa3.id },
-    update: {},
-    create: {
-      userId: userSiswa3.id,
-      tokenPackageId: pkg3.id,
-      amount: pkg3.price,
-      tokenAmount: pkg3.tokenAmount,
-      status: PaymentStatus.DECLINED,
-      paymentMethod: 'QRIS_STATIC',
-    },
-  });
-
-  console.log('✅ Payments seeded');
-
-  // ===============================
-  // 4. CREATE TRYOUTS & QUESTIONS
-  // ===============================
-  const tryout1 = await prisma.tryOut.upsert({
-    where: { id: 'tryout-1' },
-    update: {},
-    create: {
-      id: 'tryout-1',
-      title: 'Tryout Simulasi Reset (In Progress)',
-      description: 'Tryout ini sedang dikerjakan user untuk dites reset.',
-      batch: TryoutBatch.SNBT,
-      isPublic: true,
-      solutionPrice: 0,
-      releaseDate: new Date(),
-      scheduledStart: new Date(),
-      scheduledEnd: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
-      status: 'IN_PROGRESS',
-      subtests: {
-        create: [
-          {
-            name: SubtestName.PU,
-            durationMinutes: 30,
-            order: 1,
-            questions: {
-              create: [
-                {
-                  type: QuestionType.PILIHAN_GANDA,
-                  content: '1 + 1 = ?',
-                  points: 10,
-                  items: {
-                    create: [
-                      { content: '2', isCorrect: true, order: 1 },
-                      { content: '3', isCorrect: false, order: 2 },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  });
-
-  console.log('✅ Tryouts seeded');
-
-  // ===============================
-  // 5. CREATE ATTEMPTS
-  // ===============================
-  const existingAttempt = await prisma.tryOutAttempt.findFirst({
-    where: { userId: userSiswa1.id, tryOutId: tryout1.id }
-  });
-
-  if (!existingAttempt) {
-    await prisma.tryOutAttempt.create({
-      data: {
-        userId: userSiswa1.id,
-        tryOutId: tryout1.id,
-        status: 'IN_PROGRESS',
-        totalScore: 0,
-        startedAt: new Date(),
-      },
-    });
-  }
-
-  console.log('✅ User attempts seeded');
-  console.log('🌱 Seeding finished successfully.');
-}
-
-main()
-  .catch((e) => {
-    console.error('❌ Seeding failed:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
 </file>
 
 <file path="src/modules/dashboard/dashboard.controller.ts">
@@ -6838,222 +5252,6 @@ export class DashboardService {
 }
 </file>
 
-<file path="src/modules/admin/services/tryout.service.ts">
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma.service';
-import { CreateTryoutDto } from '../dto/create-tryout.dto';
-import { UpdateTryoutDto } from '../dto/update-tryout.dto';
-import { NotFoundException } from '@nestjs/common';
-
-@Injectable()
-export class AdminTryoutService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async getTryouts(page = 1, limit = 10) {
-    const skip = (page - 1) * limit;
-    const now = new Date();
-
-    const [data, total] = await Promise.all([
-      this.prisma.tryOut.findMany({
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'asc' },
-        select: {
-          id: true,
-          code: true,
-          title: true,
-          solutionPrice: true,
-          releaseDate: true,
-          scheduledStart: true,
-          scheduledEnd: true,
-          status: true,
-          isPublic: true,
-          referralCode: true,
-        },
-      }),
-      this.prisma.tryOut.count(),
-    ]);
-
-    // Calculate dynamic status based on time
-    const formattedData = data.map((item) => {
-      let currentStatus = item.status;
-
-      if (item.scheduledStart && item.scheduledEnd) {
-        if (now < item.scheduledStart) {
-          currentStatus = 'NOT_STARTED';
-        } else if (now >= item.scheduledStart && now <= item.scheduledEnd) {
-          currentStatus = 'IN_PROGRESS';
-        } else if (now > item.scheduledEnd) {
-          currentStatus = 'FINISHED';
-        }
-      }
-
-      return {
-        ...item,
-        status: currentStatus,
-      };
-    });
-
-    return {
-      data: formattedData,
-      meta: {
-        total,
-        page,
-        lastPage: Math.ceil(total / limit),
-      },
-    };
-  }
-
-  async getTryoutById(id: string) {
-    return this.prisma.tryOut.findUnique({
-      where: { id },
-    });
-  }
-
-  async createTryout(dto: CreateTryoutDto) {
-    const start = new Date(dto.scheduledStart);
-    const end = new Date(dto.scheduledEnd);
-    const now = new Date();
-
-    let status: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED' = 'NOT_STARTED';
-    if (now > end) {
-      status = 'FINISHED';
-    } else if (now >= start) {
-      status = 'IN_PROGRESS';
-    }
-
-    return await this.prisma.tryOut.create({
-      data: {
-        title: dto.title,
-        description: dto.description,
-        solutionPrice: dto.solutionPrice,
-        batch: dto.batch,
-        releaseDate: new Date(dto.releaseDate),
-        scheduledStart: start,
-        scheduledEnd: end,
-        status: status,
-        isPublic: dto.isPublic ?? true,
-        referralCode: dto.referralCode || null,
-      },
-
-      select: {
-        id: true,
-        code: true,
-        title: true,
-        scheduledStart: true,
-        releaseDate: true,
-        scheduledEnd: true,
-        createdAt: true,
-      },
-    });
-  }
-
-  async updateTryout(id: string, dto: UpdateTryoutDto) {
-    const existingTryout = await this.prisma.tryOut.findUnique({
-      where: { id },
-    });
-
-    if (!existingTryout) {
-      throw new NotFoundException('Tryout tidak ditemukan');
-    }
-
-    const start = dto.scheduledStart
-      ? new Date(dto.scheduledStart)
-      : existingTryout.scheduledStart;
-    const end = dto.scheduledEnd
-      ? new Date(dto.scheduledEnd)
-      : existingTryout.scheduledEnd;
-    const now = new Date();
-
-    let newStatus = existingTryout.status;
-    if (start && end) {
-      if (now > end) {
-        newStatus = 'FINISHED';
-      } else if (now >= start) {
-        newStatus = 'IN_PROGRESS';
-      } else {
-        newStatus = 'NOT_STARTED';
-      }
-    }
-
-    return await this.prisma.tryOut.update({
-      where: { id },
-      data: {
-        title: dto.title,
-        solutionPrice: dto.solutionPrice,
-        scheduledStart: start,
-        scheduledEnd: end,
-        releaseDate: dto.releaseDate && new Date(dto.releaseDate),
-        description: dto.description,
-        isPublic: dto.isPublic,
-        referralCode: dto.referralCode || null,
-        status: newStatus,
-      },
-      select: {
-        id: true,
-        code: true,
-        title: true,
-        scheduledStart: true,
-        releaseDate: true,
-        scheduledEnd: true,
-        createdAt: true,
-      },
-    });
-  }
-
-  async deleteTryout(id: string) {
-    const existingTryout = await this.prisma.tryOut.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-
-    if (!existingTryout) {
-      throw new NotFoundException('Tryout tidak ditemukan');
-    }
-
-    return await this.prisma.tryOut.delete({
-      where: { id },
-      select: {
-        id: true,
-        title: true,
-      },
-    });
-  }
-}
-</file>
-
-<file path="src/modules/admin/admin.module.ts">
-import { Module } from '@nestjs/common';
-import { AdminService } from './services/admin.service';
-import { AdminController } from './admin.controller';
-import { AdminTryoutService } from './services/tryout.service';
-import { AdminSubtestService } from './services/subtest.service';
-import { AdminQuestionService } from './services/question.service';
-import { AdminUserService } from './services/user.service';
-import { AdminPaymentService } from './services/payment.service';
-import { AdminPackageService } from './services/package.service';
-import { AdminDailyService } from './services/daily.service';
-import { AdminTryoutResultService } from './services/result.service';
-import { AdminUserService } from './services/user.service';
-
-@Module({
-  controllers: [AdminController],
-  providers: [
-    AdminService,
-    AdminTryoutService,
-    AdminSubtestService,
-    AdminQuestionService,
-    AdminUserService,
-    AdminPaymentService,
-    AdminPackageService,
-    AdminDailyService,
-    AdminTryoutResultService,
-    AdminUserService,
-  ],
-})
-export class AdminModule {}
-</file>
-
 <file path="src/modules/admin/admin.controller.ts">
 import {
   Controller,
@@ -7079,12 +5277,6 @@ import { UpdateQuestionDto } from './dto/update-question.dto';
 import { AdminUserService } from './services/user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { TopupTokenDto } from './dto/topup-token.dto';
-import { AdminPaymentService } from './services/payment.service';
-import { AdminPackageService } from './services/package.service';
-import { CreatePackageDto, UpdatePackageDto } from './dto/package.dto';
-import { AdminDailyService } from './services/daily.service';
-import { AdminTryoutResultService } from './services/result.service';
-import { PaymentStatus } from 'generated/prisma/enums';
 
 @Controller('admin')
 export class AdminController {
@@ -7094,10 +5286,6 @@ export class AdminController {
     private readonly subtestService: AdminSubtestService,
     private readonly questionService: AdminQuestionService,
     private readonly userService: AdminUserService,
-    private readonly paymentService: AdminPaymentService,
-    private readonly packageService: AdminPackageService,
-    private readonly dailyService: AdminDailyService,
-    private readonly resultService: AdminTryoutResultService,
   ) {}
 
   // --- DASHBOARD ---
@@ -7214,11 +5402,7 @@ export class AdminController {
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
   ) {
-    return this.userService.getUserTransactions(
-      id,
-      Number(page),
-      Number(limit),
-    );
+    return this.userService.getUserTransactions(id, Number(page), Number(limit));
   }
 
   @Get('user/:id/tryouts')
@@ -7251,88 +5435,6 @@ export class AdminController {
   @Delete('user/:id')
   removeUser(@Param('id') id: string) {
     return this.userService.deleteUser(id);
-  }
-
-  @Get('payments')
-  getPayments(
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
-    @Query('status') status?: PaymentStatus,
-    @Query('search') search?: string,
-  ) {
-    return this.paymentService.getAllPayments(
-      Number(page),
-      Number(limit),
-      status,
-      search,
-    );
-  }
-
-  @Get('payments/stats')
-  getPaymentStats() {
-    return this.paymentService.getPaymentStats();
-  }
-
-  @Patch('payments/:id/confirm')
-  confirmPayment(@Param('id') id: string) {
-    return this.paymentService.confirmPayment(id);
-  }
-
-  @Patch('payments/:id/reject')
-  rejectPayment(@Param('id') id: string) {
-    return this.paymentService.rejectPayment(id);
-  }
-
-  // --- PACKAGE / SHOP ---
-  @Get('shop/packages')
-  getPackages() {
-    return this.packageService.getAllPackages();
-  }
-
-  @Post('shop/packages')
-  createPackage(@Body() dto: CreatePackageDto) {
-    return this.packageService.createPackage(dto);
-  }
-
-  @Patch('shop/packages/:id')
-  updatePackage(@Param('id') id: string, @Body() dto: UpdatePackageDto) {
-    return this.packageService.updatePackage(id, dto);
-  }
-
-  @Patch('shop/packages/:id/status')
-  togglePackageStatus(@Param('id') id: string) {
-    return this.packageService.togglePackageStatus(id);
-  }
-
-  @Delete('shop/packages/:id')
-  deletePackage(@Param('id') id: string) {
-    return this.packageService.deletePackage(id);
-  }
-
-  // --- DAILY QUESTION ---
-  @Get('daily/today')
-  getTodayDailyQuestion() {
-    return this.dailyService.getTodayQuestion();
-  }
-
-  // --- RESULTS / LEADERBOARD ---
-  @Get('tryouts/:id/leaderboard')
-  getTryoutLeaderboard(
-    @Param('id') id: string,
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '50',
-  ) {
-    return this.resultService.getLeaderboard(id, Number(page), Number(limit));
-  }
-
-  @Get('tryouts/:id/stats')
-  getTryoutStats(@Param('id') id: string) {
-    return this.resultService.getTryoutStats(id);
-  }
-
-  @Get('tryouts/:id/export')
-  exportTryoutResults(@Param('id') id: string) {
-    return this.resultService.exportResults(id);
   }
 }
 </file>
@@ -7834,16 +5936,6 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-    },
-  },
-  user: {
-    additionalFields: {
-      role: {
-        type: 'string',
-        required: false,
-        defaultValue: 'USER',
-        input: false, // Don't allow users to set their own role during signup
-      },
     },
   },
   advanced: {

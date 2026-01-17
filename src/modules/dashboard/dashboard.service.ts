@@ -3,19 +3,19 @@ import { PrismaService } from '../../prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import * as streamifier from 'streamifier';
+
 import {
-  ActiveTryoutDto,
-  ScoreDataDto,
+  DashboardDataDto,
   UserStatsDto,
   DailyQuestionResponseDto,
   SubmitDailyAnswerDto,
+  ScoreDataDto,
+  ActiveTryoutDto,
 } from './dto/dashboard.dto';
 
 enum TryoutStatus {
-  IN_PROGRESS = 'IN_PROGRESS',
   FINISHED = 'FINISHED',
 }
-
 @Injectable()
 export class DashboardService {
   constructor(private prisma: PrismaService) {

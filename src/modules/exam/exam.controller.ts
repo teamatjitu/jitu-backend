@@ -3,6 +3,17 @@ import { ExamService } from './exam.service';
 import { Observable } from 'rxjs';
 // [FIX] Hapus import Public dari thallesp
 
+<<<<<<< HEAD
+=======
+export interface MessageEvent {
+  data: string | object;
+  id?: string;
+  type?: string;
+  retry?: number;
+}
+
+@Public()
+>>>>>>> dev
 @Controller('exam')
 export class ExamController {
   constructor(private readonly examService: ExamService) {}
@@ -25,13 +36,25 @@ export class ExamController {
   @Post(':attemptId/answer')
   async submitAnswer(
     @Param('attemptId') attemptId: string,
-    @Body() answerData: { questionId: string; answerId: string },
+    @Body() answerData: { 
+      questionId: string; 
+      answerId?: string; 
+      inputText?: string; 
+    },
   ) {
     return this.examService.saveAnswer(
       attemptId,
       answerData.questionId,
       answerData.answerId,
+      answerData.inputText,
     );
+  }
+
+  @Post(':attemptId/finish')
+  async finish(
+    @Param('attemptId') attemptId: string,
+  ) {
+    return this.examService.finishExam(attemptId);
   }
 
   @Get('ping')

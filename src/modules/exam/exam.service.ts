@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma.service';
+import { Injectable,BadRequestException, 
+  InternalServerErrorException  } from '@nestjs/common';
+import { PrismaService } from '../../prisma.service'; // Sesuaikan path ini jika perlu
 import { Observable, interval, map, switchMap, of } from 'rxjs';
 
 @Injectable()
@@ -24,7 +25,7 @@ export class ExamService {
     });
   }
 
-  // SSE untuk memperbarui jam tryout simultaniously
+  // SSE untuk memperbarui waktu
   getExamStream(attemptId: string): Observable<MessageEvent> {
     return interval(1000).pipe(
       switchMap(async () => {
@@ -64,49 +65,123 @@ export class ExamService {
     );
   }
 
+  // --- PERBAIKAN UTAMA DI SINI ---
   async saveAnswer(
     attemptId: string,
     questionId: string,
-    questionItemId: string,
+    questionItemId?: string,
+    inputText?: string,
   ) {
-    const selectedItem = await this.prisma.questionItem.findUnique({
-      where: { id: questionItemId },
-    });
+    // LOG INPUT DARI CONTROLLER
+    console.log("📥 SAVE ANSWER REQUEST:", { attemptId, questionId, questionItemId, inputText });
 
-    if (!selectedItem) {
-      throw new Error('Pilihan jawaban tidak valid / tidak ditemukan');
-    }
+    try {
+      let isCorrect = false;
 
-    const isCorrect = selectedItem.isCorrect;
+      // VALIDASI 1: Pilihan Ganda / Benar-Salah
+      if (questionItemId) {
+        const selectedItem = await this.prisma.questionItem.findUnique({
+          where: { id: questionItemId },
+        });
 
-    return this.prisma.userAnswer.upsert({
-      where: {
-        tryOutAttemptId_questionId: {
+        if (!selectedItem) {
+          throw new BadRequestException(`ID Pilihan jawaban tidak ditemukan: ${questionItemId}`);
+        }
+        isCorrect = selectedItem.isCorrect;
+      } 
+      // VALIDASI 2: Isian Singkat
+      else if (typeof inputText !== 'undefined') { // Cek undefined agar string kosong "" tetap diproses
+        
+        // Query Question
+        const question = await this.prisma.question.findUnique({
+          where: { id: questionId },
+        });
+
+        // Debug: Cek apakah question ditemukan
+        if (!question) {
+             throw new BadRequestException(`Soal dengan ID ${questionId} tidak ditemukan`);
+        }
+        
+        console.log("🔎 SOAL DITEMUKAN:", question);
+
+        // Debug: Cek field correctAnswer (apakah null atau ada isinya)
+        const key = question.correctAnswer;
+        
+        if (key) {
+           // Pastikan kedua sisi adalah string sebelum trim()
+           const userAnswer = String(inputText).trim().toLowerCase();
+           const correctKey = String(key).trim().toLowerCase();
+           
+           isCorrect = userAnswer === correctKey;
+           console.log(`📝 GRADING: User='${userAnswer}' vs Key='${correctKey}' => ${isCorrect}`);
+        } else {
+           console.warn(`⚠️ Soal ID ${questionId} tidak memiliki kunci jawaban (correctAnswer null).`);
+        }
+      } else {
+          // Jika questionItemId null DAN inputText undefined
+          console.warn("⚠️ Tidak ada jawaban yang dikirim (kosong)");
+      }
+
+      // SIMPAN KE DB
+      console.log("💾 MENYIMPAN KE DB...", { isCorrect });
+      
+      const result = await this.prisma.userAnswer.upsert({
+        where: {
+          tryOutAttemptId_questionId: {
+            tryOutAttemptId: attemptId,
+            questionId: questionId,
+          },
+        },
+        update: {
+          questionItemId: questionItemId || null,
+          inputText: inputText || null,
+          isCorrect: isCorrect,
+          updatedAt: new Date(),
+        },
+        create: {
           tryOutAttemptId: attemptId,
           questionId: questionId,
+          questionItemId: questionItemId || null,
+          inputText: inputText || null,
+          isCorrect: isCorrect,
         },
-      },
-      update: {
-        questionItemId: questionItemId,
-        isCorrect: isCorrect, // Update status benar/salah
-        updatedAt: new Date(),
-      },
-      create: {
-        tryOutAttemptId: attemptId,
-        questionId: questionId,
-        questionItemId: questionItemId,
-        isCorrect: isCorrect, // Simpan status benar/salah
-      },
-    });
-  }
+      });
+      
+      console.log("✅ BERHASIL DISIMPAN");
+      return result;
 
-  async finishExam(attemptId: string) {
-    return this.prisma.tryOutAttempt.update({
-      where: { id: attemptId },
-      data: {
-        status: 'FINISHED',
-        finishedAt: new Date(),
-      },
-    });
+    } catch (error) {
+      // LOG ERROR LENGKAP
+      console.error("❌ CRITICAL ERROR DI SAVE ANSWER:", error);
+      
+      if (error instanceof BadRequestException) throw error;
+      
+      // Tampilkan pesan error asli ke frontend untuk debugging
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      throw new InternalServerErrorException(`Server Error: ${errorMessage}`);
+    }
   }
+  
+  async finishExam(attemptId: string) {
+  // 1. Ambil semua jawaban user untuk attempt ini
+  const answers = await this.prisma.userAnswer.findMany({
+    where: { tryOutAttemptId: attemptId },
+    include: { question: true },
+  });
+
+  // 2. Hitung total skor berdasarkan poin soal yang benar
+  const totalScore = answers.reduce((acc, curr) => {
+    return curr.isCorrect ? acc + (curr.question.points || 0) : acc;
+  }, 0);
+
+  // 3. Update status DAN skor secara bersamaan
+  return this.prisma.tryOutAttempt.update({
+    where: { id: attemptId },
+    data: {
+      status: 'FINISHED',
+      totalScore: totalScore,
+      finishedAt: new Date(),
+    },
+  });
+}
 }
