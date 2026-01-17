@@ -64,6 +64,7 @@ export class DailyService {
 
     const question = await this.prisma.question.findFirst({
       skip: skip,
+      orderBy: { id: 'asc' }, // Ensure consistent ordering for deterministic selection
       include: {
         items: {
           orderBy: { order: 'asc' },

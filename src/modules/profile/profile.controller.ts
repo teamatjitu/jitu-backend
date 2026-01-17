@@ -6,16 +6,20 @@ import {
   Body,
   Req,
   NotFoundException,
+  UseGuards,
+  Session,
 } from '@nestjs/common';
 import { ProfileService } from './profile.service';
-
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
+import type { UserSession } from '@thallesp/nestjs-better-auth';
 @Controller('profile')
+@UseGuards(AuthGuard)
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 
   @Get()
-  async getProfile(@Req() req: any) {
-    const userId = req.user?.id || req.headers['x-user-id'];
+  async getProfile(@Session() session: UserSession) {
+    const userId = session.user.id;
 
     if (!userId) {
       throw new NotFoundException('User ID tidak ditemukan');
@@ -32,10 +36,10 @@ export class ProfileController {
 
   @Patch()
   async updateProfile(
-    @Req() req: any,
+    @Session() session: UserSession,
     @Body() body: { name?: string; target?: string },
   ) {
-    const userId = req.user?.id || req.headers['x-user-id'];
+    const userId = session.user.id;
 
     if (!userId) {
       throw new NotFoundException('User ID tidak ditemukan');
