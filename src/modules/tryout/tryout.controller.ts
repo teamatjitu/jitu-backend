@@ -1,8 +1,9 @@
 import { Controller, Get, Req,Param,Query, UseGuards, Post } from '@nestjs/common';
 import { TryoutService } from './tryout.service';
 import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
-import { AuthGuard, Session } from '@thallesp/nestjs-better-auth';
-import type { UserSession } from '@thallesp/nestjs-better-auth';
+import { AuthGuard } from '../../guards/auth.guard';
+import { Session } from '../../decorators/session.decorator';
+import type { UserSession } from '../../decorators/session.decorator'; // Gunakan import type!
 
 @Controller('tryout')
 export class TryoutController {

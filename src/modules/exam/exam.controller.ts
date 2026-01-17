@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Sse } from '@nestjs/common';
 import { ExamService } from './exam.service';
 import { Observable } from 'rxjs';
-import { Public } from '@thallesp/nestjs-better-auth';
+import { Public } from '@thallesp/nestjs-better-auth'; // [FIX] Hapus import Public dari thallesp
 
 export interface MessageEvent {
   data: string | object;
@@ -33,10 +33,11 @@ export class ExamController {
   @Post(':attemptId/answer')
   async submitAnswer(
     @Param('attemptId') attemptId: string,
-    @Body() answerData: { 
-      questionId: string; 
-      answerId?: string; 
-      inputText?: string; 
+    @Body()
+    answerData: {
+      questionId: string;
+      answerId?: string;
+      inputText?: string;
     },
   ) {
     return this.examService.saveAnswer(
@@ -48,9 +49,7 @@ export class ExamController {
   }
 
   @Post(':attemptId/finish')
-  async finish(
-    @Param('attemptId') attemptId: string,
-  ) {
+  async finish(@Param('attemptId') attemptId: string) {
     return this.examService.finishExam(attemptId);
   }
 
