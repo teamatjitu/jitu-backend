@@ -25,7 +25,10 @@ const prisma = new PrismaClient({
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
-  trustedOrigins: process.env.TRUSTED_ORIGINS?.split(',') || [''],
+  trustedOrigins: process.env.TRUSTED_ORIGINS?.split(',') || [
+    'http://localhost:5173',
+    'https://jitu-frontend-staging.vercel.app',
+  ],
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),

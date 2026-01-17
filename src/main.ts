@@ -8,6 +8,9 @@ async function bootstrap() {
     bodyParser: false,
   });
 
+  // Trust proxy is required for cookies to work correctly behind a load balancer (Railway)
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
