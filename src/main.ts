@@ -8,13 +8,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bodyParser: false,
   });
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.path.includes('/api/auth')) {
-      next();
-    } else {
-      express.json()(req, res, next);
-    }
-  });
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.includes('/api/auth')) {
