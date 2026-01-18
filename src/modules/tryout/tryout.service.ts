@@ -1,121 +1,361 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
-import { TryOutCardDto } from './dto/tryout.dto';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../../prisma.service';
+import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
+import { SubtestName } from '../../../generated/prisma/client';
 
 @Injectable()
 export class TryoutService {
   constructor(private prisma: PrismaService) {}
 
-  // Mock data - replace with database queries when schema is ready
-  private mockTryouts: TryOutCardDto[] = [
-    {
-      id: '5',
-      title: 'Try Out UTBK SNBT 5 2026',
-      number: '5',
-      canEdit: false,
-      participants: 8016,
-      badge: 'SNBT',
-    },
-    {
-      id: '4',
-      title: 'Try Out UTBK SNBT 4 2026',
-      number: '4',
-      canEdit: false,
-      participants: 22665,
-      badge: 'SNBT',
-    },
-    {
-      id: '3',
-      title: 'Try Out UTBK SNBT 3 2026',
-      number: '3',
-      canEdit: false,
-      participants: 18540,
-      badge: 'SNBT',
-    },
-    {
-      id: '2',
-      title: 'Try Out UTBK SNBT 2 2026',
-      number: '2',
-      canEdit: false,
-      participants: 22195,
-      badge: 'SNBT',
-    },
-    {
-      id: '1',
-      title: 'Try Out UTBK SNBT 1 2026',
-      number: '1',
-      canEdit: false,
-      participants: 31316,
-      badge: 'SNBT',
-    },
-    {
-      id: '14',
-      title: 'Try Out UTBK SNBT 14 2025',
-      number: '14',
-      canEdit: false,
-      participants: 188663,
-      badge: 'SNBT',
-    },
-    {
-      id: '13',
-      title: 'Try Out UTBK SNBT 13 2025',
-      number: '13',
-      canEdit: false,
-      participants: 156594,
-      badge: 'SNBT',
-    },
-  ];
+  /**
+   * Helper: Map TryOut entity -> TryoutDetailDto
+   */
+  private mapTryoutToDto(
+    tryout: any,
+    answeredQuestionIds?: Set<string>,
+  ): TryoutDetailDto {
+    const totalQuestions = (tryout.subtests ?? []).reduce(
+      (sum: number, s: any) => sum + (s.questions?.length ?? 0),
+      0,
+    );
 
-  async getActiveTryouts(): Promise<TryOutCardDto[]> {
-    // For now, return the first item as active
-    return [this.mockTryouts[0]];
-    
-    // TODO: When database is ready, implement:
-    // const today = new Date();
-    // return this.prisma.tryOut.findMany({
-    //   where: {
-    //     AND: [
-    //       { scheduledStart: { lte: today } },
-    //       { NOT: { scheduledStart: null } },
-    //     ],
-    //   },
-    // });
+    const totalDuration = (tryout.subtests ?? []).reduce(
+      (sum: number, s: any) => sum + (s.durationMinutes ?? 0),
+      0,
+    );
+
+    const answeredSet = answeredQuestionIds ?? new Set<string>();
+
+    return {
+      id: tryout.id,
+      title: tryout.title,
+      number: tryout.code?.toString() ?? '0',
+      badge: tryout.batch,
+      participants: tryout._count?.attempts ?? 0,
+      description: tryout.description ?? '',
+      duration: totalDuration,
+      totalQuestions,
+      startDate: tryout.scheduledStart?.toISOString() ?? '',
+      endDate: tryout.scheduledEnd?.toISOString() ?? '',
+      isRegistered: (tryout.attempts?.length ?? 0) > 0,
+      isFree: tryout.solutionPrice === 0,
+      tokenCost: tryout.solutionPrice,
+      unlockedSolutions: tryout.unlockedSolutions ?? [], // FIX: Mapping data unlock
+      categories: (tryout.subtests ?? [])
+        .slice()
+        .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+        .map((s: any) => {
+          const qIds = (s.questions ?? []).map((q: any) => String(q.id));
+          const answeredCount = qIds.filter((id: string) =>
+            answeredSet.has(id),
+          ).length;
+
+          return {
+            id: Number(s.order),
+            name: s.name,
+            questionCount: s.questions?.length ?? 0,
+            duration: s.durationMinutes,
+            isCompleted:
+              (s.questions?.length ?? 0) > 0 &&
+              answeredCount === (s.questions?.length ?? 0),
+          };
+        }),
+      benefits: ['Pembahasan lengkap', 'Analisis hasil', 'Simulasi UTBK'],
+      requirements: ['Akun terverifikasi', 'Token mencukupi'],
+    };
   }
 
-  async getAvailableTryouts(): Promise<TryOutCardDto[]> {
-    // Return all except the first one (which is active)
-    return this.mockTryouts.slice(1);
-    
-    // TODO: When database is ready, implement:
-    // return this.prisma.tryOut.findMany({
-    //   where: {
-    //     OR: [
-    //       { scheduledStart: null },
-    //       { scheduledStart: { gt: new Date() } },
-    //     ],
-    //   },
-    // });
+  /**
+   * Logic: Unlock Pembahasan menggunakan Token
+   */
+  async unlockSolution(userId: string, tryoutId: string) {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id: tryoutId },
+      select: { solutionPrice: true, title: true },
+    });
+
+    if (!tryout) throw new NotFoundException('Tryout tidak ditemukan');
+
+    // 1. Cek apakah sudah di-unlock
+    const existingUnlock = await this.prisma.unlockedSolution.findFirst({
+      where: { userId, tryOutId: tryoutId },
+    });
+    if (existingUnlock) return { message: 'Pembahasan sudah terbuka' };
+
+    // 2. Cek saldo user
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { tokenBalance: true },
+    });
+
+    if (!user || user.tokenBalance < tryout.solutionPrice) {
+      throw new BadRequestException('Saldo Token tidak mencukupi');
+    }
+
+    // 3. Transaksi (Potong Saldo & Unlock)
+    return await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { tokenBalance: { decrement: tryout.solutionPrice } },
+      });
+
+      await tx.tokenTransaction.create({
+        data: {
+          userId,
+          amount: -tryout.solutionPrice,
+          type: 'PURCHASE_SOLUTION',
+          referenceId: tryoutId,
+        },
+      });
+
+      return await tx.unlockedSolution.create({
+        data: { userId, tryOutId: tryoutId },
+      });
+    });
   }
 
   async getTryouts(): Promise<TryOutCardDto[]> {
-    return this.mockTryouts;
-    
-    // TODO: When database is ready, implement:
-    // const tryouts = await this.prisma.tryOut.findMany({
-    //   include: {
-    //     _count: {
-    //       select: { attempts: true },
-    //     },
-    //   },
-    // });
-    //
-    // return tryouts.map((t) => ({
-    //   id: t.id,
-    //   title: t.title,
-    //   number: t.id,
-    //   canEdit: false,
-    //   participants: t._count.attempts,
-    //   badge: 'SNBT',
-    // }));
+    const tryouts = await this.prisma.tryOut.findMany({
+      include: {
+        _count: { select: { attempts: true } },
+      },
+      orderBy: { scheduledStart: 'desc' },
+    });
+
+    return tryouts.map((t) => ({
+      id: t.id,
+      title: t.title,
+      number: t.code.toString(),
+      canEdit: false,
+      participants: t._count.attempts,
+      badge: t.batch,
+    }));
+  }
+
+  async getTryoutById(id: string, userId?: string): Promise<TryoutDetailDto> {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+      include: {
+        subtests: {
+          include: {
+            questions: { select: { id: true } },
+          },
+        },
+        attempts: userId
+          ? {
+              where: { userId },
+              select: {
+                id: true,
+                status: true,
+                startedAt: true,
+                finishedAt: true,
+              },
+              orderBy: { startedAt: 'desc' },
+            }
+          : false,
+        _count: { select: { attempts: true } },
+        unlockedSolutions: userId ? { where: { userId } } : false, // FIX: Sertakan data unlock
+      },
+    });
+
+    if (!tryout) throw new NotFoundException('Tryout not found');
+
+    let answeredQuestionIds = new Set<string>();
+    if (
+      userId &&
+      Array.isArray(tryout.attempts) &&
+      tryout.attempts.length > 0
+    ) {
+      const inProgress = tryout.attempts.find(
+        (a: any) => a.status === 'IN_PROGRESS',
+      );
+      if (inProgress?.id) {
+        const answers = await this.prisma.userAnswer.findMany({
+          where: { tryOutAttemptId: String(inProgress.id) },
+          select: { questionId: true },
+        });
+        answeredQuestionIds = new Set<string>(
+          answers.map((a) => String(a.questionId)),
+        );
+      }
+    }
+
+    let latestFinishedAttemptId: string | null = null;
+    let latestAttemptStatus: 'IN_PROGRESS' | 'FINISHED' | null = null;
+
+    if (userId) {
+      const latestAttempt = await this.prisma.tryOutAttempt.findFirst({
+        where: { userId, tryOutId: id },
+        orderBy: { startedAt: 'desc' },
+        select: { status: true },
+      });
+      latestAttemptStatus = (latestAttempt?.status as any) ?? null;
+
+      const latestFinished = await this.prisma.tryOutAttempt.findFirst({
+        where: { userId, tryOutId: id, status: 'FINISHED' },
+        orderBy: { finishedAt: 'desc' },
+        select: { id: true },
+      });
+      latestFinishedAttemptId = latestFinished?.id ?? null;
+    }
+
+    const dto = this.mapTryoutToDto(tryout, answeredQuestionIds);
+    return { ...dto, latestFinishedAttemptId, latestAttemptStatus };
+  }
+
+  async getSubtestQuestions(
+    tryOutId: string,
+    subtestIdOrOrder: string | number,
+    userId: string, // Wajibkan userId demi keamanan
+    attemptId?: string,
+  ) {
+    let subtest: any;
+    const order = Number(subtestIdOrOrder);
+
+    if (!isNaN(order)) {
+      subtest = await this.prisma.subtest.findFirst({
+        where: { tryOutId, order },
+      });
+    } else {
+      subtest = await this.prisma.subtest.findFirst({
+        where: {
+          tryOutId,
+          OR: [
+            { id: String(subtestIdOrOrder) },
+            { name: String(subtestIdOrOrder) as SubtestName },
+          ],
+        },
+      });
+    }
+
+    if (!subtest) throw new NotFoundException('Subtest tidak ditemukan');
+
+    let currentAttempt: any = null;
+    const hasAttemptId =
+      !!attemptId && attemptId !== 'undefined' && attemptId !== 'null';
+
+    if (hasAttemptId) {
+      currentAttempt = await this.prisma.tryOutAttempt.findUnique({
+        where: { id: String(attemptId) },
+        include: { tryOut: { include: { subtests: true } } },
+      });
+    } else {
+      currentAttempt = await this.prisma.tryOutAttempt.findFirst({
+        where: { userId, tryOutId, status: 'IN_PROGRESS' },
+        orderBy: { startedAt: 'desc' },
+        include: { tryOut: { include: { subtests: true } } },
+      });
+    }
+
+    // --- AUTO FINISH LOGIC (DIPERBAIKI) ---
+    if (currentAttempt && currentAttempt.status === 'IN_PROGRESS') {
+      const totalDuration = currentAttempt.tryOut.subtests.reduce(
+        (acc, s) => acc + (s.durationMinutes || 0),
+        0,
+      );
+      const expiryTime = new Date(
+        currentAttempt.startedAt.getTime() + totalDuration * 60000,
+      );
+
+      if (new Date() > expiryTime) {
+        currentAttempt = await this.prisma.tryOutAttempt.update({
+          where: { id: currentAttempt.id },
+          data: { status: 'FINISHED', finishedAt: expiryTime },
+          include: { tryOut: { include: { subtests: true } } },
+        });
+      }
+    }
+
+    if (!currentAttempt) {
+      currentAttempt = await this.prisma.tryOutAttempt.findFirst({
+        where: { userId, tryOutId, status: 'FINISHED' },
+        orderBy: { finishedAt: 'desc' },
+      });
+    }
+
+    if (!currentAttempt) throw new NotFoundException('Sesi tidak ditemukan');
+
+    const isReviewMode = currentAttempt.status === 'FINISHED';
+
+    // --- PROTEKSI PEMBAHASAN BERBAYAR ---
+    if (isReviewMode) {
+      const tryout = await this.prisma.tryOut.findUnique({
+        where: { id: tryOutId },
+        select: { solutionPrice: true },
+      });
+
+      if (tryout && tryout.solutionPrice > 0) {
+        const isUnlocked = await this.prisma.unlockedSolution.findFirst({
+          where: { userId, tryOutId },
+        });
+        if (!isUnlocked) {
+          throw new ForbiddenException(
+            'Pembahasan terkunci. Silakan beli terlebih dahulu.',
+          );
+        }
+      }
+    }
+
+    const questions = await this.prisma.question.findMany({
+      where: { subtestId: subtest.id },
+      orderBy: { id: 'asc' },
+      include: {
+        items: { orderBy: { order: 'asc' } },
+        userAnswers: { where: { tryOutAttemptId: currentAttempt.id } },
+      },
+    });
+
+    const tryoutInfo = await this.prisma.tryOut.findUnique({
+      where: { id: tryOutId },
+      select: { title: true },
+    });
+
+    return {
+      subtestId: subtest.order,
+      subtestName: subtest.name,
+      tryOutId,
+      tryoutTitle: tryoutInfo?.title || 'Tryout',
+      durationMinutes: subtest.durationMinutes,
+      questions: questions.map((q: any) => {
+        const ua = q.userAnswers?.[0];
+        const correctItem = q.items.find((i: any) => i.isCorrect);
+
+        return {
+          id: q.id,
+          type: q.type,
+          questionText: q.content,
+          solution: isReviewMode
+            ? q.explanation || 'Tidak ada pembahasan.'
+            : null,
+          correctAnswerText: isReviewMode ? q.correctAnswer : null,
+          // FIX: Agar soal kosong tidak dianggap benar (null === null)
+          correctAnswerId: isReviewMode ? (correctItem?.id ?? 'NO_KEY') : null,
+          options: q.items.map((i: any) => ({
+            id: i.id,
+            text: i.content,
+            order: i.order,
+            isCorrect: isReviewMode ? i.isCorrect : undefined,
+          })),
+          userAnswer: ua
+            ? {
+                questionItemId: ua.questionItemId,
+                inputText: ua.inputText,
+                isCorrect: isReviewMode ? ua.isCorrect : false,
+              }
+            : {
+                questionItemId: null,
+                inputText: null,
+                isCorrect: false, // User tidak jawab = Salah
+              },
+        };
+      }),
+      isReviewMode,
+      attemptId: currentAttempt.id,
+    };
   }
 }

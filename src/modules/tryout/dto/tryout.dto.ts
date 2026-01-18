@@ -15,7 +15,7 @@ export class SubjectDto {
 }
 
 export class TryoutDetailDto {
-  id: number;
+  id: string;
   title: string;
   number: string;
   badge: string;
@@ -28,6 +28,8 @@ export class TryoutDetailDto {
   isRegistered: boolean;
   isFree: boolean;
   tokenCost?: number;
+  latestFinishedAttemptId?: string | null;
+  latestAttemptStatus?: 'IN_PROGRESS' | 'FINISHED' | null;
   categories: {
     id: number;
     name: string;
@@ -37,6 +39,7 @@ export class TryoutDetailDto {
   }[];
   benefits: string[];
   requirements: string[];
+  unlockedSolutions: any[];
 }
 
 export class QuestionDto {
@@ -50,7 +53,7 @@ export class QuestionDto {
 export class SubtestExamDto {
   subtestId: number;
   subtestName: string;
-  tryoutId: number;
+  tryoutId: string;
   tryoutTitle: string;
   duration: number;
   questions: QuestionDto[];
