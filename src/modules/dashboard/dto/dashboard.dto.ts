@@ -1,5 +1,3 @@
-import { IsNotEmpty, IsString } from 'class-validator';
-
 export class StatCardDto {
   label: string;
   value: string;
@@ -15,9 +13,8 @@ export class ScoreDataDto {
   ppu: number;
   pbm: number;
   pk: number;
-  lbi: number;
-  lbe: number;
-  pm: number;
+  literasiIndo: number;
+  literasiEng: number;
 }
 
 export class SubtestDto {
@@ -46,47 +43,4 @@ export class DashboardDataDto {
   scoreHistory: ScoreDataDto[];
   subtests: SubtestDto[];
   menuItems: MenuItemDto[];
-}
-
-export class UserStatsDto {
-  lastScore: number;
-  personalBest: number;
-  weeklyActivity: number;
-  totalFinished: number;
-}
-
-export class SubmitDailyAnswerDto {
-  @IsString()
-  @IsNotEmpty()
-  questionId: string;
-
-  @IsString()
-  @IsNotEmpty()
-  answerId: string;
-}
-
-export class DailyQuestionDto {
-  id: string;
-  content: string;
-  options: {
-    id: string;
-    content: string;
-  }[];
-}
-
-export class DailyQuestionResponseDto {
-  isCompleted: boolean;
-  streak: number;
-  question: DailyQuestionDto | null;
-}
-
-export class ActiveTryoutDto {
-  id: string;
-  title: string;
-  code: number;
-  batch: string;
-  participants: number;
-  progress: number;
-  totalSubtests: number;
-  endDate: Date | null;
 }

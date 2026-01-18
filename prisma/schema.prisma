@@ -1,6 +1,13 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
 generator client {
-  provider     = "prisma-client"
-  output       = "../generated/prisma"
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+
   moduleFormat = "cjs"
 }
 
@@ -8,67 +15,25 @@ datasource db {
   provider = "postgresql"
 }
 
-enum TryoutBatch {
-  SNBT
-  MANDIRI
-}
-
-enum TryoutStatus {
-  NOT_STARTED
-  IN_PROGRESS
-  FINISHED
-}
-
-enum SubtestName {
-  PU
-  PPU
-  PBM
-  PK
-  LBI
-  LBE
-  PM
-}
-
-enum Role {
-  USER
-  ADMIN
-}
-
-enum QuestionType {
-  PILIHAN_GANDA
-  ISIAN_SINGKAT
-  BENAR_SALAH
-}
-
-enum PaymentStatus {
-  CONFIRMED
-  PENDING
-  DECLINED
-  CANCELLED
-}
-
 model User {
-  id                String             @id
-  name              String
-  email             String
-  emailVerified     Boolean            @default(false)
-  image             String?
-  target            String?            @db.VarChar(100)
-  currentStreak     Int                @default(0)
-  lastDailyDate     DateTime?
-  tokenBalance      Int                @default(0)
+  id            String  @id
+  name          String
+  email         String
+  emailVerified Boolean @default(false)
+  image         String?
+
+  currentStreak Int       @default(0)
+  lastDailyDate DateTime?
+  tokenBalance  Int       @default(0)
+
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
-  
-  role              Role               @default(USER) 
-
   sessions          Session[]
   accounts          Account[]
   tokenTransactions TokenTransaction[]
   unlockedSolutions UnlockedSolution[]
   tryOutAttempts    TryOutAttempt[]
   dailyLogs         DailyQuestionLog[]
-  payments          Payment[]
 
   @@unique([email])
   @@map("user")
@@ -123,25 +88,25 @@ model Verification {
 }
 
 model TryOut {
-  id            String       @id @default(cuid())
+  id            String  @id @default(cuid())
   title         String
-  description   String?      @db.Text
-  solutionPrice Int          @default(0)
-  code          Int          @default(autoincrement())
-  isPublic      Boolean      @default(true)
-  referralCode  String?      @unique 
-  scheduledStart DateTime?
-  scheduledEnd   DateTime?
-  releaseDate    DateTime
-  createdAt      DateTime    @default(now())
-  status         TryoutStatus @default(NOT_STARTED)
-  batch          TryoutBatch
+  description   String? @db.Text
+  solutionPrice Int     @default(0)
 
+  // REFERRAL LOGIC
+  isPublic     Boolean @default(true)
+  referralCode String? @unique // Required to see/join if not public
+
+  scheduledStart DateTime?
+  createdAt      DateTime  @default(now())
+
+  // Relations
   subtests          Subtest[]
   unlockedSolutions UnlockedSolution[]
   attempts          TryOutAttempt[]
 }
 
+// --- 3. DAILY RANDOM QUESTION & STREAK ---
 model DailyQuestionLog {
   id          String   @id @default(cuid())
   userId      String
@@ -155,32 +120,32 @@ model DailyQuestionLog {
   @@index([userId, completedAt], name: "daily_user_date_idx")
 }
 
+// --- 4. UTBK CORE STRUCTURE ---
 model Subtest {
-  id              String      @id @default(cuid())
-  tryOutId        String      @map("try_out_id")
-  name            SubtestName
-  durationMinutes Int         @map("duration_minutes")
+  id              String @id @default(cuid())
+  tryOutId        String @map("try_out_id")
+  name            String
+  durationMinutes Int    @map("duration_minutes")
   order           Int
 
-  tryOut    TryOut     @relation(fields: [tryOutId], references: [id], onDelete: Cascade)
+  tryOut    TryOut     @relation(fields: [tryOutId], references: [id])
   questions Question[]
 }
 
 model Question {
-  id            String       @id @default(cuid())
-  subtestId     String       @map("subtest_id")
-  type          QuestionType
-  imageUrl      String?      @db.Text
-  narration     String?      @db.Text
-  content       String?      @db.Text
-  explanation   String?      @db.Text
-  points        Int          @default(1)
-  correctAnswer String?      @map("correct_answer_short_answer")
+  id            String  @id @default(cuid())
+  subtestId     String  @map("subtest_id")
+  type          String
+  imageUrl      String? @db.Text
+  narration     String? @db.Text
+  content       String? @db.Text
+  explanation   String? @db.Text
+  points        Int     @default(1)
+  correctAnswer String? @map("correct_answer_short_answer")
 
-  subtest     Subtest            @relation(fields: [subtestId], references: [id])
-  items       QuestionItem[]
-  dailyLogs   DailyQuestionLog[]
-  userAnswers UserAnswer[]
+  subtest   Subtest            @relation(fields: [subtestId], references: [id])
+  items     QuestionItem[]
+  dailyLogs DailyQuestionLog[]
 }
 
 model QuestionItem {
@@ -193,6 +158,7 @@ model QuestionItem {
   question Question @relation(fields: [questionId], references: [id])
 }
 
+// --- 5. TRANSACTIONS & ACCESS ---
 model TokenTransaction {
   id          String   @id @default(cuid())
   userId      String
@@ -202,37 +168,6 @@ model TokenTransaction {
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
-}
-
-model TokenPackage {
-  id          String   @id @default(cuid())
-  name        String
-  tokenAmount Int
-  price       Int
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  payments Payment[]
-}
-
-model Payment {
-  id             String        @id @default(cuid())
-  userId         String
-  tokenPackageId String
-  orderId        String        @unique
-  amount         Int
-  tokenAmount    Int
-  status         PaymentStatus
-  paymentMethod  String        @default("QRIS_STATIC")
-  snapToken      String?
-  metadata       Json?
-  
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  user         User         @relation(fields: [userId], references: [id])
-  tokenPackage TokenPackage @relation(fields: [tokenPackageId], references: [id])
 }
 
 model UnlockedSolution {
@@ -246,31 +181,13 @@ model UnlockedSolution {
 }
 
 model TryOutAttempt {
-  id         String    @id @default(cuid())
+  id         String   @id @default(cuid())
   userId     String
-  tryOutId   String    @map("try_out_id")
-  totalScore Float     @map("total_score")
+  tryOutId   String   @map("try_out_id")
+  totalScore Float    @map("total_score")
   status     String
-  startedAt  DateTime  @default(now()) @map("started_at")
-  finishedAt DateTime? @map("finished_at")
+  startedAt  DateTime @default(now()) @map("started_at")
 
-  user    User         @relation(fields: [userId], references: [id])
-  tryOut  TryOut       @relation(fields: [tryOutId], references: [id])
-  answers UserAnswer[]
-}
-
-model UserAnswer {
-  id              String   @id @default(cuid())
-  tryOutAttemptId String   @map("tryout_attempt_id")
-  questionId      String   @map("question_id")
-  questionItemId  String?  @map("question_item_id")
-  inputText       String?  @db.Text
-  isCorrect       Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  question Question      @relation(fields: [questionId], references: [id])
-  attempt  TryOutAttempt @relation(fields: [tryOutAttemptId], references: [id])
-
-  @@unique([tryOutAttemptId, questionId])
+  user   User   @relation(fields: [userId], references: [id])
+  tryOut TryOut @relation(fields: [tryOutId], references: [id])
 }
