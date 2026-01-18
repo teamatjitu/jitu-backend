@@ -52,31 +52,52 @@ export class ExamService {
           return { data: { status: 'FINISHED', remainingSeconds: 0 } };
         }
 
-        // 1. Hitung durasi kumulatif sampai subtes saat ini
-        // Misal: user di subtes order 2, maka total menit = durasi subtes 1 + subtes 2
-        const cumulativeMinutes = attempt.tryOut.subtests
-          .filter((sub) => sub.order <= currentOrder)
+        // 1. Dapatkan durasi subtes-subtes SEBELUMNYA (untuk menentukan start time subtes saat ini)
+        const previousSubtestsDurationMinutes = attempt.tryOut.subtests
+          .filter((sub) => sub.order < currentOrder)
           .reduce((acc, sub) => acc + sub.durationMinutes, 0);
 
-        // 2. Tentukan waktu berakhir untuk SUBTES INI
-        const subtestEndTime = new Date(
-          attempt.startedAt.getTime() + cumulativeMinutes * 60000,
+        // 2. Dapatkan durasi subtes SAAT INI
+        const currentSubtest = attempt.tryOut.subtests.find(
+          (sub) => sub.order === currentOrder,
+        );
+
+        if (!currentSubtest) {
+          return { data: { status: 'FINISHED', remainingSeconds: 0 } };
+        }
+        const currentSubtestDurationSeconds = currentSubtest.durationMinutes * 60;
+
+        // 3. Hitung waktu mulai yang diharapkan untuk subtes ini (berdasarkan waktu mulai ujian dan durasi subtes sebelumnya)
+        const subtestExpectedStartTime = new Date(
+          attempt.startedAt.getTime() + previousSubtestsDurationMinutes * 60000,
         );
 
         const now = new Date();
 
-        // 3. Hitung sisa waktu
-        const remainingSeconds = Math.max(
-          0,
-          Math.floor((subtestEndTime.getTime() - now.getTime()) / 1000),
-        );
+        // 4. Hitung berapa detik yang sudah berlalu sejak subtes ini seharusnya dimulai
+        const timeElapsedSinceExpectedStart = Math.max(0, now.getTime() - subtestExpectedStartTime.getTime());
+        const timeElapsedSeconds = Math.floor(timeElapsedSinceExpectedStart / 1000);
 
-        // 4. Jika waktu habis untuk subtes ini
+        // 5. Sisa waktu untuk subtes ini adalah durasi penuh dikurangi waktu yang sudah berlalu
+        let remainingSeconds = currentSubtestDurationSeconds - timeElapsedSeconds;
+
+        // 6. Pastikan sisa waktu tidak negatif
+        remainingSeconds = Math.max(0, remainingSeconds);
+
+        // 7. Cek juga apakah waktu ujian keseluruhan sudah habis
+        const totalExamDurationMinutes = attempt.tryOut.subtests.reduce((acc, s) => acc + s.durationMinutes, 0);
+        const totalExamExpiryTime = new Date(attempt.startedAt.getTime() + totalExamDurationMinutes * 60000);
+        
+        if (now > totalExamExpiryTime) {
+            // Jika waktu keseluruhan ujian habis, maka subtes ini juga otomatis selesai
+            remainingSeconds = 0; // Pastikan timer menunjukkan 0
+        }
+        
+        // --- Bagian ini di-refactor agar lebih aman ---
+        // Cek jika waktu habis untuk subtes ini ATAU keseluruhan ujian
         if (remainingSeconds === 0) {
-          // Cek apakah ini subtes terakhir
-          const maxOrder = Math.max(
-            ...attempt.tryOut.subtests.map((s) => s.order),
-          );
+          const subtestOrders = attempt.tryOut.subtests.map((s) => s.order);
+          const maxOrder = subtestOrders.length > 0 ? Math.max(...subtestOrders) : 0;
 
           if (currentOrder >= maxOrder) {
             await this.finishExam(attemptId);
@@ -209,38 +230,6 @@ export class ExamService {
         error instanceof Error ? error.message : JSON.stringify(error);
       throw new InternalServerErrorException(`Server Error: ${errorMessage}`);
     }
-  }
-
-  async finishSubtest(attemptId: string, finishedSubtestOrder: number) {
-    const attempt = await this.prisma.tryOutAttempt.findUnique({
-      where: { id: attemptId },
-      include: { tryOut: { include: { subtests: true } } },
-    });
-
-    if (!attempt || attempt.status !== 'IN_PROGRESS') {
-      throw new BadRequestException('Attempt not found or not in progress.');
-    }
-
-    const expectedDurationMillis =
-      attempt.tryOut.subtests
-        .filter((sub) => sub.order <= finishedSubtestOrder)
-        .reduce((acc, sub) => acc + sub.durationMinutes, 0) * 60000;
-
-    const actualTimeSpentMillis = new Date().getTime() - attempt.startedAt.getTime();
-
-    const timeDifference = expectedDurationMillis - actualTimeSpentMillis;
-
-    if (timeDifference > 0) {
-      // User finished early, "fast-forward" the start time
-      const newStartedAt = new Date(attempt.startedAt.getTime() + timeDifference);
-      return this.prisma.tryOutAttempt.update({
-        where: { id: attemptId },
-        data: { startedAt: newStartedAt },
-      });
-    }
-
-    // If user finished late or on time, do nothing to the timer
-    return attempt;
   }
 
   async finishExam(attemptId: string) {

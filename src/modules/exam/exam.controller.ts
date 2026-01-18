@@ -49,14 +49,6 @@ export class ExamController {
     return this.examService.getExamStream(attemptId, Number(order));
   }
 
-  @Post(':attemptId/finish-subtest')
-  async finishSubtest(
-    @Param('attemptId') attemptId: string,
-    @Body('subtestOrder') subtestOrder: number,
-  ) {
-    return this.examService.finishSubtest(attemptId, subtestOrder);
-  }
-
   @Post(':attemptId/finish')
   async finish(@Param('attemptId') attemptId: string) {
     return this.examService.finishExam(attemptId);
