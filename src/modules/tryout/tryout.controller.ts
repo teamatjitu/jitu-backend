@@ -1,4 +1,12 @@
-import { Controller, Get, Req,Param,Query, UseGuards, Post } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Req,
+  Param,
+  Query,
+  UseGuards,
+  Post,
+} from '@nestjs/common';
 import { TryoutService } from './tryout.service';
 import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
 import { AuthGuard } from '../../guards/auth.guard';
@@ -35,7 +43,12 @@ export class TryoutController {
     // Ambil userId dari Query (prioritas) atau Session
     const userId = userIdFromQuery || req.session?.user?.id || req.user?.id;
 
-    return this.tryoutService.getSubtestQuestions(id, subtestId, userId, attemptId);
+    return this.tryoutService.getSubtestQuestions(
+      id,
+      subtestId,
+      userId,
+      attemptId,
+    );
   }
 
   @Post(':id/unlock')
@@ -46,5 +59,4 @@ export class TryoutController {
   ) {
     return this.tryoutService.unlockSolution(session.user.id, id);
   }
-  
 }

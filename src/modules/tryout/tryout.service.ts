@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
 import { SubtestName } from '../../../generated/prisma/client';
@@ -8,7 +13,7 @@ export class TryoutService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * FIX: Tambahkan unlockedSolutions ke dalam pemetaan DTO
+   * Helper: Map TryOut entity -> TryoutDetailDto
    */
   private mapTryoutToDto(
     tryout: any,
@@ -29,7 +34,7 @@ export class TryoutService {
     return {
       id: tryout.id,
       title: tryout.title,
-      number: tryout.code.toString(),
+      number: tryout.code?.toString() ?? '0',
       badge: tryout.batch,
       participants: tryout._count?.attempts ?? 0,
       description: tryout.description ?? '',
@@ -40,8 +45,7 @@ export class TryoutService {
       isRegistered: (tryout.attempts?.length ?? 0) > 0,
       isFree: tryout.solutionPrice === 0,
       tokenCost: tryout.solutionPrice,
-      // FIX: Properti ini sekarang wajib ada di DTO
-      unlockedSolutions: tryout.unlockedSolutions ?? [],
+      unlockedSolutions: tryout.unlockedSolutions ?? [], // FIX: Mapping data unlock
       categories: (tryout.subtests ?? [])
         .slice()
         .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
@@ -67,50 +71,50 @@ export class TryoutService {
   }
 
   /**
-   * Logic: Unlock Pembahasan dengan Token
+   * Logic: Unlock Pembahasan menggunakan Token
    */
   async unlockSolution(userId: string, tryoutId: string) {
     const tryout = await this.prisma.tryOut.findUnique({
       where: { id: tryoutId },
-      select: { solutionPrice: true, title: true }
+      select: { solutionPrice: true, title: true },
     });
 
     if (!tryout) throw new NotFoundException('Tryout tidak ditemukan');
 
+    // 1. Cek apakah sudah di-unlock
     const existingUnlock = await this.prisma.unlockedSolution.findFirst({
-      where: { userId, tryOutId: tryoutId }
+      where: { userId, tryOutId: tryoutId },
     });
     if (existingUnlock) return { message: 'Pembahasan sudah terbuka' };
 
+    // 2. Cek saldo user
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { tokenBalance: true }
+      select: { tokenBalance: true },
     });
 
     if (!user || user.tokenBalance < tryout.solutionPrice) {
       throw new BadRequestException('Saldo Token tidak mencukupi');
     }
 
+    // 3. Transaksi (Potong Saldo & Unlock)
     return await this.prisma.$transaction(async (tx) => {
-      // 1. Kurangi Saldo
       await tx.user.update({
         where: { id: userId },
-        data: { tokenBalance: { decrement: tryout.solutionPrice } }
+        data: { tokenBalance: { decrement: tryout.solutionPrice } },
       });
 
-      // 2. Catat Transaksi Token
       await tx.tokenTransaction.create({
         data: {
           userId,
           amount: -tryout.solutionPrice,
           type: 'PURCHASE_SOLUTION',
-          referenceId: tryoutId
-        }
+          referenceId: tryoutId,
+        },
       });
 
-      // 3. Beri Akses
       return await tx.unlockedSolution.create({
-        data: { userId, tryOutId: tryoutId }
+        data: { userId, tryOutId: tryoutId },
       });
     });
   }
@@ -145,31 +149,39 @@ export class TryoutService {
         attempts: userId
           ? {
               where: { userId },
-              select: { id: true, status: true, startedAt: true, finishedAt: true },
+              select: {
+                id: true,
+                status: true,
+                startedAt: true,
+                finishedAt: true,
+              },
               orderBy: { startedAt: 'desc' },
             }
           : false,
         _count: { select: { attempts: true } },
-        unlockedSolutions: userId ? { where: { userId } } : false,
+        unlockedSolutions: userId ? { where: { userId } } : false, // FIX: Sertakan data unlock
       },
     });
 
-    if (!tryout) {
-      throw new NotFoundException('Tryout not found');
-    }
+    if (!tryout) throw new NotFoundException('Tryout not found');
 
     let answeredQuestionIds = new Set<string>();
-
-    if (userId && Array.isArray(tryout.attempts) && tryout.attempts.length > 0) {
-      const inProgress = tryout.attempts.find((a: any) => a.status === 'IN_PROGRESS');
-
+    if (
+      userId &&
+      Array.isArray(tryout.attempts) &&
+      tryout.attempts.length > 0
+    ) {
+      const inProgress = tryout.attempts.find(
+        (a: any) => a.status === 'IN_PROGRESS',
+      );
       if (inProgress?.id) {
         const answers = await this.prisma.userAnswer.findMany({
           where: { tryOutAttemptId: String(inProgress.id) },
           select: { questionId: true },
         });
-
-        answeredQuestionIds = new Set<string>(answers.map((a) => String(a.questionId)));
+        answeredQuestionIds = new Set<string>(
+          answers.map((a) => String(a.questionId)),
+        );
       }
     }
 
@@ -182,7 +194,6 @@ export class TryoutService {
         orderBy: { startedAt: 'desc' },
         select: { status: true },
       });
-
       latestAttemptStatus = (latestAttempt?.status as any) ?? null;
 
       const latestFinished = await this.prisma.tryOutAttempt.findFirst({
@@ -190,23 +201,17 @@ export class TryoutService {
         orderBy: { finishedAt: 'desc' },
         select: { id: true },
       });
-
       latestFinishedAttemptId = latestFinished?.id ?? null;
     }
 
     const dto = this.mapTryoutToDto(tryout, answeredQuestionIds);
-
-    return {
-      ...dto,
-      latestFinishedAttemptId,
-      latestAttemptStatus,
-    };
+    return { ...dto, latestFinishedAttemptId, latestAttemptStatus };
   }
 
   async getSubtestQuestions(
     tryOutId: string,
     subtestIdOrOrder: string | number,
-    userId?: string,
+    userId: string, // Wajibkan userId demi keamanan
     attemptId?: string,
   ) {
     let subtest: any;
@@ -231,35 +236,42 @@ export class TryoutService {
     if (!subtest) throw new NotFoundException('Subtest tidak ditemukan');
 
     let currentAttempt: any = null;
-    const hasAttemptId = !!attemptId && attemptId !== 'undefined' && attemptId !== 'null';
+    const hasAttemptId =
+      !!attemptId && attemptId !== 'undefined' && attemptId !== 'null';
 
     if (hasAttemptId) {
       currentAttempt = await this.prisma.tryOutAttempt.findUnique({
         where: { id: String(attemptId) },
-        include: { tryOut: { include: { subtests: true } } }
+        include: { tryOut: { include: { subtests: true } } },
       });
-    } else if (userId) {
+    } else {
       currentAttempt = await this.prisma.tryOutAttempt.findFirst({
         where: { userId, tryOutId, status: 'IN_PROGRESS' },
         orderBy: { startedAt: 'desc' },
-        include: { tryOut: { include: { subtests: true } } }
+        include: { tryOut: { include: { subtests: true } } },
       });
     }
 
-    // Auto Finish Logic
+    // --- AUTO FINISH LOGIC (DIPERBAIKI) ---
     if (currentAttempt && currentAttempt.status === 'IN_PROGRESS') {
-      const totalDuration = currentAttempt.tryOut.subtests.reduce((acc, s) => acc + s.durationMinutes, 0);
-      const expiryTime = new Date(currentAttempt.startedAt.getTime() + totalDuration * 60000);
+      const totalDuration = currentAttempt.tryOut.subtests.reduce(
+        (acc, s) => acc + (s.durationMinutes || 0),
+        0,
+      );
+      const expiryTime = new Date(
+        currentAttempt.startedAt.getTime() + totalDuration * 60000,
+      );
+
       if (new Date() > expiryTime) {
         currentAttempt = await this.prisma.tryOutAttempt.update({
           where: { id: currentAttempt.id },
           data: { status: 'FINISHED', finishedAt: expiryTime },
-          include: { tryOut: { include: { subtests: true } } }
+          include: { tryOut: { include: { subtests: true } } },
         });
       }
     }
 
-    if (!currentAttempt && userId) {
+    if (!currentAttempt) {
       currentAttempt = await this.prisma.tryOutAttempt.findFirst({
         where: { userId, tryOutId, status: 'FINISHED' },
         orderBy: { finishedAt: 'desc' },
@@ -270,12 +282,22 @@ export class TryoutService {
 
     const isReviewMode = currentAttempt.status === 'FINISHED';
 
-    // --- PROTEKSI REVIEW ---
-    if (isReviewMode && userId) {
-      const tryout = await this.prisma.tryOut.findUnique({ where: { id: tryOutId }, select: { solutionPrice: true } });
+    // --- PROTEKSI PEMBAHASAN BERBAYAR ---
+    if (isReviewMode) {
+      const tryout = await this.prisma.tryOut.findUnique({
+        where: { id: tryOutId },
+        select: { solutionPrice: true },
+      });
+
       if (tryout && tryout.solutionPrice > 0) {
-        const isUnlocked = await this.prisma.unlockedSolution.findFirst({ where: { userId, tryOutId } });
-        if (!isUnlocked) throw new ForbiddenException('Akses pembahasan terkunci. Silakan beli terlebih dahulu.');
+        const isUnlocked = await this.prisma.unlockedSolution.findFirst({
+          where: { userId, tryOutId },
+        });
+        if (!isUnlocked) {
+          throw new ForbiddenException(
+            'Pembahasan terkunci. Silakan beli terlebih dahulu.',
+          );
+        }
       }
     }
 
@@ -288,43 +310,52 @@ export class TryoutService {
       },
     });
 
-    const mappedQuestions = questions.map((q: any) => {
-      const ua = q.userAnswers?.[0];
-      const correctItem = q.items.find((i: any) => i.isCorrect);
-
-      return {
-        id: q.id,
-        type: q.type,
-        questionText: q.content,
-        solution: isReviewMode ? (q.explanation || 'Tidak ada pembahasan.') : null,
-        correctAnswerText: isReviewMode ? q.correctAnswer : null,
-        // FIX: Agar tidak bertabrakan null === null (Bug Kosong Jadi Hijau)
-        correctAnswerId: isReviewMode ? (correctItem?.id ?? "NO_KEY") : null,
-        options: q.items.map((i: any) => ({
-          id: i.id,
-          text: i.content,
-          order: i.order,
-          isCorrect: isReviewMode ? i.isCorrect : undefined,
-        })),
-        userAnswer: ua ? {
-          questionItemId: ua.questionItemId,
-          inputText: ua.inputText,
-          isCorrect: isReviewMode ? ua.isCorrect : false,
-        } : {
-          questionItemId: null,
-          inputText: null,
-          isCorrect: false, // User tidak jawab = Salah
-        },
-      };
+    const tryoutInfo = await this.prisma.tryOut.findUnique({
+      where: { id: tryOutId },
+      select: { title: true },
     });
 
     return {
       subtestId: subtest.order,
       subtestName: subtest.name,
       tryOutId,
-      questions: mappedQuestions,
+      tryoutTitle: tryoutInfo?.title || 'Tryout',
+      durationMinutes: subtest.durationMinutes,
+      questions: questions.map((q: any) => {
+        const ua = q.userAnswers?.[0];
+        const correctItem = q.items.find((i: any) => i.isCorrect);
+
+        return {
+          id: q.id,
+          type: q.type,
+          questionText: q.content,
+          solution: isReviewMode
+            ? q.explanation || 'Tidak ada pembahasan.'
+            : null,
+          correctAnswerText: isReviewMode ? q.correctAnswer : null,
+          // FIX: Agar soal kosong tidak dianggap benar (null === null)
+          correctAnswerId: isReviewMode ? (correctItem?.id ?? 'NO_KEY') : null,
+          options: q.items.map((i: any) => ({
+            id: i.id,
+            text: i.content,
+            order: i.order,
+            isCorrect: isReviewMode ? i.isCorrect : undefined,
+          })),
+          userAnswer: ua
+            ? {
+                questionItemId: ua.questionItemId,
+                inputText: ua.inputText,
+                isCorrect: isReviewMode ? ua.isCorrect : false,
+              }
+            : {
+                questionItemId: null,
+                inputText: null,
+                isCorrect: false, // User tidak jawab = Salah
+              },
+        };
+      }),
       isReviewMode,
-      attemptId: currentAttempt.id
+      attemptId: currentAttempt.id,
     };
   }
 }

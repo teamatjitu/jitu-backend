@@ -12,19 +12,13 @@ async function bootstrap() {
     if (req.path.includes('/api/auth')) {
       next();
     } else {
-      express.json()(req, res, next);
+      express.json()(req, res, (err) => {
+        if (err) next(err);
+        else express.urlencoded({ extended: true })(req, res, next);
+      });
     }
   });
 
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.path.includes('/api/auth')) {
-      next();
-    } else {
-      express.urlencoded({ extended: true })(req, res, next);
-    }
-  });
-
-  // Trust proxy is required for cookies to work correctly behind a load balancer (Railway)
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   app.useGlobalPipes(

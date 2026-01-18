@@ -65,9 +65,7 @@ describe('HistoryService', () => {
         },
       ];
 
-      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue(
-        mockAttempts,
-      );
+      prismaMock.tryOutAttempt.findMany.mockResolvedValue(mockAttempts);
 
       const result = await service.getHistoryTryouts(userId);
 
@@ -108,7 +106,7 @@ describe('HistoryService', () => {
     });
 
     it('should return empty array if no history found', async () => {
-      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue([]);
+      prismaMock.tryOutAttempt.findMany.mockResolvedValue([]);
 
       const result = await service.getHistoryTryouts('user-none');
 

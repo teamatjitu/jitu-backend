@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Sse } from '@nestjs/common';
 import { ExamService } from './exam.service';
 import { Observable } from 'rxjs';
-import { Public } from '@thallesp/nestjs-better-auth'; // [FIX] Hapus import Public dari thallesp
+import { Public } from '@thallesp/nestjs-better-auth';
 
 export interface MessageEvent {
   data: string | object;
@@ -23,13 +23,6 @@ export class ExamController {
     return this.examService.startExam(tryoutId, userId);
   }
 
-  @Sse(':attemptId/stream')
-  streamExamStatus(
-    @Param('attemptId') attemptId: string,
-  ): Observable<MessageEvent> {
-    return this.examService.getExamStream(attemptId);
-  }
-
   @Post(':attemptId/answer')
   async submitAnswer(
     @Param('attemptId') attemptId: string,
@@ -46,6 +39,14 @@ export class ExamController {
       answerData.answerId,
       answerData.inputText,
     );
+  }
+
+  @Sse(':attemptId/stream/:order') // Tambahkan :order di sini
+  streamExamStatus(
+    @Param('attemptId') attemptId: string,
+    @Param('order') order: string, // Ambil parameter order
+  ): Observable<MessageEvent> {
+    return this.examService.getExamStream(attemptId, Number(order));
   }
 
   @Post(':attemptId/finish')

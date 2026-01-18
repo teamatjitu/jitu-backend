@@ -104,7 +104,7 @@ async function main() {
   // =========================================================
   // 4. TRYOUTS (Cek keberadaan sebelum create agar data lama aman)
   // =========================================================
-  const TRYOUT_ID_PREMIUM = 'tryout-premium-snbt-1';
+  const TRYOUT_ID_PREMIUM = 'tryout-premium-snbt-4';
 
   const existingTryout = await prisma.tryOut.findUnique({
     where: { id: TRYOUT_ID_PREMIUM },
@@ -120,7 +120,7 @@ async function main() {
           'Tryout lengkap 7 subtest. Selesaikan pengerjaan untuk membuka pembahasan (50 Token).',
         batch: TryoutBatch.SNBT,
         isPublic: true,
-        solutionPrice: 50,
+        solutionPrice: 0,
         releaseDate: new Date(),
         scheduledStart: new Date(),
         scheduledEnd: new Date(

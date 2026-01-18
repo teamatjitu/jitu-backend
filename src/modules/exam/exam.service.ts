@@ -29,32 +29,65 @@ export class ExamService {
   }
 
   // SSE untuk memperbarui waktu
-  getExamStream(attemptId: string): Observable<MessageEvent> {
+  // exam.service.ts
+
+  getExamStream(
+    attemptId: string,
+    currentOrder: number,
+  ): Observable<MessageEvent> {
     return interval(1000).pipe(
       switchMap(async () => {
         const attempt = await this.prisma.tryOutAttempt.findUnique({
           where: { id: attemptId },
-          include: { tryOut: { include: { subtests: true } } },
+          include: {
+            tryOut: {
+              include: {
+                subtests: { orderBy: { order: 'asc' } }, // Pastikan urut
+              },
+            },
+          },
         });
 
         if (!attempt || attempt.status !== 'IN_PROGRESS') {
           return { data: { status: 'FINISHED', remainingSeconds: 0 } };
         }
 
-        const totalDurationMinutes = attempt.tryOut.subtests.reduce(
-          (acc, sub) => acc + sub.durationMinutes,
-          0,
-        );
-        const endTime = new Date(
-          attempt.startedAt.getTime() + totalDurationMinutes * 60000,
-        );
-        const now = new Date();
-        const remainingSeconds = Math.max(
-          0,
-          Math.floor((endTime.getTime() - now.getTime()) / 1000),
+        // 1. Hitung durasi kumulatif sampai subtes saat ini
+        // Misal: user di subtes order 2, maka total menit = durasi subtes 1 + subtes 2
+        const cumulativeMinutes = attempt.tryOut.subtests
+          .filter((sub) => sub.order <= currentOrder)
+          .reduce((acc, sub) => acc + sub.durationMinutes, 0);
+
+        // 2. Tentukan waktu berakhir untuk SUBTES INI
+        const subtestEndTime = new Date(
+          attempt.startedAt.getTime() + cumulativeMinutes * 60000,
         );
 
-        if (remainingSeconds === 0) await this.finishExam(attemptId);
+        const now = new Date();
+
+        // 3. Hitung sisa waktu
+        const remainingSeconds = Math.max(
+          0,
+          Math.floor((subtestEndTime.getTime() - now.getTime()) / 1000),
+        );
+
+        // 4. Jika waktu habis untuk subtes ini
+        if (remainingSeconds === 0) {
+          // Cek apakah ini subtes terakhir
+          const maxOrder = Math.max(
+            ...attempt.tryOut.subtests.map((s) => s.order),
+          );
+
+          if (currentOrder >= maxOrder) {
+            await this.finishExam(attemptId);
+            return { data: { status: 'FINISHED', remainingSeconds: 0 } };
+          } else {
+            // Kirim status agar frontend otomatis pindah subtes
+            return {
+              data: { status: 'SUBTEST_FINISHED', remainingSeconds: 0 },
+            };
+          }
+        }
 
         return {
           data: {
@@ -67,7 +100,6 @@ export class ExamService {
       map((data) => ({ data }) as MessageEvent),
     );
   }
-
   // --- PERBAIKAN UTAMA DI SINI ---
   async saveAnswer(
     attemptId: string,

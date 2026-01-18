@@ -15,8 +15,9 @@ export class AdminDailyService {
 
     // Gunakan tanggal (YYYYMMDD) sebagai SEED
     const now = new Date();
-    const dateSeed = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
-    
+    const dateSeed =
+      now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+
     // Pilih index berdasarkan modulus
     const randomIndex = dateSeed % totalQuestions;
 
@@ -28,10 +29,10 @@ export class AdminDailyService {
         subtest: {
           select: {
             name: true,
-            tryOut: { select: { title: true } }
-          }
-        }
-      }
+            tryOut: { select: { title: true } },
+          },
+        },
+      },
     });
 
     if (!question) return null;
@@ -44,16 +45,16 @@ export class AdminDailyService {
       this.prisma.dailyQuestionLog.count({
         where: {
           questionId: question.id,
-          completedAt: { gte: todayStart, lte: todayEnd }
-        }
+          completedAt: { gte: todayStart, lte: todayEnd },
+        },
       }),
       this.prisma.dailyQuestionLog.count({
         where: {
           questionId: question.id,
           isCorrect: true,
-          completedAt: { gte: todayStart, lte: todayEnd }
-        }
-      })
+          completedAt: { gte: todayStart, lte: todayEnd },
+        },
+      }),
     ]);
 
     return {
@@ -62,8 +63,9 @@ export class AdminDailyService {
         totalAttempts,
         correctAnswers,
         incorrectAnswers: totalAttempts - correctAnswers,
-        successRate: totalAttempts > 0 ? (correctAnswers / totalAttempts) * 100 : 0
-      }
+        successRate:
+          totalAttempts > 0 ? (correctAnswers / totalAttempts) * 100 : 0,
+      },
     };
   }
 }
