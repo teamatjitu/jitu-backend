@@ -1,14 +1,15 @@
 import {
   BadRequestException,
   Controller,
+  Get,
   Param,
   Post,
-  Session,
   UseGuards,
   Body,
 } from '@nestjs/common';
-import { AuthGuard } from '@thallesp/nestjs-better-auth';
-import type { UserSession } from '@thallesp/nestjs-better-auth';
+import { AuthGuard } from '../../guards/auth.guard';
+import { Session } from '../../decorators/session.decorator';
+import type { UserSession } from '../../decorators/session.decorator'; // Gunakan import type!
 import { ShopService } from './shop.service';
 
 @Controller('shop')
@@ -16,31 +17,24 @@ import { ShopService } from './shop.service';
 export class ShopController {
   constructor(private readonly shopService: ShopService) {}
 
-  @Post('create/:type')
+  @Get('packages')
+  async getPackages() {
+    return this.shopService.getPackages();
+  }
+
+  @Post('create/:packageId')
   async createTransaction(
     @Session() session: UserSession,
-    @Param('type') type: string,
+    @Param('packageId') packageId: string,
   ) {
-    const intType = parseInt(type, 10);
-
-    if (isNaN(intType)) {
-      throw new BadRequestException('Invalid type');
-    }
-
-    if (intType < 1 || intType > 3) {
-      throw new BadRequestException('Invalid type');
+    if (!packageId) {
+      throw new BadRequestException('Package ID required');
     }
 
     const res = await this.shopService.createTokenTransaction(
       session.user.id,
-      intType as 1 | 2 | 3,
+      packageId,
     );
-
-    // Karena cuma simulasi, transaksinya keresolve setelah 3 detik
-    // setTimeout(() => {
-    //   this.shopService.setPaid(res.id);
-    // }, 3000);
-
     return res;
   }
 
@@ -55,5 +49,23 @@ export class ShopController {
       throw new BadRequestException('transactionId is required');
     }
     return this.shopService.setPaid(body.transactionId);
+  }
+
+  @Get('pending')
+  async getPendingTransactions(@Session() session: UserSession) {
+    return this.shopService.getPendingTransactions(session.user.id);
+  }
+
+  @Get('past')
+  async getPastTransactions(@Session() session: UserSession) {
+    return this.shopService.getPastTransactions(session.user.id);
+  }
+
+  @Get('data/:transactionId')
+  async getTransactionData(
+    @Session() session: UserSession,
+    @Param('transactionId') transactionId: string,
+  ) {
+    return this.shopService.getData(session.user.id, transactionId);
   }
 }
