@@ -34,10 +34,10 @@ export class ShopService {
     // Gunakan Payment model, bukan TokenTransaction (karena schema sudah berubah ke Payment + TokenPackage)
     // TAPI, kode lama pakai TokenTransaction. Mari kita cek schema sebentar.
     // Asumsi: Kita migrasi ke model Payment yang terhubung ke TokenPackage.
-    
+
     // Karena TokenTransaction di schema lama agak beda dengan Payment baru,
     // Saya akan sesuaikan dengan schema Payment yang ada di seed.ts tadi.
-    
+
     const orderId = `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     const transaction = await this.prisma.payment.create({
@@ -55,7 +55,10 @@ export class ShopService {
     // Generate QRIS
     let qrisString = '';
     try {
-      qrisString = this.updateQrisAmount(selectedPackage.price, transaction.orderId);
+      qrisString = this.updateQrisAmount(
+        selectedPackage.price,
+        transaction.orderId,
+      );
     } catch (error) {
       console.error('Gagal generate QRIS:', error);
       throw new BadRequestException('Gagal generate QRIS Code');
@@ -119,7 +122,10 @@ export class ShopService {
     let qrisString = '';
     try {
       // Gunakan amount transaksi, bukan dari paket (karena harga bisa berubah)
-      qrisString = this.updateQrisAmount(transaction.amount, transaction.orderId);
+      qrisString = this.updateQrisAmount(
+        transaction.amount,
+        transaction.orderId,
+      );
     } catch (error) {
       console.error('Gagal generate QRIS:', error);
     }
@@ -138,29 +144,30 @@ export class ShopService {
     // Biasanya Midtrans kirim orderId. Tapi fungsi ini parameter namanya transactionId.
     // Kita coba cari by ID dulu, kalau gagal cari by orderId (opsional).
     // Tapi amannya kita asumsikan transactionId adalah ID database.
-    
+
     const transaction = await this.prisma.payment.findUnique({
       where: { id: transactionId },
     });
 
-    if (!transaction) throw new BadRequestException('Transaksi tidak ditemukan!');
+    if (!transaction)
+      throw new BadRequestException('Transaksi tidak ditemukan!');
     if (transaction.status === 'CONFIRMED') return transaction;
 
     // Update Status Transaksi
-    const res = await this.prisma.payment.update({
-      where: { id: transactionId },
-      data: { status: 'CONFIRMED' },
-    });
+    return await this.prisma.$transaction(async (tx) => {
+      const res = await tx.payment.update({
+        where: { id: transactionId },
+        data: { status: 'CONFIRMED' },
+      });
 
-    // Tambah Token User
-    await this.prisma.user.update({
-      where: { id: res.userId },
-      data: {
-        tokenBalance: { increment: res.tokenAmount },
-      },
+      await tx.user.update({
+        where: { id: res.userId },
+        data: {
+          tokenBalance: { increment: res.tokenAmount },
+        },
+      });
+      return res;
     });
-
-    return res;
   }
 
   checkTransactionStatus(transactionId: string) {
@@ -182,7 +189,7 @@ export class ShopService {
 
     const nominalStr = String(nominal);
     const pad2 = (n: number) => (n < 10 ? '0' + n : String(n));
-    
+
     // Simple CRC16-CCITT implementation
     const toCRC16 = (input: string) => {
       let crc = 0xffff;
@@ -208,7 +215,7 @@ export class ShopService {
 
     if (transactionId) {
       // Potong transactionId jika terlalu panjang agar muat di QRIS (max length tag 62 variatif)
-      const safeId = transactionId.slice(0, 20); 
+      const safeId = transactionId.slice(0, 20);
       const tag62 = '62' + pad2(safeId.length) + safeId;
       payload += tag62;
     }
