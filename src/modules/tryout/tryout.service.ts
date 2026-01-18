@@ -427,22 +427,10 @@ export class TryoutService {
     }
 
     // --- PROTEKSI PEMBAHASAN BERBAYAR ---
+    // User yang sudah terdaftar (isRegistered) otomatis bisa melihat pembahasan
+    // karena pembayaran dilakukan di awal saat pendaftaran (registerTryout).
     if (isReviewMode) {
-      const tryout = await this.prisma.tryOut.findUnique({
-        where: { id: tryOutId },
-        select: { solutionPrice: true },
-      });
-
-      if (tryout && tryout.solutionPrice > 0) {
-        const isUnlocked = await this.prisma.unlockedSolution.findFirst({
-          where: { userId, tryOutId },
-        });
-        if (!isUnlocked) {
-          throw new ForbiddenException(
-            'Pembahasan terkunci. Silakan beli terlebih dahulu.',
-          );
-        }
-      }
+      // Logic proteksi dihapus karena pembahasan sudah include saat pendaftaran.
     }
 
     const questions = await this.prisma.question.findMany({
