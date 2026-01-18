@@ -146,6 +146,7 @@ model DailyQuestionLog {
   id          String   @id @default(cuid())
   userId      String
   questionId  String
+  userAnswer  String?  @db.Text
   isCorrect   Boolean
   completedAt DateTime @default(now())
 

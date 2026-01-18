@@ -241,6 +241,8 @@ export class TryoutService {
       canEdit: false,
       participants: t._count.attempts,
       badge: t.batch,
+      solutionPrice: t.solutionPrice, // Add solutionPrice
+      isPublic: t.isPublic,
     }));
   }
 
@@ -293,26 +295,43 @@ export class TryoutService {
     }
 
     let latestFinishedAttemptId: string | null = null;
-    let latestAttemptStatus: 'IN_PROGRESS' | 'FINISHED' | null = null;
+    let latestAttemptStatus:
+      | 'IN_PROGRESS'
+      | 'FINISHED'
+      | 'NOT_STARTED'
+      | null = null;
+    let latestAttemptId: string | null = null;
+    let currentSubtestOrder = 1;
+    let latestScore = 0;
 
     if (userId) {
       const latestAttempt = await this.prisma.tryOutAttempt.findFirst({
         where: { userId, tryOutId: id },
         orderBy: { startedAt: 'desc' },
-        select: { status: true },
+        select: { id: true, status: true, currentSubtestOrder: true },
       });
       latestAttemptStatus = (latestAttempt?.status as any) ?? null;
+      latestAttemptId = latestAttempt?.id ?? null;
+      currentSubtestOrder = latestAttempt?.currentSubtestOrder ?? 1;
 
       const latestFinished = await this.prisma.tryOutAttempt.findFirst({
         where: { userId, tryOutId: id, status: 'FINISHED' },
         orderBy: { finishedAt: 'desc' },
-        select: { id: true },
+        select: { id: true, totalScore: true },
       });
       latestFinishedAttemptId = latestFinished?.id ?? null;
+      latestScore = latestFinished?.totalScore ? Math.round(latestFinished.totalScore) : 0;
     }
 
     const dto = this.mapTryoutToDto(tryout, answeredQuestionIds);
-    return { ...dto, latestFinishedAttemptId, latestAttemptStatus };
+    return {
+      ...dto,
+      latestFinishedAttemptId,
+      latestAttemptStatus,
+      latestAttemptId,
+      currentSubtestOrder,
+      latestScore,
+    };
   }
 
   async getSubtestQuestions(
@@ -437,7 +456,14 @@ export class TryoutService {
 
     const tryoutInfo = await this.prisma.tryOut.findUnique({
       where: { id: tryOutId },
-      select: { title: true },
+      include: {
+        subtests: {
+          include: {
+            _count: { select: { questions: true } },
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
     });
 
     return {
@@ -446,6 +472,13 @@ export class TryoutService {
       tryOutId,
       tryoutTitle: tryoutInfo?.title || 'Tryout',
       durationMinutes: subtest.durationMinutes,
+      allSubtests: tryoutInfo?.subtests.map((s) => ({
+        id: s.id,
+        name: s.name,
+        order: s.order,
+        durationMinutes: s.durationMinutes,
+        questionCount: s._count.questions,
+      })),
       questions: questions.map((q: any) => {
         const ua = q.userAnswers?.[0];
         const correctItem = q.items.find((i: any) => i.isCorrect);

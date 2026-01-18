@@ -36,6 +36,7 @@ export class DailyService {
       return {
         alreadyAnswered: true,
         isCorrect: existingLog.isCorrect,
+        userAnswer: existingLog.userAnswer || undefined, // Return jawaban user
         question: {
           id: existingLog.question.id,
           type: existingLog.question.type,
@@ -180,39 +181,65 @@ export class DailyService {
       throw new BadRequestException('Soal tidak ditemukan!');
     }
 
-    // Find the selected answer
-    const selectedItem = await this.prisma.questionItem.findUnique({
-      where: { id: payload.answer },
-    });
+    let isCorrect = false;
 
-    if (!selectedItem || selectedItem.questionId !== payload.questionId) {
-      throw new BadRequestException('Jawaban tidak valid!');
+    // Logic Jawaban
+    if (question.type === 'ISIAN_SINGKAT') {
+      // Untuk isian singkat, bandingkan string jawaban
+      if (!question.correctAnswer) {
+        // Fallback safety if DB is missing correct answer
+        isCorrect = false;
+      } else {
+        const userAnswer = payload.answer.trim().toLowerCase();
+        const correctAnswer = question.correctAnswer.trim().toLowerCase();
+        isCorrect = userAnswer === correctAnswer;
+      }
+    } else {
+      // Untuk Pilihan Ganda / Benar Salah, cek ID item
+      const selectedItem = await this.prisma.questionItem.findUnique({
+        where: { id: payload.answer },
+      });
+
+      if (!selectedItem || selectedItem.questionId !== payload.questionId) {
+        // Jika payload bukan ID valid atau bukan milik soal ini
+        throw new BadRequestException('Jawaban tidak valid!');
+      }
+      isCorrect = selectedItem.isCorrect;
     }
 
-    const isCorrect = selectedItem.isCorrect;
-
-    // Get user data
+    // Streak Logic
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     const lastDate = user?.lastDailyDate;
     let newStreak = user?.currentStreak || 0;
 
-    const yesterdayStart = new Date(today);
-    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-
-    // Check if user answered yesterday to maintain streak
-    let shouldResetStreak = false;
-    if (lastDate) {
-      const lastDateNormalized = new Date(lastDate);
-      lastDateNormalized.setHours(0, 0, 0, 0);
-
-      if (lastDateNormalized.getTime() !== yesterdayStart.getTime()) {
-        shouldResetStreak = true;
-      }
-    }
+    // Hitung tanggal kemarin (untuk cek streak continuity)
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
 
     if (isCorrect) {
-      newStreak = shouldResetStreak ? 1 : newStreak + 1;
+      if (lastDate) {
+        const lastDateNormalized = new Date(lastDate);
+        lastDateNormalized.setHours(0, 0, 0, 0);
+
+        // Jika terakhir jawab kemarin -> Streak Lanjut
+        if (lastDateNormalized.getTime() === yesterday.getTime()) {
+          newStreak += 1;
+        } 
+        // Jika terakhir jawab hari ini (double check logic) -> Tetap (Harusnya kena block di awal)
+        else if (lastDateNormalized.getTime() === today.getTime()) {
+           // Do nothing, keep streak
+        } 
+        // Jika terlewat sehari atau lebih -> Reset jadi 1
+        else {
+          newStreak = 1;
+        }
+      } else {
+        // Belum pernah jawab -> Streak 1
+        newStreak = 1;
+      }
     } else {
+      // Jawaban salah -> Reset Streak
       newStreak = 0;
     }
 
@@ -222,6 +249,7 @@ export class DailyService {
         data: {
           userId,
           questionId: payload.questionId,
+          userAnswer: payload.answer, // Simpan jawaban user
           isCorrect,
           completedAt: new Date(),
         },
