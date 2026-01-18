@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Sse } from '@nestjs/common';
 import { ExamService } from './exam.service';
 import { Observable } from 'rxjs';
-import { type UserSession, Session } from '@thallesp/nestjs-better-auth';
+import { Public } from '@thallesp/nestjs-better-auth';
 
 export interface MessageEvent {
   data: string | object;
@@ -10,6 +10,7 @@ export interface MessageEvent {
   retry?: number;
 }
 
+@Public()
 @Controller('exam')
 export class ExamController {
   constructor(private readonly examService: ExamService) {}
@@ -17,9 +18,9 @@ export class ExamController {
   @Post(':tryoutId/start')
   async startExam(
     @Param('tryoutId') tryoutId: string,
-    @Session() session: UserSession,
+    @Body('userId') userId: string,
   ) {
-    return this.examService.startExam(tryoutId, session.user.id);
+    return this.examService.startExam(tryoutId, userId);
   }
 
   @Post(':attemptId/answer')

@@ -52,33 +52,20 @@ export class ExamService {
           return { data: { status: 'FINISHED', remainingSeconds: 0 } };
         }
 
-        // 1. Dapatkan durasi subtes-subtes SEBELUMNYA
-        const previousSubtestsDuration = attempt.tryOut.subtests
-          .filter((sub) => sub.order < currentOrder)
+        // 1. Hitung durasi kumulatif sampai subtes saat ini
+        // Misal: user di subtes order 2, maka total menit = durasi subtes 1 + subtes 2
+        const cumulativeMinutes = attempt.tryOut.subtests
+          .filter((sub) => sub.order <= currentOrder)
           .reduce((acc, sub) => acc + sub.durationMinutes, 0);
 
-        // 2. Dapatkan durasi subtes SAAT INI
-        const currentSubtest = attempt.tryOut.subtests.find(
-          (sub) => sub.order === currentOrder,
-        );
-
-        if (!currentSubtest) {
-          // Handle case where subtest is not found, though this shouldn't happen
-          return { data: { status: 'FINISHED', remainingSeconds: 0 } };
-        }
-        const currentSubtestDuration = currentSubtest.durationMinutes;
-
-        // 3. Hitung waktu mulai dan berakhirnya subtes SAAT INI
-        const subtestStartTime = new Date(
-          attempt.startedAt.getTime() + previousSubtestsDuration * 60000,
-        );
+        // 2. Tentukan waktu berakhir untuk SUBTES INI
         const subtestEndTime = new Date(
-          subtestStartTime.getTime() + currentSubtestDuration * 60000,
+          attempt.startedAt.getTime() + cumulativeMinutes * 60000,
         );
 
         const now = new Date();
 
-        // 4. Hitung sisa waktu
+        // 3. Hitung sisa waktu
         const remainingSeconds = Math.max(
           0,
           Math.floor((subtestEndTime.getTime() - now.getTime()) / 1000),
