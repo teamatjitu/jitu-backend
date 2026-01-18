@@ -248,11 +248,7 @@ export class DashboardService {
             question: {
               select: {
                 points: true,
-                subtest: {
-                  select: {
-                    name: true,
-                  },
-                },
+                subtest: true, // Ambil semua field subtest termasuk name
               },
             },
           },
@@ -272,9 +268,10 @@ export class DashboardService {
       };
 
       attempt.answers.forEach((answer) => {
-        if (answer.isCorrect) {
-          const subtestName = answer.question.subtest.name;
-          const points = answer.question.points;
+        if (answer.isCorrect && answer.question?.subtest?.name) {
+          const subtestName = answer.question.subtest.name.toUpperCase().trim();
+          const points = answer.question.points || 0;
+          
           if (subtestName === 'PU') scores.pu += points;
           if (subtestName === 'PPU') scores.ppu += points;
           if (subtestName === 'PBM') scores.pbm += points;
@@ -287,7 +284,7 @@ export class DashboardService {
 
       return {
         to: `TO ${attempt.tryOut.code}`,
-        total: Math.round(attempt.totalScore),
+        total: attempt.totalScore ? Math.round(attempt.totalScore) : 0, // Use stored totalScore
         ...scores,
       };
     });
@@ -353,7 +350,9 @@ export class DashboardService {
         },
         attempts: {
           where: { userId },
-          select: { id: true },
+          select: { id: true, status: true, totalScore: true }, // Select score
+          orderBy: { startedAt: 'desc' }, // Ambil attempt terbaru
+          take: 1,
         },
       },
       orderBy: { scheduledStart: 'desc' },
@@ -369,6 +368,8 @@ export class DashboardService {
       createdAt: t.createdAt,
       participants: t._count.attempts,
       isRegistered: t.attempts.length > 0,
+      status: t.attempts.length > 0 ? t.attempts[0].status : undefined,
+      score: t.attempts.length > 0 ? t.attempts[0].totalScore : undefined, // Map score
     }));
   }
 
@@ -384,7 +385,9 @@ export class DashboardService {
         },
         attempts: {
           where: { userId },
-          select: { id: true },
+          select: { id: true, status: true }, // Pastikan status di-select
+          orderBy: { startedAt: 'desc' },
+          take: 1,
         },
       },
       orderBy: { scheduledStart: 'asc' },
@@ -400,6 +403,7 @@ export class DashboardService {
       createdAt: t.createdAt,
       participants: t._count.attempts,
       isRegistered: t.attempts.length > 0,
+      status: t.attempts.length > 0 ? t.attempts[0].status : undefined,
     }));
   }
 }

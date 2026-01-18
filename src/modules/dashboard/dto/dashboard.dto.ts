@@ -103,4 +103,6 @@ export class OngoingTryoutDto {
   createdAt: Date;
   participants: number;
   isRegistered: boolean;
+  status?: string; // IN_PROGRESS, FINISHED, NOT_STARTED
+  score?: number;
 }

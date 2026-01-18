@@ -3,14 +3,21 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
 import { SubtestName } from '../../../generated/prisma/client';
+import { ExamService } from '../exam/exam.service';
 
 @Injectable()
 export class TryoutService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => ExamService))
+    private readonly examService: ExamService,
+  ) {}
 
   /**
    * Helper: Map TryOut entity -> TryoutDetailDto
@@ -147,6 +154,16 @@ export class TryoutService {
           status: 'NOT_STARTED',
           totalScore: 0,
           currentSubtestOrder: 0,
+        },
+      });
+
+      // [FIX] Unlock Pembahasan Otomatis jika berbayar
+      // Karena user sudah membayar di awal (registration fee),
+      // maka pembahasan harusnya include.
+      await tx.unlockedSolution.create({
+        data: {
+          userId,
+          tryOutId: tryoutId,
         },
       });
       
@@ -353,10 +370,13 @@ export class TryoutService {
       );
 
       if (new Date() > expiryTime) {
-        currentAttempt = await this.prisma.tryOutAttempt.update({
-          where: { id: currentAttempt.id },
-          data: { status: 'FINISHED', finishedAt: expiryTime },
-          include: { tryOut: { include: { subtests: true } } },
+        // Gunakan ExamService untuk finish agar logic skor konsisten
+        currentAttempt = await this.examService.finishExam(currentAttempt.id);
+        
+        // Reload attempt dengan relation yang dibutuhkan
+        currentAttempt = await this.prisma.tryOutAttempt.findUnique({
+            where: { id: currentAttempt.id },
+            include: { tryOut: { include: { subtests: true } } },
         });
       }
     }
@@ -371,6 +391,21 @@ export class TryoutService {
     if (!currentAttempt) throw new NotFoundException('Sesi tidak ditemukan');
 
     const isReviewMode = currentAttempt.status === 'FINISHED';
+
+    // [SECURITY] Cegah skip subtest atau akses subtest masa lalu/depan
+    // Standar UTBK: User HANYA boleh ada di subtes yang sedang aktif.
+    if (!isReviewMode && currentAttempt.status === 'IN_PROGRESS') {
+        const requestedOrder = subtest.order;
+        const currentOrder = currentAttempt.currentSubtestOrder;
+
+        if (requestedOrder !== currentOrder) {
+            throw new ForbiddenException(
+                requestedOrder < currentOrder 
+                ? `Waktu subtes ini sudah habis. Kamu tidak bisa kembali.`
+                : `Kamu belum bisa mengerjakan subtes ini. Selesaikan subtes sebelumnya dahulu.`
+            );
+        }
+    }
 
     // --- PROTEKSI PEMBAHASAN BERBAYAR ---
     if (isReviewMode) {

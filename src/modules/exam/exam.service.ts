@@ -41,6 +41,11 @@ export class ExamService {
       throw new BadRequestException('Attempt tidak valid atau sudah selesai');
     }
 
+    // [SECURITY] Cegah reset timer jika user refresh halaman di subtes yang sama
+    if (attempt.currentSubtestOrder === order) {
+      return attempt;
+    }
+
     // Update waktu mulai subtes baru
     return this.prisma.tryOutAttempt.update({
       where: { id: attemptId },
@@ -141,6 +146,20 @@ export class ExamService {
     });
 
     try {
+      // [SECURITY] Validasi status attempt sebelum menyimpan jawaban
+      const attempt = await this.prisma.tryOutAttempt.findUnique({
+        where: { id: attemptId },
+        select: { status: true },
+      });
+
+      if (!attempt) {
+        throw new BadRequestException('Attempt tidak ditemukan');
+      }
+
+      if (attempt.status === 'FINISHED') {
+        throw new BadRequestException('Ujian sudah selesai, tidak bisa menyimpan jawaban.');
+      }
+
       let isCorrect = false;
 
       // VALIDASI 1: Pilihan Ganda / Benar-Salah
