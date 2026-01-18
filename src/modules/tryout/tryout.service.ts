@@ -70,6 +70,96 @@ export class TryoutService {
     };
   }
 
+  async registerTryout(userId: string, tryoutId: string) {
+    // 1. Cek Tryout
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id: tryoutId },
+    });
+    if (!tryout) throw new NotFoundException('Tryout tidak ditemukan');
+
+    // 2. Cek apakah user sudah terdaftar (punya attempt apa saja)
+    const existingAttempt = await this.prisma.tryOutAttempt.findFirst({
+      where: { userId, tryOutId: tryoutId },
+    });
+
+    if (existingAttempt) {
+      // Sudah terdaftar, kembalikan attemptId yang ada
+      return {
+        message: 'User sudah terdaftar pada tryout ini',
+        attemptId: existingAttempt.id,
+        isRegistered: true,
+      };
+    }
+
+    const price = tryout.solutionPrice;
+
+    // 3. Jika Gratis (Price <= 0)
+    if (price <= 0) {
+      const newAttempt = await this.prisma.tryOutAttempt.create({
+        data: {
+          userId,
+          tryOutId: tryoutId,
+          status: 'NOT_STARTED',
+          totalScore: 0,
+          currentSubtestOrder: 0,
+        },
+      });
+      return {
+        message: 'Berhasil mendaftar tryout gratis',
+        attemptId: newAttempt.id,
+        isRegistered: true,
+      };
+    }
+
+    // 4. Jika Berbayar
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { tokenBalance: true },
+    });
+
+    if (!user || user.tokenBalance < price) {
+      throw new BadRequestException('Saldo Token tidak mencukupi untuk mendaftar tryout ini');
+    }
+
+    // Transaksi pembayaran & pendaftaran
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Potong Saldo
+      await tx.user.update({
+        where: { id: userId },
+        data: { tokenBalance: { decrement: price } },
+      });
+
+      // Catat Transaksi
+      await tx.tokenTransaction.create({
+        data: {
+          userId,
+          amount: -price,
+          type: 'PURCHASE_TRYOUT',
+          referenceId: tryoutId,
+        },
+      });
+
+      // Buat Attempt (Registration)
+      const attempt = await tx.tryOutAttempt.create({
+        data: {
+          userId,
+          tryOutId: tryoutId,
+          status: 'NOT_STARTED',
+          totalScore: 0,
+          currentSubtestOrder: 0,
+        },
+      });
+      
+      return attempt;
+    });
+
+    return {
+      message: 'Berhasil mendaftar tryout berbayar',
+      attemptId: result.id,
+      isRegistered: true,
+    };
+  }
+
   /**
    * Logic: Unlock Pembahasan menggunakan Token
    */

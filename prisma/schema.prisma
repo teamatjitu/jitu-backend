@@ -254,6 +254,9 @@ model TryOutAttempt {
   startedAt  DateTime  @default(now()) @map("started_at")
   finishedAt DateTime? @map("finished_at")
 
+  currentSubtestOrder Int       @default(1) @map("current_subtest_order")
+  subtestStartedAt    DateTime? @map("subtest_started_at")
+
   user    User         @relation(fields: [userId], references: [id])
   tryOut  TryOut       @relation(fields: [tryOutId], references: [id])
   answers UserAnswer[]

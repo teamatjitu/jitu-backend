@@ -59,4 +59,14 @@ export class DashboardController {
   async getActiveTryouts(@Session() session: UserSession) {
     return this.dashboardService.getActiveTryouts(session.user.id);
   }
+
+  @Get('tryouts/ongoing')
+  async getOngoingTryouts(@Session() session: UserSession) {
+    return this.dashboardService.getOngoingTryouts(session.user.id);
+  }
+
+  @Get('tryouts/available')
+  async getAvailableTryouts(@Session() session: UserSession) {
+    return this.dashboardService.getAvailableTryouts(session.user.id);
+  }
 }

@@ -59,4 +59,13 @@ export class TryoutController {
   ) {
     return this.tryoutService.unlockSolution(session.user.id, id);
   }
+
+  @Post(':id/register')
+  @UseGuards(AuthGuard)
+  async registerTryout(
+    @Param('id') id: string,
+    @Session() session: UserSession,
+  ) {
+    return this.tryoutService.registerTryout(session.user.id, id);
+  }
 }

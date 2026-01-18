@@ -70,7 +70,21 @@ async function main() {
       emailVerified: true,
     },
   });
-  console.log('✅ Users seeded');
+
+  // User Khusus untuk Test Flow Pembayaran
+  const userCoba = await prisma.user.upsert({
+    where: { email: 'coba@example.com' },
+    update: { tokenBalance: 100 }, // Reset saldo ke 100
+    create: {
+      id: 'user-coba-id',
+      name: 'User Coba',
+      email: 'coba@example.com',
+      role: Role.USER,
+      tokenBalance: 100,
+      emailVerified: true,
+    },
+  });
+  console.log('✅ Users seeded (termasuk User Coba)');
 
   // =========================================================
   // 3. HELPERS UNTUK SOAL (Mencegah bug "Kosong jadi Benar")
@@ -229,6 +243,89 @@ async function main() {
     console.log('✅ Tryout & 7 Subtests seeded');
   } else {
     console.log('⏩ Tryout sudah ada, melewati proses pembuatan.');
+  }
+
+  // =========================================================
+  // 4b. PAID TRYOUT (Untuk testing Pendaftaran Berbayar)
+  // =========================================================
+  const TRYOUT_ID_PAID = 'tryout-paid-test-1';
+  const existingPaidTryout = await prisma.tryOut.findUnique({
+    where: { id: TRYOUT_ID_PAID },
+  });
+
+  if (!existingPaidTryout) {
+    console.log('📝 Membuat Tryout Berbayar (20 Token)...');
+    await prisma.tryOut.create({
+      data: {
+        id: TRYOUT_ID_PAID,
+        title: 'Tryout Eksklusif UTBK #1',
+        description:
+          'Tryout berbayar untuk mengetes fitur pendaftaran & token.',
+        batch: TryoutBatch.SNBT,
+        isPublic: false,
+        solutionPrice: 20, // Membutuhkan 20 token untuk daftar
+        releaseDate: new Date(),
+        scheduledStart: new Date(),
+        scheduledEnd: new Date(
+          new Date().getTime() + 365 * 24 * 60 * 60 * 1000,
+        ),
+        subtests: {
+          create: [
+            {
+              name: SubtestName.PU,
+              durationMinutes: 15,
+              order: 1,
+              questions: {
+                create: [
+                  createMCQ('Soal Berbayar 1', 0, 'Pembahasan eksklusif A...'),
+                ],
+              },
+            },
+          ],
+        },
+      },
+    });
+    console.log('✅ Paid Tryout seeded');
+  }
+
+  // =========================================================
+  // 4c. NEW PAID TRYOUT FOR USER COBA (25 Token)
+  // =========================================================
+  const TRYOUT_ID_PREMIUM_NEW = 'tryout-premium-new-1';
+  const existingPremiumNew = await prisma.tryOut.findUnique({
+    where: { id: TRYOUT_ID_PREMIUM_NEW },
+  });
+
+  if (!existingPremiumNew) {
+    console.log('📝 Membuat Tryout Premium Baru (25 Token)...');
+    await prisma.tryOut.create({
+      data: {
+        id: TRYOUT_ID_PREMIUM_NEW,
+        title: 'Tryout Premium #1 (Coba Bayar)',
+        description: 'Tryout khusus untuk simulasi pembayaran user coba.',
+        batch: TryoutBatch.SNBT,
+        isPublic: false,
+        solutionPrice: 25, // Harga 25 Token
+        releaseDate: new Date(),
+        scheduledStart: new Date(),
+        scheduledEnd: new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000), // Aktif 30 hari
+        subtests: {
+          create: [
+            {
+              name: SubtestName.PU,
+              durationMinutes: 10,
+              order: 1,
+              questions: {
+                create: [
+                  createMCQ('Soal Premium 1', 2, 'Pembahasan Premium...'),
+                ],
+              },
+            },
+          ],
+        },
+      },
+    });
+    console.log('✅ New Premium Tryout seeded');
   }
 
   // =========================================================

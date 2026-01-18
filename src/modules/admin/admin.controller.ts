@@ -29,10 +29,11 @@ import { CreatePackageDto, UpdatePackageDto } from './dto/package.dto';
 import { AdminDailyService } from './services/daily.service';
 import { AdminTryoutResultService } from './services/result.service';
 import { PaymentStatus } from 'generated/prisma/enums';
-import { AuthGuard } from '@thallesp/nestjs-better-auth';
+import { AuthGuard, Roles } from '@thallesp/nestjs-better-auth';
 
 @Controller('admin')
 @UseGuards(AuthGuard)
+@Roles(['ADMIN'])
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
