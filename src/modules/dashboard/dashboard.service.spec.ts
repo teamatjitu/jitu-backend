@@ -352,9 +352,7 @@ describe('DashboardService', () => {
         },
       ];
 
-      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue(
-        mockAttempts,
-      );
+      prismaMock.tryOutAttempt.findMany.mockResolvedValue(mockAttempts);
 
       const result = await service.getScoreHistory(userId);
 
@@ -375,7 +373,7 @@ describe('DashboardService', () => {
     });
 
     it('should return empty array if no finished attempts found', async () => {
-      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue([]);
+      prismaMock.tryOutAttempt.findMany.mockResolvedValue([]);
 
       const result = await service.getScoreHistory('user-no-history');
 
@@ -407,9 +405,7 @@ describe('DashboardService', () => {
         },
       ];
 
-      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue(
-        mockActiveAttempts,
-      );
+      prismaMock.tryOutAttempt.findMany.mockResolvedValue(mockActiveAttempts);
 
       const result = await service.getActiveTryouts(userId);
 
@@ -432,7 +428,7 @@ describe('DashboardService', () => {
     });
 
     it('should return empty array if no active tryouts found', async () => {
-      (prismaMock.tryOutAttempt.findMany as jest.Mock).mockResolvedValue([]);
+      prismaMock.tryOutAttempt.findMany.mockResolvedValue([]);
 
       const result = await service.getActiveTryouts('user-idle');
 

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
 import { SubtestName } from '../../../generated/prisma/client';
@@ -71,21 +76,21 @@ export class TryoutService {
   async unlockSolution(userId: string, tryoutId: string) {
     const tryout = await this.prisma.tryOut.findUnique({
       where: { id: tryoutId },
-      select: { solutionPrice: true, title: true }
+      select: { solutionPrice: true, title: true },
     });
 
     if (!tryout) throw new NotFoundException('Tryout tidak ditemukan');
 
     // 1. Cek apakah sudah di-unlock
     const existingUnlock = await this.prisma.unlockedSolution.findFirst({
-      where: { userId, tryOutId: tryoutId }
+      where: { userId, tryOutId: tryoutId },
     });
     if (existingUnlock) return { message: 'Pembahasan sudah terbuka' };
 
     // 2. Cek saldo user
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { tokenBalance: true }
+      select: { tokenBalance: true },
     });
 
     if (!user || user.tokenBalance < tryout.solutionPrice) {
@@ -96,7 +101,7 @@ export class TryoutService {
     return await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: userId },
-        data: { tokenBalance: { decrement: tryout.solutionPrice } }
+        data: { tokenBalance: { decrement: tryout.solutionPrice } },
       });
 
       await tx.tokenTransaction.create({
@@ -104,12 +109,12 @@ export class TryoutService {
           userId,
           amount: -tryout.solutionPrice,
           type: 'PURCHASE_SOLUTION',
-          referenceId: tryoutId
-        }
+          referenceId: tryoutId,
+        },
       });
 
       return await tx.unlockedSolution.create({
-        data: { userId, tryOutId: tryoutId }
+        data: { userId, tryOutId: tryoutId },
       });
     });
   }
@@ -144,7 +149,12 @@ export class TryoutService {
         attempts: userId
           ? {
               where: { userId },
-              select: { id: true, status: true, startedAt: true, finishedAt: true },
+              select: {
+                id: true,
+                status: true,
+                startedAt: true,
+                finishedAt: true,
+              },
               orderBy: { startedAt: 'desc' },
             }
           : false,
@@ -156,14 +166,22 @@ export class TryoutService {
     if (!tryout) throw new NotFoundException('Tryout not found');
 
     let answeredQuestionIds = new Set<string>();
-    if (userId && Array.isArray(tryout.attempts) && tryout.attempts.length > 0) {
-      const inProgress = tryout.attempts.find((a: any) => a.status === 'IN_PROGRESS');
+    if (
+      userId &&
+      Array.isArray(tryout.attempts) &&
+      tryout.attempts.length > 0
+    ) {
+      const inProgress = tryout.attempts.find(
+        (a: any) => a.status === 'IN_PROGRESS',
+      );
       if (inProgress?.id) {
         const answers = await this.prisma.userAnswer.findMany({
           where: { tryOutAttemptId: String(inProgress.id) },
           select: { questionId: true },
         });
-        answeredQuestionIds = new Set<string>(answers.map((a) => String(a.questionId)));
+        answeredQuestionIds = new Set<string>(
+          answers.map((a) => String(a.questionId)),
+        );
       }
     }
 
@@ -218,31 +236,37 @@ export class TryoutService {
     if (!subtest) throw new NotFoundException('Subtest tidak ditemukan');
 
     let currentAttempt: any = null;
-    const hasAttemptId = !!attemptId && attemptId !== 'undefined' && attemptId !== 'null';
+    const hasAttemptId =
+      !!attemptId && attemptId !== 'undefined' && attemptId !== 'null';
 
     if (hasAttemptId) {
       currentAttempt = await this.prisma.tryOutAttempt.findUnique({
         where: { id: String(attemptId) },
-        include: { tryOut: { include: { subtests: true } } }
+        include: { tryOut: { include: { subtests: true } } },
       });
     } else {
       currentAttempt = await this.prisma.tryOutAttempt.findFirst({
         where: { userId, tryOutId, status: 'IN_PROGRESS' },
         orderBy: { startedAt: 'desc' },
-        include: { tryOut: { include: { subtests: true } } }
+        include: { tryOut: { include: { subtests: true } } },
       });
     }
 
     // --- AUTO FINISH LOGIC (DIPERBAIKI) ---
     if (currentAttempt && currentAttempt.status === 'IN_PROGRESS') {
-      const totalDuration = currentAttempt.tryOut.subtests.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
-      const expiryTime = new Date(currentAttempt.startedAt.getTime() + totalDuration * 60000);
-      
+      const totalDuration = currentAttempt.tryOut.subtests.reduce(
+        (acc, s) => acc + (s.durationMinutes || 0),
+        0,
+      );
+      const expiryTime = new Date(
+        currentAttempt.startedAt.getTime() + totalDuration * 60000,
+      );
+
       if (new Date() > expiryTime) {
         currentAttempt = await this.prisma.tryOutAttempt.update({
           where: { id: currentAttempt.id },
           data: { status: 'FINISHED', finishedAt: expiryTime },
-          include: { tryOut: { include: { subtests: true } } }
+          include: { tryOut: { include: { subtests: true } } },
         });
       }
     }
@@ -262,15 +286,17 @@ export class TryoutService {
     if (isReviewMode) {
       const tryout = await this.prisma.tryOut.findUnique({
         where: { id: tryOutId },
-        select: { solutionPrice: true }
+        select: { solutionPrice: true },
       });
 
       if (tryout && tryout.solutionPrice > 0) {
         const isUnlocked = await this.prisma.unlockedSolution.findFirst({
-          where: { userId, tryOutId }
+          where: { userId, tryOutId },
         });
         if (!isUnlocked) {
-          throw new ForbiddenException('Pembahasan terkunci. Silakan beli terlebih dahulu.');
+          throw new ForbiddenException(
+            'Pembahasan terkunci. Silakan beli terlebih dahulu.',
+          );
         }
       }
     }
@@ -303,29 +329,33 @@ export class TryoutService {
           id: q.id,
           type: q.type,
           questionText: q.content,
-          solution: isReviewMode ? (q.explanation || 'Tidak ada pembahasan.') : null,
+          solution: isReviewMode
+            ? q.explanation || 'Tidak ada pembahasan.'
+            : null,
           correctAnswerText: isReviewMode ? q.correctAnswer : null,
           // FIX: Agar soal kosong tidak dianggap benar (null === null)
-          correctAnswerId: isReviewMode ? (correctItem?.id ?? "NO_KEY") : null,
+          correctAnswerId: isReviewMode ? (correctItem?.id ?? 'NO_KEY') : null,
           options: q.items.map((i: any) => ({
             id: i.id,
             text: i.content,
             order: i.order,
             isCorrect: isReviewMode ? i.isCorrect : undefined,
           })),
-          userAnswer: ua ? {
-            questionItemId: ua.questionItemId,
-            inputText: ua.inputText,
-            isCorrect: isReviewMode ? ua.isCorrect : false,
-          } : {
-            questionItemId: null,
-            inputText: null,
-            isCorrect: false, // User tidak jawab = Salah
-          },
+          userAnswer: ua
+            ? {
+                questionItemId: ua.questionItemId,
+                inputText: ua.inputText,
+                isCorrect: isReviewMode ? ua.isCorrect : false,
+              }
+            : {
+                questionItemId: null,
+                inputText: null,
+                isCorrect: false, // User tidak jawab = Salah
+              },
         };
       }),
       isReviewMode,
-      attemptId: currentAttempt.id
+      attemptId: currentAttempt.id,
     };
   }
 }

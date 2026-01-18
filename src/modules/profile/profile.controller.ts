@@ -1,4 +1,10 @@
-import { Controller, Get, Req, NotFoundException, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Req,
+  NotFoundException,
+  UseGuards,
+} from '@nestjs/common';
 import { ProfileService } from './profile.service';
 import { AuthGuard } from '@thallesp/nestjs-better-auth';
 
@@ -17,7 +23,7 @@ export class ProfileController {
     }
 
     const profile = await this.profileService.getProfile(userId);
-    
+
     if (!profile) {
       throw new NotFoundException('User tidak ditemukan');
     }

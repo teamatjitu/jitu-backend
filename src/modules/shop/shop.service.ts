@@ -136,7 +136,7 @@ export class ShopService {
     // Sisipkan amount (tag 54) sebelum country code "5802ID"
     const splitMarker = '5802ID';
     const parts = base?.split(splitMarker);
-    if (parts?.length! < 2) {
+    if (parts?.length < 2) {
       throw new Error('QRIS tidak valid: marker "5802ID" tidak ditemukan.');
     }
 
