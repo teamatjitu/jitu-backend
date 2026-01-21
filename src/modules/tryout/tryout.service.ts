@@ -3,14 +3,21 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
 import { SubtestName } from '../../../generated/prisma/client';
+import { ExamService } from '../exam/exam.service';
 
 @Injectable()
 export class TryoutService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => ExamService))
+    private readonly examService: ExamService,
+  ) {}
 
   /**
    * Helper: Map TryOut entity -> TryoutDetailDto
@@ -67,6 +74,106 @@ export class TryoutService {
         }),
       benefits: ['Pembahasan lengkap', 'Analisis hasil', 'Simulasi UTBK'],
       requirements: ['Akun terverifikasi', 'Token mencukupi'],
+    };
+  }
+
+  async registerTryout(userId: string, tryoutId: string) {
+    // 1. Cek Tryout
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id: tryoutId },
+    });
+    if (!tryout) throw new NotFoundException('Tryout tidak ditemukan');
+
+    // 2. Cek apakah user sudah terdaftar (punya attempt apa saja)
+    const existingAttempt = await this.prisma.tryOutAttempt.findFirst({
+      where: { userId, tryOutId: tryoutId },
+    });
+
+    if (existingAttempt) {
+      // Sudah terdaftar, kembalikan attemptId yang ada
+      return {
+        message: 'User sudah terdaftar pada tryout ini',
+        attemptId: existingAttempt.id,
+        isRegistered: true,
+      };
+    }
+
+    const price = tryout.solutionPrice;
+
+    // 3. Jika Gratis (Price <= 0)
+    if (price <= 0) {
+      const newAttempt = await this.prisma.tryOutAttempt.create({
+        data: {
+          userId,
+          tryOutId: tryoutId,
+          status: 'NOT_STARTED',
+          totalScore: 0,
+          currentSubtestOrder: 0,
+        },
+      });
+      return {
+        message: 'Berhasil mendaftar tryout gratis',
+        attemptId: newAttempt.id,
+        isRegistered: true,
+      };
+    }
+
+    // 4. Jika Berbayar
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { tokenBalance: true },
+    });
+
+    if (!user || user.tokenBalance < price) {
+      throw new BadRequestException('Saldo Token tidak mencukupi untuk mendaftar tryout ini');
+    }
+
+    // Transaksi pembayaran & pendaftaran
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Potong Saldo
+      await tx.user.update({
+        where: { id: userId },
+        data: { tokenBalance: { decrement: price } },
+      });
+
+      // Catat Transaksi
+      await tx.tokenTransaction.create({
+        data: {
+          userId,
+          amount: -price,
+          type: 'PURCHASE_TRYOUT',
+          referenceId: tryoutId,
+        },
+      });
+
+      // Buat Attempt (Registration)
+      const attempt = await tx.tryOutAttempt.create({
+        data: {
+          userId,
+          tryOutId: tryoutId,
+          status: 'NOT_STARTED',
+          totalScore: 0,
+          currentSubtestOrder: 0,
+        },
+      });
+
+      // [FIX] Unlock Pembahasan Otomatis jika berbayar
+      // Karena user sudah membayar di awal (registration fee),
+      // maka pembahasan harusnya include.
+      await tx.unlockedSolution.create({
+        data: {
+          userId,
+          tryOutId: tryoutId,
+        },
+      });
+      
+      return attempt;
+    });
+
+    return {
+      message: 'Berhasil mendaftar tryout berbayar',
+      attemptId: result.id,
+      isRegistered: true,
     };
   }
 
@@ -134,6 +241,8 @@ export class TryoutService {
       canEdit: false,
       participants: t._count.attempts,
       badge: t.batch,
+      solutionPrice: t.solutionPrice, // Add solutionPrice
+      isPublic: t.isPublic,
     }));
   }
 
@@ -186,26 +295,43 @@ export class TryoutService {
     }
 
     let latestFinishedAttemptId: string | null = null;
-    let latestAttemptStatus: 'IN_PROGRESS' | 'FINISHED' | null = null;
+    let latestAttemptStatus:
+      | 'IN_PROGRESS'
+      | 'FINISHED'
+      | 'NOT_STARTED'
+      | null = null;
+    let latestAttemptId: string | null = null;
+    let currentSubtestOrder = 1;
+    let latestScore = 0;
 
     if (userId) {
       const latestAttempt = await this.prisma.tryOutAttempt.findFirst({
         where: { userId, tryOutId: id },
         orderBy: { startedAt: 'desc' },
-        select: { status: true },
+        select: { id: true, status: true, currentSubtestOrder: true },
       });
       latestAttemptStatus = (latestAttempt?.status as any) ?? null;
+      latestAttemptId = latestAttempt?.id ?? null;
+      currentSubtestOrder = latestAttempt?.currentSubtestOrder ?? 1;
 
       const latestFinished = await this.prisma.tryOutAttempt.findFirst({
         where: { userId, tryOutId: id, status: 'FINISHED' },
         orderBy: { finishedAt: 'desc' },
-        select: { id: true },
+        select: { id: true, totalScore: true },
       });
       latestFinishedAttemptId = latestFinished?.id ?? null;
+      latestScore = latestFinished?.totalScore ? Math.round(latestFinished.totalScore) : 0;
     }
 
     const dto = this.mapTryoutToDto(tryout, answeredQuestionIds);
-    return { ...dto, latestFinishedAttemptId, latestAttemptStatus };
+    return {
+      ...dto,
+      latestFinishedAttemptId,
+      latestAttemptStatus,
+      latestAttemptId,
+      currentSubtestOrder,
+      latestScore,
+    };
   }
 
   async getSubtestQuestions(
@@ -263,10 +389,13 @@ export class TryoutService {
       );
 
       if (new Date() > expiryTime) {
-        currentAttempt = await this.prisma.tryOutAttempt.update({
-          where: { id: currentAttempt.id },
-          data: { status: 'FINISHED', finishedAt: expiryTime },
-          include: { tryOut: { include: { subtests: true } } },
+        // Gunakan ExamService untuk finish agar logic skor konsisten
+        currentAttempt = await this.examService.finishExam(currentAttempt.id);
+        
+        // Reload attempt dengan relation yang dibutuhkan
+        currentAttempt = await this.prisma.tryOutAttempt.findUnique({
+            where: { id: currentAttempt.id },
+            include: { tryOut: { include: { subtests: true } } },
         });
       }
     }
@@ -282,23 +411,26 @@ export class TryoutService {
 
     const isReviewMode = currentAttempt.status === 'FINISHED';
 
-    // --- PROTEKSI PEMBAHASAN BERBAYAR ---
-    if (isReviewMode) {
-      const tryout = await this.prisma.tryOut.findUnique({
-        where: { id: tryOutId },
-        select: { solutionPrice: true },
-      });
+    // [SECURITY] Cegah skip subtest atau akses subtest masa lalu/depan
+    // Standar UTBK: User HANYA boleh ada di subtes yang sedang aktif.
+    if (!isReviewMode && currentAttempt.status === 'IN_PROGRESS') {
+        const requestedOrder = subtest.order;
+        const currentOrder = currentAttempt.currentSubtestOrder;
 
-      if (tryout && tryout.solutionPrice > 0) {
-        const isUnlocked = await this.prisma.unlockedSolution.findFirst({
-          where: { userId, tryOutId },
-        });
-        if (!isUnlocked) {
-          throw new ForbiddenException(
-            'Pembahasan terkunci. Silakan beli terlebih dahulu.',
-          );
+        if (requestedOrder !== currentOrder) {
+            throw new ForbiddenException(
+                requestedOrder < currentOrder 
+                ? `Waktu subtes ini sudah habis. Kamu tidak bisa kembali.`
+                : `Kamu belum bisa mengerjakan subtes ini. Selesaikan subtes sebelumnya dahulu.`
+            );
         }
-      }
+    }
+
+    // --- PROTEKSI PEMBAHASAN BERBAYAR ---
+    // User yang sudah terdaftar (isRegistered) otomatis bisa melihat pembahasan
+    // karena pembayaran dilakukan di awal saat pendaftaran (registerTryout).
+    if (isReviewMode) {
+      // Logic proteksi dihapus karena pembahasan sudah include saat pendaftaran.
     }
 
     const questions = await this.prisma.question.findMany({
@@ -312,7 +444,14 @@ export class TryoutService {
 
     const tryoutInfo = await this.prisma.tryOut.findUnique({
       where: { id: tryOutId },
-      select: { title: true },
+      include: {
+        subtests: {
+          include: {
+            _count: { select: { questions: true } },
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
     });
 
     return {
@@ -321,6 +460,13 @@ export class TryoutService {
       tryOutId,
       tryoutTitle: tryoutInfo?.title || 'Tryout',
       durationMinutes: subtest.durationMinutes,
+      allSubtests: tryoutInfo?.subtests.map((s) => ({
+        id: s.id,
+        name: s.name,
+        order: s.order,
+        durationMinutes: s.durationMinutes,
+        questionCount: s._count.questions,
+      })),
       questions: questions.map((q: any) => {
         const ua = q.userAnswers?.[0];
         const correctItem = q.items.find((i: any) => i.isCorrect);

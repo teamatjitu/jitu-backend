@@ -53,6 +53,8 @@ export class UserStatsDto {
   personalBest: number;
   weeklyActivity: number;
   totalFinished: number;
+  tokenBalance: number;
+  currentStreak: number;
 }
 
 export class SubmitDailyAnswerDto {
@@ -89,4 +91,18 @@ export class ActiveTryoutDto {
   progress: number;
   totalSubtests: number;
   endDate: Date | null;
+}
+
+export class OngoingTryoutDto {
+  id: string;
+  title: string;
+  description: string | null;
+  solutionPrice: number;
+  isPublic: boolean;
+  scheduledStart: Date | null;
+  createdAt: Date;
+  participants: number;
+  isRegistered: boolean;
+  status?: string; // IN_PROGRESS, FINISHED, NOT_STARTED
+  score?: number;
 }

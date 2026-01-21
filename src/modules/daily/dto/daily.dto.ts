@@ -13,6 +13,7 @@ export class SubmitDailyAnswerDto {
 export class DailyQuestionResponseDto {
   alreadyAnswered: boolean;
   isCorrect?: boolean;
+  userAnswer?: string; // Menyimpan jawaban user (ID option atau teks essai)
   question: {
     id: string;
     type: string;

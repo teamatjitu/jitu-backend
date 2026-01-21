@@ -11,9 +11,12 @@ import {
   SubmitDailyAnswerDto,
   ScoreDataDto,
   ActiveTryoutDto,
+  OngoingTryoutDto,
 } from './dto/dashboard.dto';
 
 enum TryoutStatus {
+  NOT_STARTED = 'NOT_STARTED',
+  IN_PROGRESS = 'IN_PROGRESS',
   FINISHED = 'FINISHED',
 }
 @Injectable()
@@ -81,8 +84,12 @@ export class DashboardService {
     const now = new Date();
     const oneWeekAgo = new Date(now.setDate(now.getDate() - 7));
 
-    const [lastAttempt, bestScore, weeklyActivity, totalFinished] =
+    const [user, lastAttempt, bestScore, weeklyActivity, totalFinished] =
       await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { tokenBalance: true, currentStreak: true },
+        }),
         this.prisma.tryOutAttempt.findFirst({
           where: { userId, status: TryoutStatus.FINISHED },
           orderBy: { finishedAt: 'desc' },
@@ -112,6 +119,8 @@ export class DashboardService {
         : 0,
       weeklyActivity: weeklyActivity,
       totalFinished: totalFinished,
+      tokenBalance: user?.tokenBalance || 0,
+      currentStreak: user?.currentStreak || 0,
     };
   }
 
@@ -241,11 +250,7 @@ export class DashboardService {
             question: {
               select: {
                 points: true,
-                subtest: {
-                  select: {
-                    name: true,
-                  },
-                },
+                subtest: true, // Ambil semua field subtest termasuk name
               },
             },
           },
@@ -265,9 +270,10 @@ export class DashboardService {
       };
 
       attempt.answers.forEach((answer) => {
-        if (answer.isCorrect) {
-          const subtestName = answer.question.subtest.name;
-          const points = answer.question.points;
+        if (answer.isCorrect && answer.question?.subtest?.name) {
+          const subtestName = answer.question.subtest.name.toUpperCase().trim();
+          const points = answer.question.points || 0;
+          
           if (subtestName === 'PU') scores.pu += points;
           if (subtestName === 'PPU') scores.ppu += points;
           if (subtestName === 'PBM') scores.pbm += points;
@@ -280,7 +286,7 @@ export class DashboardService {
 
       return {
         to: `TO ${attempt.tryOut.code}`,
-        total: Math.round(attempt.totalScore),
+        total: attempt.totalScore ? Math.round(attempt.totalScore) : 0, // Use stored totalScore
         ...scores,
       };
     });
@@ -332,5 +338,74 @@ export class DashboardService {
         endDate: tryout.tryOut.scheduledStart,
       };
     });
+  }
+
+  async getOngoingTryouts(userId: string): Promise<OngoingTryoutDto[]> {
+    const now = new Date();
+    const tryouts = await this.prisma.tryOut.findMany({
+      where: {
+        scheduledStart: { lte: now },
+      },
+      include: {
+        _count: {
+          select: { attempts: true },
+        },
+        attempts: {
+          where: { userId },
+          select: { id: true, status: true, totalScore: true }, // Select score
+          orderBy: { startedAt: 'desc' }, // Ambil attempt terbaru
+          take: 1,
+        },
+      },
+      orderBy: { scheduledStart: 'desc' },
+    });
+
+    return tryouts.map((t) => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      solutionPrice: t.solutionPrice,
+      isPublic: t.isPublic,
+      scheduledStart: t.scheduledStart,
+      createdAt: t.createdAt,
+      participants: t._count.attempts,
+      isRegistered: t.attempts.length > 0,
+      status: t.attempts.length > 0 ? t.attempts[0].status : undefined,
+      score: t.attempts.length > 0 ? t.attempts[0].totalScore : undefined, // Map score
+    }));
+  }
+
+  async getAvailableTryouts(userId: string): Promise<OngoingTryoutDto[]> {
+    const now = new Date();
+    const tryouts = await this.prisma.tryOut.findMany({
+      where: {
+        scheduledStart: { gt: now },
+      },
+      include: {
+        _count: {
+          select: { attempts: true },
+        },
+        attempts: {
+          where: { userId },
+          select: { id: true, status: true }, // Pastikan status di-select
+          orderBy: { startedAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: { scheduledStart: 'asc' },
+    });
+
+    return tryouts.map((t) => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      solutionPrice: t.solutionPrice,
+      isPublic: t.isPublic,
+      scheduledStart: t.scheduledStart,
+      createdAt: t.createdAt,
+      participants: t._count.attempts,
+      isRegistered: t.attempts.length > 0,
+      status: t.attempts.length > 0 ? t.attempts[0].status : undefined,
+    }));
   }
 }

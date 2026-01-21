@@ -11,25 +11,25 @@ export class ProfileService {
       where: { id: userId },
       include: {
         accounts: true,
-        tryOutAttempts: {
-          orderBy: { startedAt: 'desc' },
-          take: 5,
-          include: { tryOut: { select: { title: true, batch: true } } },
-        },
-        _count: { select: { tryOutAttempts: true } },
       },
     });
 
     if (!user) return null;
 
-    const totalScore = user.tryOutAttempts.reduce(
-      (acc, curr) => acc + curr.totalScore,
-      0,
-    );
-    const averageScore =
-      user.tryOutAttempts.length > 0
-        ? totalScore / user.tryOutAttempts.length
-        : 0;
+    // 1. Ambil 5 riwayat terakhir untuk list
+    const recentAttempts = await this.prisma.tryOutAttempt.findMany({
+      where: { userId },
+      orderBy: { startedAt: 'desc' },
+      take: 5,
+      include: { tryOut: { select: { title: true, batch: true } } },
+    });
+
+    // 2. Hitung statistik global (hanya yang FINISHED)
+    const stats = await this.prisma.tryOutAttempt.aggregate({
+      where: { userId, status: 'FINISHED' },
+      _avg: { totalScore: true },
+      _count: { _all: true },
+    });
 
     const hasPassword = user.accounts.some(
       (acc) =>
@@ -47,17 +47,18 @@ export class ProfileService {
         hasPassword,
       },
       stats: {
-        totalTryout: user._count.tryOutAttempts,
-        averageScore: Math.round(averageScore),
-        lastScore: user.tryOutAttempts[0]?.totalScore || 0,
+        totalTryout: stats._count._all || 0,
+        averageScore: Math.round(stats._avg.totalScore || 0),
+        lastScore:
+          recentAttempts.length > 0 ? recentAttempts[0].totalScore : 0,
         streak: user.currentStreak,
       },
-      attempts: user.tryOutAttempts.map((attempt) => ({
+      attempts: recentAttempts.map((attempt) => ({
         id: attempt.id,
         title: attempt.tryOut.title,
         date: attempt.startedAt,
         score: attempt.totalScore,
-        status: attempt.totalScore > 700 ? 'EXCELLENT' : 'COMPLETED',
+        status: attempt.status === 'FINISHED' ? (attempt.totalScore > 700 ? 'EXCELLENT' : 'COMPLETED') : 'ONGOING',
       })),
     };
   }

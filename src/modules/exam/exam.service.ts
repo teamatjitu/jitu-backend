@@ -4,7 +4,8 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service'; // Sesuaikan path ini jika perlu
-import { Observable, interval, map, switchMap, of } from 'rxjs';
+import { Observable, interval, map, switchMap, of, from } from 'rxjs';
+import { MessageEvent } from './interfaces';
 
 @Injectable()
 export class ExamService {
@@ -24,82 +25,111 @@ export class ExamService {
         status: 'IN_PROGRESS',
         totalScore: 0,
         startedAt: new Date(),
+        subtestStartedAt: new Date(),
+        currentSubtestOrder: 1,
+      },
+    });
+  }
+
+  async startSubtest(attemptId: string, order: number) {
+    // Pastikan attempt valid
+    const attempt = await this.prisma.tryOutAttempt.findUnique({
+      where: { id: attemptId },
+    });
+
+    if (!attempt || attempt.status !== 'IN_PROGRESS') {
+      throw new BadRequestException('Attempt tidak valid atau sudah selesai');
+    }
+
+    // [SECURITY] Cegah reset timer jika user refresh halaman di subtes yang sama
+    if (attempt.currentSubtestOrder === order) {
+      return attempt;
+    }
+
+    // Update waktu mulai subtes baru
+    return this.prisma.tryOutAttempt.update({
+      where: { id: attemptId },
+      data: {
+        currentSubtestOrder: order,
+        subtestStartedAt: new Date(),
       },
     });
   }
 
   // SSE untuk memperbarui waktu
-  // exam.service.ts
-
-  getExamStream(
-    attemptId: string,
-    currentOrder: number,
-  ): Observable<MessageEvent> {
-    return interval(1000).pipe(
-      switchMap(async () => {
-        const attempt = await this.prisma.tryOutAttempt.findUnique({
-          where: { id: attemptId },
-          include: {
-            tryOut: {
-              include: {
-                subtests: { orderBy: { order: 'asc' } }, // Pastikan urut
-              },
+  getExamStream(attemptId: string, order: number): Observable<MessageEvent> {
+    return from(
+      this.prisma.tryOutAttempt.findUnique({
+        where: { id: attemptId },
+        include: {
+          tryOut: {
+            include: {
+              subtests: { orderBy: { order: 'asc' } },
             },
           },
-        });
-
-        if (!attempt || attempt.status !== 'IN_PROGRESS') {
-          return { data: { status: 'FINISHED', remainingSeconds: 0 } };
-        }
-
-        // 1. Hitung durasi kumulatif sampai subtes saat ini
-        // Misal: user di subtes order 2, maka total menit = durasi subtes 1 + subtes 2
-        const cumulativeMinutes = attempt.tryOut.subtests
-          .filter((sub) => sub.order <= currentOrder)
-          .reduce((acc, sub) => acc + sub.durationMinutes, 0);
-
-        // 2. Tentukan waktu berakhir untuk SUBTES INI
-        const subtestEndTime = new Date(
-          attempt.startedAt.getTime() + cumulativeMinutes * 60000,
-        );
-
-        const now = new Date();
-
-        // 3. Hitung sisa waktu
-        const remainingSeconds = Math.max(
-          0,
-          Math.floor((subtestEndTime.getTime() - now.getTime()) / 1000),
-        );
-
-        // 4. Jika waktu habis untuk subtes ini
-        if (remainingSeconds === 0) {
-          // Cek apakah ini subtes terakhir
-          const maxOrder = Math.max(
-            ...attempt.tryOut.subtests.map((s) => s.order),
-          );
-
-          if (currentOrder >= maxOrder) {
-            await this.finishExam(attemptId);
-            return { data: { status: 'FINISHED', remainingSeconds: 0 } };
-          } else {
-            // Kirim status agar frontend otomatis pindah subtes
-            return {
-              data: { status: 'SUBTEST_FINISHED', remainingSeconds: 0 },
-            };
-          }
-        }
-
-        return {
-          data: {
-            status: 'IN_PROGRESS',
-            remainingSeconds,
-            serverTime: new Date().toISOString(),
-          },
-        };
+        },
       }),
-      map((data) => ({ data }) as MessageEvent),
+    ).pipe(
+      switchMap((attempt) => {
+        if (!attempt || attempt.status !== 'IN_PROGRESS') {
+          return of({
+            data: { status: 'FINISHED', remainingSeconds: 0 },
+          } as MessageEvent);
+        }
+
+        // Cari subtes yang sedang aktif berdasarkan order yang diminta
+        // Note: order parameter di sini idealnya match dengan attempt.currentSubtestOrder
+        // Tapi untuk robustness, kita ambil subtes sesuai order yang diminta frontend
+        // atau fallback ke currentSubtestOrder dari DB
+        const activeOrder = order || attempt.currentSubtestOrder;
+        const currentSubtest = attempt.tryOut.subtests.find(
+          (s) => s.order === activeOrder,
+        );
+
+        if (!currentSubtest) {
+          return of({
+            data: { status: 'ERROR', remainingSeconds: 0 },
+          } as MessageEvent);
+        }
+
+        // Waktu mulai subtes ini (gunakan subtestStartedAt jika ada, fallback ke startedAt untuk subtes pertama)
+        // Perbaikan: subtestStartedAt harusnya di-set setiap ganti subtes.
+        // Jika null (legacy data), pakai startedAt.
+        const startTime = attempt.subtestStartedAt
+          ? attempt.subtestStartedAt.getTime()
+          : attempt.startedAt.getTime();
+
+        const durationMs = currentSubtest.durationMinutes * 60000;
+        const endTime = startTime + durationMs;
+
+        return interval(1000).pipe(
+          switchMap(async () => {
+            const now = new Date();
+            const remainingSeconds = Math.max(
+              0,
+              Math.floor((endTime - now.getTime()) / 1000),
+            );
+
+            if (remainingSeconds === 0) {
+              // Jangan finishExam dulu, cuma kirim sinyal subtes selesai
+              return {
+                data: { status: 'SUBTEST_FINISHED', remainingSeconds: 0 },
+              } as MessageEvent;
+            }
+
+            return {
+              data: {
+                status: 'IN_PROGRESS',
+                remainingSeconds,
+                serverTime: now.toISOString(),
+              },
+            } as MessageEvent;
+          }),
+        );
+      }),
     );
   }
+
   // --- PERBAIKAN UTAMA DI SINI ---
   async saveAnswer(
     attemptId: string,
@@ -116,6 +146,20 @@ export class ExamService {
     });
 
     try {
+      // [SECURITY] Validasi status attempt sebelum menyimpan jawaban
+      const attempt = await this.prisma.tryOutAttempt.findUnique({
+        where: { id: attemptId },
+        select: { status: true },
+      });
+
+      if (!attempt) {
+        throw new BadRequestException('Attempt tidak ditemukan');
+      }
+
+      if (attempt.status === 'FINISHED') {
+        throw new BadRequestException('Ujian sudah selesai, tidak bisa menyimpan jawaban.');
+      }
+
       let isCorrect = false;
 
       // VALIDASI 1: Pilihan Ganda / Benar-Salah

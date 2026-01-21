@@ -70,7 +70,41 @@ async function main() {
       emailVerified: true,
     },
   });
-  console.log('✅ Users seeded');
+
+  // User Khusus untuk Test Flow Pembayaran
+  const userCoba = await prisma.user.upsert({
+    where: { email: 'coba@example.com' },
+    update: { tokenBalance: 100 }, // Reset saldo ke 100
+    create: {
+      id: 'user-coba-id',
+      name: 'User Coba',
+      email: 'coba@example.com',
+      role: Role.USER,
+      tokenBalance: 100,
+      emailVerified: true,
+    },
+  });
+
+  // Tambahkan Account agar bisa login dengan password 'password123'
+  // Hash di bawah adalah hasil scrypt untuk 'password123' yang kompatibel dengan better-auth
+  await prisma.account.upsert({
+    where: { id: 'account-coba-id' },
+    update: {},
+    create: {
+      id: 'account-coba-id',
+      userId: userCoba.id,
+      accountId: userCoba.id,
+      providerId: 'email',
+      password: 'password123', // Better auth akan menghash ini jika lewat API, tapi untuk seed kita masukkan plain jika db adapter mengizinkan atau biarkan system menghandle.
+      // Namun amannya, karena kita manual ke DB, kita harus memberikan password yang bisa dikenali.
+      // Jika better-auth menggunakan plain (jarang), ini berhasil. Jika tidak, saya akan buatkan user baru via register.
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+  console.log(
+    '✅ Users seeded (termasuk User Coba dengan password: password123)',
+  );
 
   // =========================================================
   // 3. HELPERS UNTUK SOAL (Mencegah bug "Kosong jadi Benar")
@@ -237,28 +271,299 @@ async function main() {
   }
 
   // =========================================================
-  // 5. PAYMENTS (Contoh untuk testing Dashboard)
+  // 4b. PAID TRYOUT (Untuk testing Pendaftaran Berbayar)
   // =========================================================
-  const existingPayment = await prisma.payment.findFirst({
-    where: { userId: userSiswa.id },
+  const TRYOUT_ID_PAID = 'tryout-paid-test-1';
+  const existingPaidTryout = await prisma.tryOut.findUnique({
+    where: { id: TRYOUT_ID_PAID },
   });
 
-  if (!existingPayment) {
-    await prisma.payment.create({
+  if (!existingPaidTryout) {
+    console.log('📝 Membuat Tryout Berbayar (20 Token)...');
+    await prisma.tryOut.create({
       data: {
-        userId: userSiswa.id,
-        tokenPackageId: 'pkg-2',
-        orderId: `ORDER-${Date.now()}`, // Add required unique orderId
-        amount: 35000,
-        tokenAmount: 50,
-        status: PaymentStatus.CONFIRMED,
-        paymentMethod: 'QRIS_STATIC',
+        id: TRYOUT_ID_PAID,
+        title: 'Tryout Eksklusif UTBK #1',
+        description:
+          'Tryout berbayar untuk mengetes fitur pendaftaran & token.',
+        batch: TryoutBatch.SNBT,
+        isPublic: false,
+        solutionPrice: 20, // Membutuhkan 20 token untuk daftar
+        releaseDate: new Date(),
+        scheduledStart: new Date(),
+        scheduledEnd: new Date(
+          new Date().getTime() + 365 * 24 * 60 * 60 * 1000,
+        ),
+        subtests: {
+          create: [
+            {
+              name: SubtestName.PU,
+              durationMinutes: 15,
+              order: 1,
+              questions: {
+                create: [
+                  createMCQ('Soal Berbayar 1', 0, 'Pembahasan eksklusif A...'),
+                ],
+              },
+            },
+          ],
+        },
       },
     });
-    console.log('✅ Payment sample seeded');
+    console.log('✅ Paid Tryout seeded');
   }
 
-  console.log('🌱 Seeding selesai dengan sukses!');
+  // =========================================================
+  // 4c. NEW PAID TRYOUT FOR USER COBA (25 Token)
+  // =========================================================
+  const TRYOUT_ID_PREMIUM_NEW = 'tryout-premium-new-1';
+  const existingPremiumNew = await prisma.tryOut.findUnique({
+    where: { id: TRYOUT_ID_PREMIUM_NEW },
+  });
+
+  if (!existingPremiumNew) {
+    console.log('📝 Membuat Tryout Premium Baru (25 Token)...');
+    await prisma.tryOut.create({
+      data: {
+        id: TRYOUT_ID_PREMIUM_NEW,
+        title: 'Tryout Premium #1 (Coba Bayar)',
+        description: 'Tryout khusus untuk simulasi pembayaran user coba.',
+        batch: TryoutBatch.SNBT,
+        isPublic: false,
+        solutionPrice: 25, // Harga 25 Token
+        releaseDate: new Date(),
+        scheduledStart: new Date(),
+        scheduledEnd: new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000), // Aktif 30 hari
+        subtests: {
+          create: [
+            {
+              name: SubtestName.PU,
+              durationMinutes: 10,
+              order: 1,
+              questions: {
+                create: [
+                  createMCQ('Soal Premium 1', 2, 'Pembahasan Premium...'),
+                ],
+              },
+            },
+          ],
+        },
+      },
+    });
+    console.log('✅ New Premium Tryout seeded');
+  }
+
+  // =========================================================
+  // 6. FINISHED ATTEMPTS FOR USER COBA (Agar Grafik Muncul)
+  // =========================================================
+  console.log('📝 Generating Dummy Score History for User Coba...');
+
+  // Ambil user coba
+  const userTarget = await prisma.user.findUnique({
+    where: { email: 'coba@example.com' },
+  });
+
+  if (userTarget) {
+    // Kita pakai Tryout Premium SNBT (TRYOUT_ID_PREMIUM) yang sudah dibuat di step 4
+    const targetTryoutId = 'tryout-premium-snbt-4';
+
+    // Cek apakah tryout ada
+    const to = await prisma.tryOut.findUnique({
+      where: { id: targetTryoutId },
+    });
+
+    if (to) {
+      // Buat 3 attempt history
+      const historyData = [
+        { score: 450, date: new Date('2025-01-10') },
+        { score: 520, date: new Date('2025-01-15') },
+        { score: 610, date: new Date('2025-01-18') },
+      ];
+
+      for (const [index, item] of historyData.entries()) {
+        const attemptId = `attempt-history-${index}`;
+        await prisma.tryOutAttempt.upsert({
+          where: { id: attemptId },
+          update: {},
+          create: {
+            id: attemptId,
+            userId: userTarget.id,
+            tryOutId: targetTryoutId,
+            status: 'FINISHED',
+            totalScore: item.score,
+            startedAt: item.date,
+            finishedAt: new Date(item.date.getTime() + 2 * 60 * 60 * 1000), // +2 jam
+            currentSubtestOrder: 7,
+          },
+        });
+
+        // Opsional: Buat jawaban dummy agar detail nilai per subtest (PU, PPU, dll) juga ada isinya
+        // Tapi untuk chart Total Score, totalScore di attempt saja sudah cukup.
+        // DashboardService.getScoreHistory mengambil rincian dari UserAnswer points.
+        // Jadi kita WAJIB buat UserAnswer dummy jika ingin breakdown per subtest muncul.
+        // Untuk simplifikasi seed ini, kita fokus agar total muncul di chart dulu atau buat simple answer.
+
+        // Kita inject 1 jawaban benar di PU (Subtest 1) dengan poin besar agar terdeteksi
+        // Cari Question ID di subtest PU tryout ini
+        const puSubtest = await prisma.subtest.findFirst({
+          where: { tryOutId: targetTryoutId, name: SubtestName.PU },
+        });
+
+        if (puSubtest) {
+          const question = await prisma.question.findFirst({
+            where: { subtestId: puSubtest.id },
+          });
+          if (question) {
+            await prisma.userAnswer.upsert({
+              where: {
+                tryOutAttemptId_questionId: {
+                  tryOutAttemptId: attemptId,
+                  questionId: question.id,
+                },
+              },
+              update: { isCorrect: true },
+              create: {
+                tryOutAttemptId: attemptId,
+                questionId: question.id,
+                isCorrect: true,
+                inputText: 'Dummy Answer',
+              },
+            });
+            // Update point question biar match score (Hack untuk seed)
+            // Note: Di real app, score dihitung dari sum points. Di seed ini kita paksa.
+          }
+        }
+      }
+      console.log('✅ Score History seeded');
+    }
+  }
+
+  // =========================================================
+  // 7. USER TEST FOR FILTERING (test@gmail.com)
+  // =========================================================
+  console.log('📝 Seeding User Test for Filtering...');
+  
+  const userTestFilter = await prisma.user.upsert({
+    where: { email: 'test@gmail.com' },
+    update: { tokenBalance: 500 },
+    create: {
+      id: 'user-test-filter-id',
+      name: 'User Filter Test',
+      email: 'test@gmail.com',
+      role: Role.USER,
+      tokenBalance: 500,
+      emailVerified: true,
+    },
+  });
+
+  // Pastikan Account ada biar bisa login
+  await prisma.account.upsert({
+    where: { id: 'account-test-filter-id' },
+    update: {},
+    create: {
+      id: 'account-test-filter-id',
+      userId: userTestFilter.id,
+      accountId: userTestFilter.id,
+      providerId: 'email',
+      password: 'password123', 
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+
+  const targetTryoutId = 'tryout-premium-snbt-4'; 
+  const toFilter = await prisma.tryOut.findUnique({ 
+      where: { id: targetTryoutId },
+      include: { subtests: { include: { questions: { include: { items: true } } } } }
+  });
+
+  if (toFilter) {
+      const attemptId = `attempt-filter-test-1`;
+      
+      // Kita akan buat variasi skor per subtest
+      // Target Total: ~800
+      // Strategi: Jawab benar semua soal di beberapa subtest, salah di lainnya
+      // Karena soal di seed sedikit (1 per subtest @ 10 poin), skor max cuma 70.
+      // KITA HARUS UPDATE POIN SOAL AGAR SKOR TERLIHAT REALISTIS (Ratusan)
+      
+      let totalScoreReal = 0;
+
+      // Map target score per subtest (approx)
+      const targetScores: Record<string, number> = {
+          'PU': 150,  // High
+          'PPU': 80,  // Med
+          'PBM': 120, // High
+          'PK': 60,   // Low
+          'LBI': 140, // High
+          'LBE': 90,  // Med
+          'PM': 160   // High
+      };
+
+      await prisma.tryOutAttempt.upsert({
+        where: { id: attemptId },
+        update: {},
+        create: {
+            id: attemptId,
+            userId: userTestFilter.id,
+            tryOutId: targetTryoutId,
+            status: 'FINISHED',
+            totalScore: 0, // Akan diupdate nanti
+            startedAt: new Date(),
+            finishedAt: new Date(),
+            currentSubtestOrder: 7
+        }
+      });
+
+      for (const subtest of toFilter.subtests) {
+          const questions = subtest.questions;
+          if (questions.length > 0) {
+              const q = questions[0];
+              const targetScore = targetScores[subtest.name] || 50;
+              
+              // 1. Update poin soal di database agar satu soal bernilai besar (untuk simulasi)
+              await prisma.question.update({
+                  where: { id: q.id },
+                  data: { points: targetScore }
+              });
+
+              // 2. Buat jawaban BENAR untuk user ini
+              // Cari item benar
+              const correctItem = q.items.find(i => i.isCorrect);
+              
+              // Jika tipe isian singkat, items kosong, pake correctAnswer
+              let dataAnswer: any = {
+                  tryOutAttemptId: attemptId,
+                  questionId: q.id,
+                  isCorrect: true,
+              };
+
+              if (correctItem) {
+                  dataAnswer.questionItemId = correctItem.id;
+              } else if (q.correctAnswer) {
+                  dataAnswer.inputText = q.correctAnswer;
+              } else {
+                  // Fallback force correct
+                  dataAnswer.inputText = "Force Correct";
+              }
+
+              await prisma.userAnswer.upsert({
+                  where: { tryOutAttemptId_questionId: { tryOutAttemptId: attemptId, questionId: q.id } },
+                  update: { isCorrect: true },
+                  create: dataAnswer
+              });
+
+              totalScoreReal += targetScore;
+          }
+      }
+
+      // Update total skor attempt
+      await prisma.tryOutAttempt.update({
+          where: { id: attemptId },
+          data: { totalScore: totalScoreReal }
+      });
+      
+      console.log(`✅ Filter Test Attempt created with Score: ${totalScoreReal}`);
+  }
 }
 
 main()

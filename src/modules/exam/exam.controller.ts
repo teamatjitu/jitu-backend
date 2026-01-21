@@ -1,17 +1,19 @@
-import { Controller, Get, Post, Body, Param, Sse } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Sse,
+  UseGuards,
+} from '@nestjs/common';
 import { ExamService } from './exam.service';
 import { Observable } from 'rxjs';
-import { Public } from '@thallesp/nestjs-better-auth';
+import { AuthGuard } from '@thallesp/nestjs-better-auth'; // [FIX] Hapus import Public dari thallesp
+import { MessageEvent } from './interfaces';
 
-export interface MessageEvent {
-  data: string | object;
-  id?: string;
-  type?: string;
-  retry?: number;
-}
-
-@Public()
 @Controller('exam')
+@UseGuards(AuthGuard)
 export class ExamController {
   constructor(private readonly examService: ExamService) {}
 
@@ -21,6 +23,14 @@ export class ExamController {
     @Body('userId') userId: string,
   ) {
     return this.examService.startExam(tryoutId, userId);
+  }
+
+  @Post(':attemptId/start-subtest')
+  async startSubtest(
+    @Param('attemptId') attemptId: string,
+    @Body('subtestOrder') subtestOrder: number,
+  ) {
+    return this.examService.startSubtest(attemptId, subtestOrder);
   }
 
   @Post(':attemptId/answer')
