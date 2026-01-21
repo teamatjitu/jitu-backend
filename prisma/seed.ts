@@ -104,7 +104,7 @@ async function main() {
   // =========================================================
   // 4. TRYOUTS (Cek keberadaan sebelum create agar data lama aman)
   // =========================================================
-  const TRYOUT_ID_PREMIUM = 'tryout-premium-snbt-4';
+  const TRYOUT_ID_PREMIUM = 'tryout-premium-snbt-8';
 
   const existingTryout = await prisma.tryOut.findUnique({
     where: { id: TRYOUT_ID_PREMIUM },
@@ -151,6 +151,11 @@ async function main() {
                   createMCQ(
                     'Soal PPU 1',
                     1,
+                    'Makna kata pada pilihan B adalah...',
+                  ),
+                  createMCQ(
+                    'Soal PPU 2',
+                    2,
                     'Makna kata pada pilihan B adalah...',
                   ),
                 ],
