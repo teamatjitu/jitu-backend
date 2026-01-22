@@ -98,81 +98,20 @@ export class TryoutService {
       };
     }
 
-    const price = tryout.solutionPrice;
-
-    // 3. Jika Gratis (Price <= 0)
-    if (price <= 0) {
-      const newAttempt = await this.prisma.tryOutAttempt.create({
-        data: {
-          userId,
-          tryOutId: tryoutId,
-          status: 'NOT_STARTED',
-          totalScore: 0,
-          currentSubtestOrder: 0,
-        },
-      });
-      return {
-        message: 'Berhasil mendaftar tryout gratis',
-        attemptId: newAttempt.id,
-        isRegistered: true,
-      };
-    }
-
-    // 4. Jika Berbayar
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { tokenBalance: true },
-    });
-
-    if (!user || user.tokenBalance < price) {
-      throw new BadRequestException('Saldo Token tidak mencukupi untuk mendaftar tryout ini');
-    }
-
-    // Transaksi pembayaran & pendaftaran
-    const result = await this.prisma.$transaction(async (tx) => {
-      // Potong Saldo
-      await tx.user.update({
-        where: { id: userId },
-        data: { tokenBalance: { decrement: price } },
-      });
-
-      // Catat Transaksi
-      await tx.tokenTransaction.create({
-        data: {
-          userId,
-          amount: -price,
-          type: 'PURCHASE_TRYOUT',
-          referenceId: tryoutId,
-        },
-      });
-
-      // Buat Attempt (Registration)
-      const attempt = await tx.tryOutAttempt.create({
-        data: {
-          userId,
-          tryOutId: tryoutId,
-          status: 'NOT_STARTED',
-          totalScore: 0,
-          currentSubtestOrder: 0,
-        },
-      });
-
-      // [FIX] Unlock Pembahasan Otomatis jika berbayar
-      // Karena user sudah membayar di awal (registration fee),
-      // maka pembahasan harusnya include.
-      await tx.unlockedSolution.create({
-        data: {
-          userId,
-          tryOutId: tryoutId,
-        },
-      });
-      
-      return attempt;
+    // 3. Buat attempt baru karena pendaftaran selalu gratis
+    const newAttempt = await this.prisma.tryOutAttempt.create({
+      data: {
+        userId,
+        tryOutId: tryoutId,
+        status: 'NOT_STARTED',
+        totalScore: 0,
+        currentSubtestOrder: 0,
+      },
     });
 
     return {
-      message: 'Berhasil mendaftar tryout berbayar',
-      attemptId: result.id,
+      message: 'Berhasil mendaftar tryout',
+      attemptId: newAttempt.id,
       isRegistered: true,
     };
   }
@@ -427,10 +366,23 @@ export class TryoutService {
     }
 
     // --- PROTEKSI PEMBAHASAN BERBAYAR ---
-    // User yang sudah terdaftar (isRegistered) otomatis bisa melihat pembahasan
-    // karena pembayaran dilakukan di awal saat pendaftaran (registerTryout).
+    let showSolution = false;
     if (isReviewMode) {
-      // Logic proteksi dihapus karena pembahasan sudah include saat pendaftaran.
+      const tryout = await this.prisma.tryOut.findUnique({
+        where: { id: tryOutId },
+        select: { solutionPrice: true },
+      });
+
+      if (tryout && tryout.solutionPrice > 0) {
+        const unlocked = await this.prisma.unlockedSolution.findFirst({
+          where: { userId, tryOutId },
+        });
+        if (unlocked) {
+          showSolution = true;
+        }
+      } else if (tryout && tryout.solutionPrice <= 0) {
+        showSolution = true;
+      }
     }
 
     const questions = await this.prisma.question.findMany({
@@ -475,23 +427,23 @@ export class TryoutService {
           id: q.id,
           type: q.type,
           questionText: q.content,
-          solution: isReviewMode
+          solution: showSolution
             ? q.explanation || 'Tidak ada pembahasan.'
             : null,
-          correctAnswerText: isReviewMode ? q.correctAnswer : null,
+          correctAnswerText: showSolution ? q.correctAnswer : null,
           // FIX: Agar soal kosong tidak dianggap benar (null === null)
-          correctAnswerId: isReviewMode ? (correctItem?.id ?? 'NO_KEY') : null,
+          correctAnswerId: showSolution ? (correctItem?.id ?? 'NO_KEY') : null,
           options: q.items.map((i: any) => ({
             id: i.id,
             text: i.content,
             order: i.order,
-            isCorrect: isReviewMode ? i.isCorrect : undefined,
+            isCorrect: showSolution ? i.isCorrect : undefined,
           })),
           userAnswer: ua
             ? {
                 questionItemId: ua.questionItemId,
                 inputText: ua.inputText,
-                isCorrect: isReviewMode ? ua.isCorrect : false,
+                isCorrect: showSolution ? ua.isCorrect : false,
               }
             : {
                 questionItemId: null,

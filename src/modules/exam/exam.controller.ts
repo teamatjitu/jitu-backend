@@ -59,6 +59,8 @@ export class ExamController {
     return this.examService.getExamStream(attemptId, Number(order));
   }
 
+
+
   @Post(':attemptId/finish')
   async finish(@Param('attemptId') attemptId: string) {
     return this.examService.finishExam(attemptId);

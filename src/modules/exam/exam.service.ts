@@ -12,12 +12,39 @@ export class ExamService {
   constructor(private prisma: PrismaService) {}
 
   async startExam(tryOutId: string, userId: string) {
-    const existing = await this.prisma.tryOutAttempt.findFirst({
-      where: { userId, tryOutId, status: 'IN_PROGRESS' },
+    // 1. Find ANY existing attempt for this user and tryout.
+    const existingAttempt = await this.prisma.tryOutAttempt.findFirst({
+      where: { userId, tryOutId },
+      orderBy: { startedAt: 'desc' }, // Get the latest one if multiple somehow exist
     });
 
-    if (existing) return existing;
+    // 2. If an attempt already exists
+    if (existingAttempt) {
+      // If it's already in progress, just return it.
+      if (existingAttempt.status === 'IN_PROGRESS') {
+        return existingAttempt;
+      }
+      // If it's not started, update it to IN_PROGRESS and return it.
+      if (existingAttempt.status === 'NOT_STARTED') {
+        return this.prisma.tryOutAttempt.update({
+          where: { id: existingAttempt.id },
+          data: {
+            status: 'IN_PROGRESS',
+            startedAt: new Date(),
+            subtestStartedAt: new Date(),
+            currentSubtestOrder: 1, // Ensure it starts from the beginning
+          },
+        });
+      }
+      // If it's finished, user should not be able to start it again via this endpoint.
+      // This case should be handled by frontend logic (e.g., showing 'View Results' instead of 'Start').
+      // However, as a safeguard, we prevent creating a new one.
+      if (existingAttempt.status === 'FINISHED') {
+         throw new BadRequestException('Ujian sudah selesai. Tidak dapat memulai lagi.');
+      }
+    }
 
+    // 3. If no attempt exists at all, create a new one.
     return this.prisma.tryOutAttempt.create({
       data: {
         userId,
@@ -129,6 +156,8 @@ export class ExamService {
       }),
     );
   }
+
+
 
   // --- PERBAIKAN UTAMA DI SINI ---
   async saveAnswer(

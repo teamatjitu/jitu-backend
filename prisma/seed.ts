@@ -106,6 +106,20 @@ async function main() {
     '✅ Users seeded (termasuk User Coba dengan password: password123)',
   );
 
+  const userAdjie = await prisma.user.upsert({
+    where: { email: 'adjiesidja20@gmail.com' },
+    update: { tokenBalance: 9999 },
+    create: {
+      id: 'user-adjie-test-id',
+      name: 'Adjie Sidaja Test',
+      email: 'adjiesidja20@gmail.com',
+      role: Role.USER,
+      tokenBalance: 9999,
+      emailVerified: true,
+    },
+  });
+  console.log('✅ User adjiesidja20@gmail.com seeded with 9999 tokens');
+
   // =========================================================
   // 3. HELPERS UNTUK SOAL (Mencegah bug "Kosong jadi Benar")
   // =========================================================
@@ -138,7 +152,7 @@ async function main() {
   // =========================================================
   // 4. TRYOUTS (Cek keberadaan sebelum create agar data lama aman)
   // =========================================================
-  const TRYOUT_ID_PREMIUM = 'tryout-premium-snbt-8';
+  const TRYOUT_ID_PREMIUM = 'tryout-premium-snbt-17';
 
   const existingTryout = await prisma.tryOut.findUnique({
     where: { id: TRYOUT_ID_PREMIUM },
@@ -316,7 +330,7 @@ async function main() {
   // =========================================================
   // 4c. NEW PAID TRYOUT FOR USER COBA (25 Token)
   // =========================================================
-  const TRYOUT_ID_PREMIUM_NEW = 'tryout-premium-new-1';
+  const TRYOUT_ID_PREMIUM_NEW = 'tryout-premium-new-2';
   const existingPremiumNew = await prisma.tryOut.findUnique({
     where: { id: TRYOUT_ID_PREMIUM_NEW },
   });
