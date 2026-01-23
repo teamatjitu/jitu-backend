@@ -125,7 +125,9 @@ export class TryoutService {
     });
 
     if (!user || user.tokenBalance < price) {
-      throw new BadRequestException('Saldo Token tidak mencukupi untuk mendaftar tryout ini');
+      throw new BadRequestException(
+        'Saldo Token tidak mencukupi untuk mendaftar tryout ini',
+      );
     }
 
     // Transaksi pembayaran & pendaftaran
@@ -166,7 +168,7 @@ export class TryoutService {
           tryOutId: tryoutId,
         },
       });
-      
+
       return attempt;
     });
 
@@ -295,11 +297,8 @@ export class TryoutService {
     }
 
     let latestFinishedAttemptId: string | null = null;
-    let latestAttemptStatus:
-      | 'IN_PROGRESS'
-      | 'FINISHED'
-      | 'NOT_STARTED'
-      | null = null;
+    let latestAttemptStatus: 'IN_PROGRESS' | 'FINISHED' | 'NOT_STARTED' | null =
+      null;
     let latestAttemptId: string | null = null;
     let currentSubtestOrder = 1;
     let latestScore = 0;
@@ -320,7 +319,9 @@ export class TryoutService {
         select: { id: true, totalScore: true },
       });
       latestFinishedAttemptId = latestFinished?.id ?? null;
-      latestScore = latestFinished?.totalScore ? Math.round(latestFinished.totalScore) : 0;
+      latestScore = latestFinished?.totalScore
+        ? Math.round(latestFinished.totalScore)
+        : 0;
     }
 
     const dto = this.mapTryoutToDto(tryout, answeredQuestionIds);
@@ -391,11 +392,11 @@ export class TryoutService {
       if (new Date() > expiryTime) {
         // Gunakan ExamService untuk finish agar logic skor konsisten
         currentAttempt = await this.examService.finishExam(currentAttempt.id);
-        
+
         // Reload attempt dengan relation yang dibutuhkan
         currentAttempt = await this.prisma.tryOutAttempt.findUnique({
-            where: { id: currentAttempt.id },
-            include: { tryOut: { include: { subtests: true } } },
+          where: { id: currentAttempt.id },
+          include: { tryOut: { include: { subtests: true } } },
         });
       }
     }
@@ -414,16 +415,16 @@ export class TryoutService {
     // [SECURITY] Cegah skip subtest atau akses subtest masa lalu/depan
     // Standar UTBK: User HANYA boleh ada di subtes yang sedang aktif.
     if (!isReviewMode && currentAttempt.status === 'IN_PROGRESS') {
-        const requestedOrder = subtest.order;
-        const currentOrder = currentAttempt.currentSubtestOrder;
+      const requestedOrder = subtest.order;
+      const currentOrder = currentAttempt.currentSubtestOrder;
 
-        if (requestedOrder !== currentOrder) {
-            throw new ForbiddenException(
-                requestedOrder < currentOrder 
-                ? `Waktu subtes ini sudah habis. Kamu tidak bisa kembali.`
-                : `Kamu belum bisa mengerjakan subtes ini. Selesaikan subtes sebelumnya dahulu.`
-            );
-        }
+      if (requestedOrder !== currentOrder) {
+        throw new ForbiddenException(
+          requestedOrder < currentOrder
+            ? `Waktu subtes ini sudah habis. Kamu tidak bisa kembali.`
+            : `Kamu belum bisa mengerjakan subtes ini. Selesaikan subtes sebelumnya dahulu.`,
+        );
+      }
     }
 
     // --- PROTEKSI PEMBAHASAN BERBAYAR ---

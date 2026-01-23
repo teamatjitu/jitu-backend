@@ -37,13 +37,13 @@ export class AdminTryoutService {
     const formattedData = data.map((item) => {
       let currentStatus = item.status;
 
-      if (item.scheduledStart && item.scheduledEnd) {
+      if (item.scheduledEnd && now > item.scheduledEnd) {
+        currentStatus = 'FINISHED';
+      } else if (item.scheduledStart && item.scheduledEnd) {
         if (now < item.scheduledStart) {
           currentStatus = 'NOT_STARTED';
         } else if (now >= item.scheduledStart && now <= item.scheduledEnd) {
           currentStatus = 'IN_PROGRESS';
-        } else if (now > item.scheduledEnd) {
-          currentStatus = 'FINISHED';
         }
       }
 
@@ -147,10 +147,10 @@ export class AdminTryoutService {
     const now = new Date();
 
     let newStatus = existingTryout.status;
-    if (start && end) {
-      if (now > end) {
-        newStatus = 'FINISHED';
-      } else if (now >= start) {
+    if (end && now > end) {
+      newStatus = 'FINISHED';
+    } else if (start && end) {
+      if (now >= start) {
         newStatus = 'IN_PROGRESS';
       } else {
         newStatus = 'NOT_STARTED';
