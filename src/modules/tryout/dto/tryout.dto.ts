@@ -7,6 +7,7 @@ export class TryOutCardDto {
   badge: string;
   solutionPrice?: number;
   isPublic?: boolean;
+  isRegistered?: boolean;
 }
 
 export class SubjectDto {
@@ -63,4 +64,16 @@ export class SubtestExamDto {
   duration: number;
   questions: any[];
   allSubtests?: any[];
+}
+
+export class LeaderboardItemDto {
+  rank: number;
+  name: string;
+  score: number;
+  isCurrentUser: boolean;
+}
+
+export class LeaderboardDto {
+  top10: LeaderboardItemDto[];
+  currentUserRank: LeaderboardItemDto | null;
 }

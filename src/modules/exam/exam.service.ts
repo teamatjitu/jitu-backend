@@ -18,44 +18,43 @@ export class ExamService {
       orderBy: { startedAt: 'desc' }, // Get the latest one if multiple somehow exist
     });
 
-    // 2. If an attempt already exists
-    if (existingAttempt) {
-      // If it's already in progress, just return it.
-      if (existingAttempt.status === 'IN_PROGRESS') {
-        return existingAttempt;
-      }
-      // If it's not started, update it to IN_PROGRESS and return it.
-      if (existingAttempt.status === 'NOT_STARTED') {
-        return this.prisma.tryOutAttempt.update({
-          where: { id: existingAttempt.id },
-          data: {
-            status: 'IN_PROGRESS',
-            startedAt: new Date(),
-            subtestStartedAt: new Date(),
-            currentSubtestOrder: 1, // Ensure it starts from the beginning
-          },
-        });
-      }
-      // If it's finished, user should not be able to start it again via this endpoint.
-      // This case should be handled by frontend logic (e.g., showing 'View Results' instead of 'Start').
-      // However, as a safeguard, we prevent creating a new one.
-      if (existingAttempt.status === 'FINISHED') {
-         throw new BadRequestException('Ujian sudah selesai. Tidak dapat memulai lagi.');
-      }
+    // If no attempt exists, the user hasn't registered.
+    if (!existingAttempt) {
+      throw new BadRequestException(
+        'Anda belum terdaftar di tryout ini. Silakan daftar terlebih dahulu.',
+      );
     }
 
-    // 3. If no attempt exists at all, create a new one.
-    return this.prisma.tryOutAttempt.create({
-      data: {
-        userId,
-        tryOutId,
-        status: 'IN_PROGRESS',
-        totalScore: 0,
-        startedAt: new Date(),
-        subtestStartedAt: new Date(),
-        currentSubtestOrder: 1,
-      },
-    });
+    // 2. If an attempt already exists, handle based on status
+    // If it's already in progress, just return it.
+    if (existingAttempt.status === 'IN_PROGRESS') {
+      return existingAttempt;
+    }
+
+    // If it's not started, update it to IN_PROGRESS and return it.
+    if (existingAttempt.status === 'NOT_STARTED') {
+      return this.prisma.tryOutAttempt.update({
+        where: { id: existingAttempt.id },
+        data: {
+          status: 'IN_PROGRESS',
+          startedAt: new Date(),
+          subtestStartedAt: new Date(),
+          currentSubtestOrder: 1, // Ensure it starts from the beginning
+        },
+      });
+    }
+
+    // If it's finished, user should not be able to start it again via this endpoint.
+    if (existingAttempt.status === 'FINISHED') {
+      throw new BadRequestException(
+        'Ujian sudah selesai. Tidak dapat memulai lagi.',
+      );
+    }
+
+    // Fallthrough for any other unexpected status
+    throw new InternalServerErrorException(
+      `Status attempt tidak valid: ${existingAttempt.status}`,
+    );
   }
 
   async startSubtest(attemptId: string, order: number) {

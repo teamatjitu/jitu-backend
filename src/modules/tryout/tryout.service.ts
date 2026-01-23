@@ -7,7 +7,12 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
+import {
+  TryOutCardDto,
+  TryoutDetailDto,
+  LeaderboardDto,
+  LeaderboardItemDto,
+} from './dto/tryout.dto';
 import { SubtestName } from '../../../generated/prisma/client';
 import { ExamService } from '../exam/exam.service';
 
@@ -165,24 +170,32 @@ export class TryoutService {
     });
   }
 
-  async getTryouts(): Promise<TryOutCardDto[]> {
+  async getTryouts(userId?: string): Promise<TryOutCardDto[]> {
     const tryouts = await this.prisma.tryOut.findMany({
       include: {
         _count: { select: { attempts: true } },
+        // Include attempts only if a user is logged in
+        attempts: userId ? { where: { userId } } : false,
       },
       orderBy: { scheduledStart: 'desc' },
     });
 
-    return tryouts.map((t) => ({
-      id: t.id,
-      title: t.title,
-      number: t.code.toString(),
-      canEdit: false,
-      participants: t._count.attempts,
-      badge: t.batch,
-      solutionPrice: t.solutionPrice, // Add solutionPrice
-      isPublic: t.isPublic,
-    }));
+    const result = tryouts.map((t) => {
+      const isRegistered = t.attempts ? t.attempts.length > 0 : false;
+      return {
+        id: t.id,
+        title: t.title,
+        number: t.code.toString(),
+        canEdit: false,
+        participants: t._count.attempts,
+        badge: t.batch,
+        solutionPrice: t.solutionPrice,
+        isPublic: t.isPublic,
+        isRegistered: isRegistered,
+      };
+    });
+
+    return result;
   }
 
   async getTryoutById(id: string, userId?: string): Promise<TryoutDetailDto> {
@@ -259,7 +272,9 @@ export class TryoutService {
         select: { id: true, totalScore: true },
       });
       latestFinishedAttemptId = latestFinished?.id ?? null;
-      latestScore = latestFinished?.totalScore ? Math.round(latestFinished.totalScore) : 0;
+      latestScore = latestFinished?.totalScore
+        ? Math.round(latestFinished.totalScore)
+        : 0;
     }
 
     const dto = this.mapTryoutToDto(tryout, answeredQuestionIds);
@@ -270,6 +285,48 @@ export class TryoutService {
       latestAttemptId,
       currentSubtestOrder,
       latestScore,
+    };
+  }
+
+  async getLeaderboard(
+    tryoutId: string,
+    userId: string,
+  ): Promise<LeaderboardDto> {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id: tryoutId },
+      select: { scheduledEnd: true },
+    });
+
+    if (!tryout) {
+      throw new NotFoundException('Tryout not found');
+    }
+
+    if (!tryout.scheduledEnd || new Date() < new Date(tryout.scheduledEnd)) {
+      throw new ForbiddenException('Leaderboard is not available yet');
+    }
+
+    const attempts = await this.prisma.tryOutAttempt.findMany({
+      where: { tryOutId: tryoutId, status: 'FINISHED' },
+      orderBy: { totalScore: 'desc' },
+      include: { user: { select: { id: true, name: true } } },
+    });
+
+    const fullLeaderboard: LeaderboardItemDto[] = attempts.map(
+      (attempt, index) => ({
+        rank: index + 1,
+        name: attempt.user.name,
+        score: Math.round(attempt.totalScore),
+        isCurrentUser: attempt.user.id === userId,
+      }),
+    );
+
+    const currentUserRank =
+      fullLeaderboard.find((item) => item.isCurrentUser) || null;
+    const top10 = fullLeaderboard.slice(0, 10);
+
+    return {
+      top10,
+      currentUserRank,
     };
   }
 
@@ -330,11 +387,11 @@ export class TryoutService {
       if (new Date() > expiryTime) {
         // Gunakan ExamService untuk finish agar logic skor konsisten
         currentAttempt = await this.examService.finishExam(currentAttempt.id);
-        
+
         // Reload attempt dengan relation yang dibutuhkan
         currentAttempt = await this.prisma.tryOutAttempt.findUnique({
-            where: { id: currentAttempt.id },
-            include: { tryOut: { include: { subtests: true } } },
+          where: { id: currentAttempt.id },
+          include: { tryOut: { include: { subtests: true } } },
         });
       }
     }
@@ -353,16 +410,16 @@ export class TryoutService {
     // [SECURITY] Cegah skip subtest atau akses subtest masa lalu/depan
     // Standar UTBK: User HANYA boleh ada di subtes yang sedang aktif.
     if (!isReviewMode && currentAttempt.status === 'IN_PROGRESS') {
-        const requestedOrder = subtest.order;
-        const currentOrder = currentAttempt.currentSubtestOrder;
+      const requestedOrder = subtest.order;
+      const currentOrder = currentAttempt.currentSubtestOrder;
 
-        if (requestedOrder !== currentOrder) {
-            throw new ForbiddenException(
-                requestedOrder < currentOrder 
-                ? `Waktu subtes ini sudah habis. Kamu tidak bisa kembali.`
-                : `Kamu belum bisa mengerjakan subtes ini. Selesaikan subtes sebelumnya dahulu.`
-            );
-        }
+      if (requestedOrder !== currentOrder) {
+        throw new ForbiddenException(
+          requestedOrder < currentOrder
+            ? `Waktu subtes ini sudah habis. Kamu tidak bisa kembali.`
+            : `Kamu belum bisa mengerjakan subtes ini. Selesaikan subtes sebelumnya dahulu.`,
+        );
+      }
     }
 
     // --- PROTEKSI PEMBAHASAN BERBAYAR ---
@@ -432,7 +489,9 @@ export class TryoutService {
             : null,
           correctAnswerText: showSolution ? q.correctAnswer : null,
           // FIX: Agar soal kosong tidak dianggap benar (null === null)
-          correctAnswerId: showSolution ? (correctItem?.id ?? 'NO_KEY') : null,
+          correctAnswerId: showSolution
+            ? correctItem?.id ?? 'NO_KEY'
+            : null,
           options: q.items.map((i: any) => ({
             id: i.id,
             text: i.content,

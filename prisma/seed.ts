@@ -152,7 +152,7 @@ async function main() {
   // =========================================================
   // 4. TRYOUTS (Cek keberadaan sebelum create agar data lama aman)
   // =========================================================
-  const TRYOUT_ID_PREMIUM = 'tryout-premium-snbt-17';
+  const TRYOUT_ID_PREMIUM = 'tryout-premium-snbt-21';
 
   const existingTryout = await prisma.tryOut.findUnique({
     where: { id: TRYOUT_ID_PREMIUM },
@@ -171,9 +171,7 @@ async function main() {
         solutionPrice: 0,
         releaseDate: new Date(),
         scheduledStart: new Date(),
-        scheduledEnd: new Date(
-          new Date().getTime() + 365 * 24 * 60 * 60 * 1000,
-        ),
+        scheduledEnd: new Date(2026, 0, 23, 15, 30, 0), // January 23, 2026, 3:30 PM
         subtests: {
           create: [
             {
@@ -456,7 +454,7 @@ async function main() {
   // 7. USER TEST FOR FILTERING (test@gmail.com)
   // =========================================================
   console.log('📝 Seeding User Test for Filtering...');
-  
+
   const userTestFilter = await prisma.user.upsert({
     where: { email: 'test@gmail.com' },
     update: { tokenBalance: 500 },
@@ -479,104 +477,111 @@ async function main() {
       userId: userTestFilter.id,
       accountId: userTestFilter.id,
       providerId: 'email',
-      password: 'password123', 
+      password: 'password123',
       createdAt: new Date(),
       updatedAt: new Date(),
     },
   });
 
-  const targetTryoutId = 'tryout-premium-snbt-4'; 
-  const toFilter = await prisma.tryOut.findUnique({ 
-      where: { id: targetTryoutId },
-      include: { subtests: { include: { questions: { include: { items: true } } } } }
+  const targetTryoutId = 'tryout-premium-snbt-4';
+  const toFilter = await prisma.tryOut.findUnique({
+    where: { id: targetTryoutId },
+    include: {
+      subtests: { include: { questions: { include: { items: true } } } },
+    },
   });
 
   if (toFilter) {
-      const attemptId = `attempt-filter-test-1`;
-      
-      // Kita akan buat variasi skor per subtest
-      // Target Total: ~800
-      // Strategi: Jawab benar semua soal di beberapa subtest, salah di lainnya
-      // Karena soal di seed sedikit (1 per subtest @ 10 poin), skor max cuma 70.
-      // KITA HARUS UPDATE POIN SOAL AGAR SKOR TERLIHAT REALISTIS (Ratusan)
-      
-      let totalScoreReal = 0;
+    const attemptId = `attempt-filter-test-1`;
 
-      // Map target score per subtest (approx)
-      const targetScores: Record<string, number> = {
-          'PU': 150,  // High
-          'PPU': 80,  // Med
-          'PBM': 120, // High
-          'PK': 60,   // Low
-          'LBI': 140, // High
-          'LBE': 90,  // Med
-          'PM': 160   // High
-      };
+    // Kita akan buat variasi skor per subtest
+    // Target Total: ~800
+    // Strategi: Jawab benar semua soal di beberapa subtest, salah di lainnya
+    // Karena soal di seed sedikit (1 per subtest @ 10 poin), skor max cuma 70.
+    // KITA HARUS UPDATE POIN SOAL AGAR SKOR TERLIHAT REALISTIS (Ratusan)
 
-      await prisma.tryOutAttempt.upsert({
-        where: { id: attemptId },
-        update: {},
-        create: {
-            id: attemptId,
-            userId: userTestFilter.id,
-            tryOutId: targetTryoutId,
-            status: 'FINISHED',
-            totalScore: 0, // Akan diupdate nanti
-            startedAt: new Date(),
-            finishedAt: new Date(),
-            currentSubtestOrder: 7
+    let totalScoreReal = 0;
+
+    // Map target score per subtest (approx)
+    const targetScores: Record<string, number> = {
+      PU: 150, // High
+      PPU: 80, // Med
+      PBM: 120, // High
+      PK: 60, // Low
+      LBI: 140, // High
+      LBE: 90, // Med
+      PM: 160, // High
+    };
+
+    await prisma.tryOutAttempt.upsert({
+      where: { id: attemptId },
+      update: {},
+      create: {
+        id: attemptId,
+        userId: userTestFilter.id,
+        tryOutId: targetTryoutId,
+        status: 'FINISHED',
+        totalScore: 0, // Akan diupdate nanti
+        startedAt: new Date(),
+        finishedAt: new Date(),
+        currentSubtestOrder: 7,
+      },
+    });
+
+    for (const subtest of toFilter.subtests) {
+      const questions = subtest.questions;
+      if (questions.length > 0) {
+        const q = questions[0];
+        const targetScore = targetScores[subtest.name] || 50;
+
+        // 1. Update poin soal di database agar satu soal bernilai besar (untuk simulasi)
+        await prisma.question.update({
+          where: { id: q.id },
+          data: { points: targetScore },
+        });
+
+        // 2. Buat jawaban BENAR untuk user ini
+        // Cari item benar
+        const correctItem = q.items.find((i) => i.isCorrect);
+
+        // Jika tipe isian singkat, items kosong, pake correctAnswer
+        let dataAnswer: any = {
+          tryOutAttemptId: attemptId,
+          questionId: q.id,
+          isCorrect: true,
+        };
+
+        if (correctItem) {
+          dataAnswer.questionItemId = correctItem.id;
+        } else if (q.correctAnswer) {
+          dataAnswer.inputText = q.correctAnswer;
+        } else {
+          // Fallback force correct
+          dataAnswer.inputText = 'Force Correct';
         }
-      });
 
-      for (const subtest of toFilter.subtests) {
-          const questions = subtest.questions;
-          if (questions.length > 0) {
-              const q = questions[0];
-              const targetScore = targetScores[subtest.name] || 50;
-              
-              // 1. Update poin soal di database agar satu soal bernilai besar (untuk simulasi)
-              await prisma.question.update({
-                  where: { id: q.id },
-                  data: { points: targetScore }
-              });
+        await prisma.userAnswer.upsert({
+          where: {
+            tryOutAttemptId_questionId: {
+              tryOutAttemptId: attemptId,
+              questionId: q.id,
+            },
+          },
+          update: { isCorrect: true },
+          create: dataAnswer,
+        });
 
-              // 2. Buat jawaban BENAR untuk user ini
-              // Cari item benar
-              const correctItem = q.items.find(i => i.isCorrect);
-              
-              // Jika tipe isian singkat, items kosong, pake correctAnswer
-              let dataAnswer: any = {
-                  tryOutAttemptId: attemptId,
-                  questionId: q.id,
-                  isCorrect: true,
-              };
-
-              if (correctItem) {
-                  dataAnswer.questionItemId = correctItem.id;
-              } else if (q.correctAnswer) {
-                  dataAnswer.inputText = q.correctAnswer;
-              } else {
-                  // Fallback force correct
-                  dataAnswer.inputText = "Force Correct";
-              }
-
-              await prisma.userAnswer.upsert({
-                  where: { tryOutAttemptId_questionId: { tryOutAttemptId: attemptId, questionId: q.id } },
-                  update: { isCorrect: true },
-                  create: dataAnswer
-              });
-
-              totalScoreReal += targetScore;
-          }
+        totalScoreReal += targetScore;
       }
+    }
 
-      // Update total skor attempt
-      await prisma.tryOutAttempt.update({
-          where: { id: attemptId },
-          data: { totalScore: totalScoreReal }
-      });
-      
-      console.log(`✅ Filter Test Attempt created with Score: ${totalScoreReal}`);
+    // Update total skor attempt
+    await prisma.tryOutAttempt.update({
+      where: { id: attemptId },
+      data: { totalScore: totalScoreReal },
+    });
+
+    console.log(`✅ Filter Test Attempt created with Score: ${totalScoreReal}`);
   }
 }
 
