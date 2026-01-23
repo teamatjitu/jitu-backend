@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../prisma.service';
 import { CreatePackageDto, UpdatePackageDto } from '../dto/package.dto';
 
@@ -11,15 +15,15 @@ export class AdminPackageService {
       orderBy: { price: 'asc' },
       include: {
         _count: {
-          select: { payments: true }
-        }
-      }
+          select: { payments: true },
+        },
+      },
     });
   }
 
   async getPackageById(id: string) {
     const pkg = await this.prisma.tokenPackage.findUnique({
-      where: { id }
+      where: { id },
     });
     if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
     return pkg;
@@ -32,7 +36,7 @@ export class AdminPackageService {
         tokenAmount: dto.tokenAmount,
         price: dto.price,
         isActive: dto.isActive ?? true,
-      }
+      },
     });
   }
 
@@ -42,7 +46,7 @@ export class AdminPackageService {
 
     return await this.prisma.tokenPackage.update({
       where: { id },
-      data: dto
+      data: dto,
     });
   }
 
@@ -52,14 +56,14 @@ export class AdminPackageService {
 
     return await this.prisma.tokenPackage.update({
       where: { id },
-      data: { isActive: !pkg.isActive }
+      data: { isActive: !pkg.isActive },
     });
   }
 
   async deletePackage(id: string) {
     const pkg = await this.prisma.tokenPackage.findUnique({
       where: { id },
-      include: { _count: { select: { payments: true } } }
+      include: { _count: { select: { payments: true } } },
     });
 
     if (!pkg) throw new NotFoundException('Paket tidak ditemukan');
@@ -67,12 +71,12 @@ export class AdminPackageService {
     // JANGAN HAPUS jika sudah ada transaksi (Payment) terkait demi integritas data
     if (pkg._count.payments > 0) {
       throw new BadRequestException(
-        'Tidak bisa menghapus paket yang sudah memiliki riwayat transaksi. Gunakan fitur Nonaktifkan saja.'
+        'Tidak bisa menghapus paket yang sudah memiliki riwayat transaksi. Gunakan fitur Nonaktifkan saja.',
       );
     }
 
     return await this.prisma.tokenPackage.delete({
-      where: { id }
+      where: { id },
     });
   }
 }

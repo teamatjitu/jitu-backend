@@ -1,7 +1,8 @@
-import { Get, Controller, Session, UseGuards } from '@nestjs/common';
+import { Get, Controller, UseGuards } from '@nestjs/common';
 import { HistoryService } from './history.service';
-import { AuthGuard } from '@thallesp/nestjs-better-auth';
-import type { UserSession } from '@thallesp/nestjs-better-auth';
+import { AuthGuard } from '../../guards/auth.guard';
+import { Session } from '../../decorators/session.decorator';
+import type { UserSession } from '../../decorators/session.decorator';
 
 @Controller('history')
 @UseGuards(AuthGuard)

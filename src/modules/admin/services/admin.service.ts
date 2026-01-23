@@ -15,7 +15,7 @@ export class AdminService {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(now.getDate() - 6);
     sevenDaysAgo.setHours(0, 0, 0, 0);
-    
+
     const [
       totalTryout,
       totalActiveTryout,
@@ -28,7 +28,7 @@ export class AdminService {
       totalPendingPayment,
       monthlyRevenueRaw,
       monthlyUserGrowthRaw,
-      weeklyActivityRaw
+      weeklyActivityRaw,
     ] = await Promise.all([
       this.prisma.tryOut.count(),
       this.prisma.tryOut.count({
@@ -75,19 +75,36 @@ export class AdminService {
       this.prisma.dailyQuestionLog.findMany({
         where: { completedAt: { gte: sevenDaysAgo } },
         select: { completedAt: true },
-      })
+      }),
     ]);
 
     // Helper to format Month labels
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-    
+    const monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+
     // Process Monthly Revenue
     const revenueChart = Array.from({ length: 6 }).map((_, i) => {
       const d = new Date();
       d.setMonth(now.getMonth() - (5 - i));
       const monthLabel = `${monthNames[d.getMonth()]}`;
       const total = monthlyRevenueRaw
-        .filter(p => p.createdAt.getMonth() === d.getMonth() && p.createdAt.getFullYear() === d.getFullYear())
+        .filter(
+          (p) =>
+            p.createdAt.getMonth() === d.getMonth() &&
+            p.createdAt.getFullYear() === d.getFullYear(),
+        )
         .reduce((sum, p) => sum + p.amount, 0);
       return { label: monthLabel, value: total };
     });
@@ -97,9 +114,11 @@ export class AdminService {
       const d = new Date();
       d.setMonth(now.getMonth() - (5 - i));
       const monthLabel = `${monthNames[d.getMonth()]}`;
-      const count = monthlyUserGrowthRaw
-        .filter(u => u.createdAt.getMonth() === d.getMonth() && u.createdAt.getFullYear() === d.getFullYear())
-        .length;
+      const count = monthlyUserGrowthRaw.filter(
+        (u) =>
+          u.createdAt.getMonth() === d.getMonth() &&
+          u.createdAt.getFullYear() === d.getFullYear(),
+      ).length;
       return { label: monthLabel, value: count };
     });
 
@@ -108,9 +127,11 @@ export class AdminService {
       const d = new Date();
       d.setDate(now.getDate() - (6 - i));
       const dayLabel = d.toLocaleDateString('id-ID', { weekday: 'short' });
-      const count = weeklyActivityRaw
-        .filter(l => l.completedAt.getDate() === d.getDate() && l.completedAt.getMonth() === d.getMonth())
-        .length;
+      const count = weeklyActivityRaw.filter(
+        (l) =>
+          l.completedAt.getDate() === d.getDate() &&
+          l.completedAt.getMonth() === d.getMonth(),
+      ).length;
       return { label: dayLabel, value: count };
     });
 
@@ -127,8 +148,8 @@ export class AdminService {
       charts: {
         revenue: revenueChart,
         userGrowth: userGrowthChart,
-        weeklyActivity: weeklyActivityChart
-      }
+        weeklyActivity: weeklyActivityChart,
+      },
     };
   }
 }

@@ -5,6 +5,8 @@ export class TryOutCardDto {
   canEdit: boolean;
   participants: number;
   badge: string;
+  solutionPrice?: number;
+  isPublic?: boolean;
 }
 
 export class SubjectDto {
@@ -28,6 +30,11 @@ export class TryoutDetailDto {
   isRegistered: boolean;
   isFree: boolean;
   tokenCost?: number;
+  latestFinishedAttemptId?: string | null;
+  latestAttemptStatus?: 'IN_PROGRESS' | 'FINISHED' | 'NOT_STARTED' | null;
+  latestAttemptId?: string | null;
+  currentSubtestOrder?: number;
+  latestScore?: number;
   categories: {
     id: number;
     name: string;
@@ -37,6 +44,7 @@ export class TryoutDetailDto {
   }[];
   benefits: string[];
   requirements: string[];
+  unlockedSolutions: any[];
 }
 
 export class QuestionDto {
@@ -53,5 +61,6 @@ export class SubtestExamDto {
   tryoutId: string;
   tryoutTitle: string;
   duration: number;
-  questions: QuestionDto[];
+  questions: any[];
+  allSubtests?: any[];
 }

@@ -56,6 +56,7 @@ src/
         create-question.dto.ts
         create-subtest.dto.ts
         create-tryout.dto.ts
+        package.dto.ts
         topup-token.dto.ts
         update-question.dto.ts
         update-tryout.dto.ts
@@ -63,6 +64,11 @@ src/
       services/
         admin.service.ts
         question.service.ts
+        daily.service.ts
+        package.service.ts
+        payment.service.ts
+        question.service.ts
+        result.service.ts
         subtest.service.ts
         tryout.service.ts
         user.service.ts
@@ -141,6 +147,7 @@ nest-cli.json
 package.json
 prisma.config.ts
 README.md
+repomix-output.md
 tsconfig.build.json
 tsconfig.json
 </directory_structure>
