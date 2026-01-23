@@ -46,6 +46,9 @@ lerna-debug.log*
 .temp
 .tmp
 
+# Repomix output files
+repomix-output.*
+
 # Runtime data
 pids
 *.pid

@@ -1,12 +1,18 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { MidtransService } from './services/midtrans.service';
+import type {
+  EWalletPaymentResponse,
+  MidtransNotificationDto,
+} from './dto/ewallet.dto';
 
 @Injectable()
 export class ShopService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly midtransService: MidtransService,
   ) {}
 
   // Ambil daftar paket dari database
@@ -15,6 +21,91 @@ export class ShopService {
       where: { isActive: true },
       orderBy: { price: 'asc' },
     });
+  }
+
+  /**
+   * Get user's pending e-wallet payment if exists
+   */
+  async getPendingEWalletPayment(userId: string) {
+    const pendingPayment = await this.prisma.payment.findFirst({
+      where: {
+        userId,
+        status: 'PENDING',
+        paymentMethod: { in: ['GOPAY', 'QRIS'] },
+      },
+      include: {
+        tokenPackage: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (!pendingPayment) {
+      return null;
+    }
+
+    // Check if payment is expired (15 minutes)
+    const expiryTime = new Date(pendingPayment.createdAt);
+    expiryTime.setMinutes(expiryTime.getMinutes() + 15);
+    const isExpired = new Date() > expiryTime;
+
+    if (isExpired) {
+      // Auto-cancel expired payment
+      await this.prisma.payment.update({
+        where: { id: pendingPayment.id },
+        data: { status: 'CANCELLED' },
+      });
+      return null;
+    }
+
+    return {
+      ...pendingPayment,
+      expiresAt: expiryTime,
+      isExpired,
+    };
+  }
+
+  /**
+   * Cancel a pending payment
+   */
+  async cancelPayment(userId: string, paymentId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        id: paymentId,
+        userId,
+        status: 'PENDING',
+      },
+    });
+
+    if (!payment) {
+      throw new BadRequestException('Payment not found or already processed');
+    }
+
+    // Try to cancel on Midtrans side if we have transaction ID
+    if (payment.metadata && typeof payment.metadata === 'object') {
+      const metadata = payment.metadata as any;
+      if (metadata.midtrans_transaction_id) {
+        try {
+          await this.midtransService.cancelTransaction(payment.orderId);
+        } catch (error) {
+          console.error('Failed to cancel on Midtrans:', error);
+          // Continue with local cancellation even if Midtrans fails
+        }
+      }
+    }
+
+    // Update payment status to CANCELLED
+    const updatedPayment = await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: 'CANCELLED' },
+    });
+
+    return {
+      success: true,
+      message: 'Payment cancelled successfully',
+      payment: updatedPayment,
+    };
   }
 
   async createTokenTransaction(userId: string, packageId: string) {
@@ -69,6 +160,104 @@ export class ShopService {
       qris: qrisString,
       packageName: selectedPackage.name,
     };
+  }
+
+  /**
+   * Create E-Wallet payment using Midtrans GoPay
+   */
+  async createEWalletPayment(
+    userId: string,
+    packageId: string,
+    callbackUrl?: string,
+  ): Promise<EWalletPaymentResponse> {
+    // Find package
+    const selectedPackage = await this.prisma.tokenPackage.findUnique({
+      where: { id: packageId },
+    });
+
+    if (!selectedPackage) {
+      throw new BadRequestException('Package not found or invalid!');
+    }
+
+    // Check for existing pending transactions
+    const existingPending = await this.prisma.payment.findFirst({
+      where: {
+        userId,
+        tokenPackageId: packageId,
+        status: 'PENDING',
+        paymentMethod: { in: ['GOPAY', 'QRIS'] },
+      },
+    });
+
+    if (existingPending) {
+      throw new BadRequestException(
+        'You have a pending e-wallet transaction. Please complete or cancel it first.',
+      );
+    }
+
+    // Generate unique order ID
+    const orderId = `ORDER-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+    // Create payment record
+    const payment = await this.prisma.payment.create({
+      data: {
+        userId,
+        tokenPackageId: selectedPackage.id,
+        orderId,
+        amount: selectedPackage.price,
+        tokenAmount: selectedPackage.tokenAmount,
+        status: 'PENDING',
+        paymentMethod: 'GOPAY',
+      },
+    });
+
+    try {
+      // Call Midtrans Charge API
+      const chargeResponse = await this.midtransService.createEWalletCharge(
+        orderId,
+        selectedPackage.price,
+        callbackUrl,
+      );
+
+      // Extract QR Code and Deeplink URLs from actions
+      const qrCodeAction = chargeResponse.actions.find(
+        (action) => action.name === 'generate-qr-code',
+      );
+      const deeplinkAction = chargeResponse.actions.find(
+        (action) => action.name === 'deeplink-redirect',
+      );
+
+      // Update payment with Midtrans transaction ID
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          metadata: {
+            midtrans_transaction_id: chargeResponse.transaction_id,
+            qr_code_url: qrCodeAction?.url,
+            deeplink_url: deeplinkAction?.url,
+          },
+        },
+      });
+
+      return {
+        transactionId: payment.id,
+        orderId: payment.orderId,
+        amount: payment.amount,
+        tokenAmount: payment.tokenAmount,
+        status: payment.status,
+        paymentMethod: payment.paymentMethod,
+        qrCodeUrl: qrCodeAction?.url,
+        deeplinkUrl: deeplinkAction?.url,
+        expiryTime: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes
+        packageName: selectedPackage.name,
+      };
+    } catch (error) {
+      // If Midtrans API fails, delete the payment record
+      await this.prisma.payment.delete({ where: { id: payment.id } });
+      throw new BadRequestException(
+        `Failed to create e-wallet payment: ${error.message}`,
+      );
+    }
   }
 
   async getPendingTransactions(userId: string) {
@@ -168,6 +357,67 @@ export class ShopService {
       });
       return res;
     });
+  }
+
+  /**
+   * Handle Midtrans webhook notification
+   */
+  async handleMidtransNotification(
+    notification: MidtransNotificationDto,
+  ): Promise<{ success: boolean; message: string }> {
+    // Verify signature
+    const isValid = this.midtransService.verifySignature(notification);
+    if (!isValid) {
+      throw new BadRequestException('Invalid signature');
+    }
+
+    // Find payment by order_id
+    const payment = await this.prisma.payment.findUnique({
+      where: { orderId: notification.order_id },
+    });
+
+    if (!payment) {
+      throw new BadRequestException('Payment not found');
+    }
+
+    // Map Midtrans status to our status
+    const newStatus = this.midtransService.mapTransactionStatus(
+      notification.transaction_status || '',
+      notification.fraud_status,
+    );
+
+    // Update payment status
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: newStatus,
+        metadata: {
+          ...(payment.metadata as any),
+          last_notification: notification,
+          updated_at: new Date().toISOString(),
+        },
+      },
+    });
+
+    // If payment is confirmed, credit user's token balance
+    if (newStatus === 'CONFIRMED' && payment.status !== 'CONFIRMED') {
+      await this.prisma.user.update({
+        where: { id: payment.userId },
+        data: {
+          tokenBalance: { increment: payment.tokenAmount },
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Payment confirmed and tokens credited',
+      };
+    }
+
+    return {
+      success: true,
+      message: `Payment status updated to ${newStatus}`,
+    };
   }
 
   checkTransactionStatus(transactionId: string) {
