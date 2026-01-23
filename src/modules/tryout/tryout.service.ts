@@ -139,12 +139,6 @@ export class TryoutService {
 
     if (!tryout) throw new NotFoundException('Tryout tidak ditemukan');
 
-    // 1. Cek apakah sudah di-unlock
-    const existingUnlock = await this.prisma.unlockedSolution.findFirst({
-      where: { userId, tryOutId: tryoutId },
-    });
-    if (existingUnlock) return { message: 'Pembahasan sudah terbuka' };
-
     // 2. Cek saldo user
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -157,14 +151,11 @@ export class TryoutService {
 
     // 3. Transaksi (Potong Saldo & Unlock)
     return await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.unlockedSolution.findFirst({
-        where: {
-          userId,
-          tryOutId: tryoutId,
-        },
+      // FIX: Cek race condition di dalam transaksi
+      const existingUnlock = await tx.unlockedSolution.findFirst({
+        where: { userId, tryOutId: tryoutId },
       });
-
-      if (existing) return { message: 'Pembahasan sudah terbuka!' };
+      if (existingUnlock) return { message: 'Pembahasan sudah terbuka' };
 
       await tx.user.update({
         where: { id: userId },
