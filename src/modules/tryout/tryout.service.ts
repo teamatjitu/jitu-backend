@@ -98,81 +98,32 @@ export class TryoutService {
       };
     }
 
-    const price = tryout.solutionPrice;
+    // LOGIC BARU: Semua pendaftaran GRATIS (Start Attempt)
+    // Pembayaran token hanya dilakukan saat ingin membuka pembahasan (Unlock Solution).
 
-    // 3. Jika Gratis (Price <= 0)
-    if (price <= 0) {
-      const newAttempt = await this.prisma.tryOutAttempt.create({
-        data: {
-          userId,
-          tryOutId: tryoutId,
-          status: 'NOT_STARTED',
-          totalScore: 0,
-          currentSubtestOrder: 0,
-        },
-      });
-      return {
-        message: 'Berhasil mendaftar tryout gratis',
-        attemptId: newAttempt.id,
-        isRegistered: true,
-      };
-    }
-
-    // 4. Jika Berbayar
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { tokenBalance: true },
+    const attempt = await this.prisma.tryOutAttempt.create({
+      data: {
+        userId,
+        tryOutId: tryoutId,
+        status: 'NOT_STARTED',
+        totalScore: 0,
+        currentSubtestOrder: 0,
+      },
     });
 
-    if (!user || user.tokenBalance < price) {
-      throw new BadRequestException('Saldo Token tidak mencukupi untuk mendaftar tryout ini');
+    // Jika harga 0 (Gratis), otomatis unlock solusi
+    if (tryout.solutionPrice === 0) {
+      await this.prisma.unlockedSolution.create({
+        data: {
+          userId,
+          tryOutId: tryoutId,
+        },
+      });
     }
-
-    // Transaksi pembayaran & pendaftaran
-    const result = await this.prisma.$transaction(async (tx) => {
-      // Potong Saldo
-      await tx.user.update({
-        where: { id: userId },
-        data: { tokenBalance: { decrement: price } },
-      });
-
-      // Catat Transaksi
-      await tx.tokenTransaction.create({
-        data: {
-          userId,
-          amount: -price,
-          type: 'PURCHASE_TRYOUT',
-          referenceId: tryoutId,
-        },
-      });
-
-      // Buat Attempt (Registration)
-      const attempt = await tx.tryOutAttempt.create({
-        data: {
-          userId,
-          tryOutId: tryoutId,
-          status: 'NOT_STARTED',
-          totalScore: 0,
-          currentSubtestOrder: 0,
-        },
-      });
-
-      // [FIX] Unlock Pembahasan Otomatis jika berbayar
-      // Karena user sudah membayar di awal (registration fee),
-      // maka pembahasan harusnya include.
-      await tx.unlockedSolution.create({
-        data: {
-          userId,
-          tryOutId: tryoutId,
-        },
-      });
-      
-      return attempt;
-    });
 
     return {
-      message: 'Berhasil mendaftar tryout berbayar',
-      attemptId: result.id,
+      message: 'Berhasil mendaftar tryout (Gratis Pengerjaan)',
+      attemptId: attempt.id,
       isRegistered: true,
     };
   }
@@ -206,6 +157,15 @@ export class TryoutService {
 
     // 3. Transaksi (Potong Saldo & Unlock)
     return await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.unlockedSolution.findFirst({
+        where: {
+          userId,
+          tryOutId: tryoutId,
+        },
+      });
+
+      if (existing) return { message: 'Pembahasan sudah terbuka!' };
+
       await tx.user.update({
         where: { id: userId },
         data: { tokenBalance: { decrement: tryout.solutionPrice } },
@@ -295,11 +255,8 @@ export class TryoutService {
     }
 
     let latestFinishedAttemptId: string | null = null;
-    let latestAttemptStatus:
-      | 'IN_PROGRESS'
-      | 'FINISHED'
-      | 'NOT_STARTED'
-      | null = null;
+    let latestAttemptStatus: 'IN_PROGRESS' | 'FINISHED' | 'NOT_STARTED' | null =
+      null;
     let latestAttemptId: string | null = null;
     let currentSubtestOrder = 1;
     let latestScore = 0;
@@ -320,7 +277,9 @@ export class TryoutService {
         select: { id: true, totalScore: true },
       });
       latestFinishedAttemptId = latestFinished?.id ?? null;
-      latestScore = latestFinished?.totalScore ? Math.round(latestFinished.totalScore) : 0;
+      latestScore = latestFinished?.totalScore
+        ? Math.round(latestFinished.totalScore)
+        : 0;
     }
 
     const dto = this.mapTryoutToDto(tryout, answeredQuestionIds);
@@ -391,11 +350,11 @@ export class TryoutService {
       if (new Date() > expiryTime) {
         // Gunakan ExamService untuk finish agar logic skor konsisten
         currentAttempt = await this.examService.finishExam(currentAttempt.id);
-        
+
         // Reload attempt dengan relation yang dibutuhkan
         currentAttempt = await this.prisma.tryOutAttempt.findUnique({
-            where: { id: currentAttempt.id },
-            include: { tryOut: { include: { subtests: true } } },
+          where: { id: currentAttempt.id },
+          include: { tryOut: { include: { subtests: true } } },
         });
       }
     }
@@ -411,26 +370,23 @@ export class TryoutService {
 
     const isReviewMode = currentAttempt.status === 'FINISHED';
 
-    // [SECURITY] Cegah skip subtest atau akses subtest masa lalu/depan
-    // Standar UTBK: User HANYA boleh ada di subtes yang sedang aktif.
-    if (!isReviewMode && currentAttempt.status === 'IN_PROGRESS') {
-        const requestedOrder = subtest.order;
-        const currentOrder = currentAttempt.currentSubtestOrder;
-
-        if (requestedOrder !== currentOrder) {
-            throw new ForbiddenException(
-                requestedOrder < currentOrder 
-                ? `Waktu subtes ini sudah habis. Kamu tidak bisa kembali.`
-                : `Kamu belum bisa mengerjakan subtes ini. Selesaikan subtes sebelumnya dahulu.`
-            );
-        }
-    }
-
     // --- PROTEKSI PEMBAHASAN BERBAYAR ---
-    // User yang sudah terdaftar (isRegistered) otomatis bisa melihat pembahasan
-    // karena pembayaran dilakukan di awal saat pendaftaran (registerTryout).
+    // Jika tryout berbayar (price > 0) dan user belum beli (unlock), maka kunci pembahasan.
+    let isSolutionLocked = false;
     if (isReviewMode) {
-      // Logic proteksi dihapus karena pembahasan sudah include saat pendaftaran.
+      const tryoutData = await this.prisma.tryOut.findUnique({
+        where: { id: tryOutId },
+        select: { solutionPrice: true },
+      });
+
+      if ((tryoutData?.solutionPrice ?? 0) > 0) {
+        const unlocked = await this.prisma.unlockedSolution.findFirst({
+          where: { userId, tryOutId },
+        });
+        if (!unlocked) {
+          isSolutionLocked = true;
+        }
+      }
     }
 
     const questions = await this.prisma.question.findMany({
@@ -471,21 +427,25 @@ export class TryoutService {
         const ua = q.userAnswers?.[0];
         const correctItem = q.items.find((i: any) => i.isCorrect);
 
+        // Hanya tampilkan solusi jika Review Mode DAN Tidak Terkunci
+        const showSolution = isReviewMode && !isSolutionLocked;
+
         return {
           id: q.id,
           type: q.type,
           questionText: q.content,
-          solution: isReviewMode
+          solution: showSolution
             ? q.explanation || 'Tidak ada pembahasan.'
             : null,
-          correctAnswerText: isReviewMode ? q.correctAnswer : null,
-          // FIX: Agar soal kosong tidak dianggap benar (null === null)
-          correctAnswerId: isReviewMode ? (correctItem?.id ?? 'NO_KEY') : null,
+          correctAnswerText: showSolution ? q.correctAnswer : null,
+          // Masking jawaban benar jika terkunci
+          correctAnswerId: showSolution ? (correctItem?.id ?? 'NO_KEY') : null,
           options: q.items.map((i: any) => ({
             id: i.id,
             text: i.content,
             order: i.order,
-            isCorrect: isReviewMode ? i.isCorrect : undefined,
+            // Sembunyikan indikator benar/salah pada opsi jika terkunci
+            isCorrect: showSolution ? i.isCorrect : undefined,
           })),
           userAnswer: ua
             ? {
@@ -501,6 +461,7 @@ export class TryoutService {
         };
       }),
       isReviewMode,
+      isSolutionLocked, // Kirim status lock ke frontend
       attemptId: currentAttempt.id,
     };
   }

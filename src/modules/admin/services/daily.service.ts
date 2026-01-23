@@ -10,20 +10,41 @@ export class AdminDailyService {
    * Soal akan berubah setiap hari secara otomatis, tapi tetap sama untuk semua user di hari tersebut.
    */
   async getTodayQuestion() {
-    const totalQuestions = await this.prisma.question.count();
-    if (totalQuestions === 0) return null;
+    // STABLE SELECTION LOGIC (HASHING)
+    // Ambil semua ID soal (ringan karena hanya select ID)
+    const questions = await this.prisma.question.findMany({
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
 
-    // Gunakan tanggal (YYYYMMDD) sebagai SEED
+    if (questions.length === 0) return null;
+
+    // Gunakan Tanggal ISO (YYYY-MM-DD) sebagai Seed yang stabil
     const now = new Date();
-    const dateSeed =
-      now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+    const dateStr = now.toISOString().split('T')[0];
 
-    // Pilih index berdasarkan modulus
-    const randomIndex = dateSeed % totalQuestions;
+    // Cari ID dengan Hash Tertinggi (Deterministic)
+    let bestId = questions[0].id;
+    let maxHash = -1;
 
-    const question = await this.prisma.question.findFirst({
-      skip: randomIndex,
-      orderBy: { id: 'asc' }, // Pastikan urutan stabil agar random tidak berubah-ubah
+    for (const q of questions) {
+      const input = q.id + dateStr;
+      let hash = 0;
+      for (let i = 0; i < input.length; i++) {
+        const char = input.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash |= 0; // Convert to 32bit integer
+      }
+      hash = Math.abs(hash);
+
+      if (hash > maxHash) {
+        maxHash = hash;
+        bestId = q.id;
+      }
+    }
+
+    const question = await this.prisma.question.findUnique({
+      where: { id: bestId },
       include: {
         items: true,
         subtest: {
