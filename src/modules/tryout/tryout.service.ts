@@ -456,4 +456,62 @@ export class TryoutService {
       attemptId: currentAttempt.id,
     };
   }
+
+  async getLeaderboard(tryoutId: string, userId: string) {
+    // 1. Ambil Top 10 Scores
+    const topAttempts = await this.prisma.tryOutAttempt.findMany({
+      where: {
+        tryOutId: tryoutId,
+        status: 'FINISHED',
+      },
+      orderBy: { totalScore: 'desc' },
+      take: 10,
+      include: {
+        user: { select: { name: true, id: true } },
+      },
+    });
+
+    const top10 = topAttempts.map((attempt, index) => ({
+      rank: index + 1,
+      name: attempt.user.name,
+      score: Math.round(attempt.totalScore),
+      isCurrentUser: attempt.userId === userId,
+    }));
+
+    // 2. Ambil Rank User (jika ada)
+    let currentUserRank: {
+      rank: number;
+      name: string;
+      score: number;
+      isCurrentUser: boolean;
+    } | null = null;
+    const userAttempt = await this.prisma.tryOutAttempt.findFirst({
+      where: { userId, tryOutId: tryoutId, status: 'FINISHED' },
+      orderBy: { totalScore: 'desc' }, // Ambil skor terbaik user jika multiple attempt
+    });
+
+    if (userAttempt) {
+      const rankCount = await this.prisma.tryOutAttempt.count({
+        where: {
+          tryOutId: tryoutId,
+          status: 'FINISHED',
+          totalScore: { gt: userAttempt.totalScore },
+        },
+      });
+      const rank = rankCount + 1;
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      });
+
+      currentUserRank = {
+        rank,
+        name: user?.name || 'Saya',
+        score: Math.round(userAttempt.totalScore),
+        isCurrentUser: true,
+      };
+    }
+
+    return { top10, currentUserRank };
+  }
 }
