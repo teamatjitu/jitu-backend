@@ -172,6 +172,7 @@ export class TryoutService {
 
   async getTryouts(userId?: string): Promise<TryOutCardDto[]> {
     const tryouts = await this.prisma.tryOut.findMany({
+      where: { isPublic: true },
       include: {
         _count: { select: { attempts: true } },
         // Include attempts only if a user is logged in
