@@ -301,17 +301,36 @@ export class TryoutService {
       throw new NotFoundException('Tryout not found');
     }
 
-    if (!tryout.scheduledEnd || new Date() < new Date(tryout.scheduledEnd)) {
-      throw new ForbiddenException('Leaderboard is not available yet');
+    if (!tryout.scheduledEnd) {
+      throw new ForbiddenException(
+        'Leaderboard is not available for this tryout.',
+      );
     }
 
-    const attempts = await this.prisma.tryOutAttempt.findMany({
-      where: { tryOutId: tryoutId, status: 'FINISHED' },
+    // The leaderboard itself is only visible after the tryout period has ended.
+    if (new Date() < new Date(tryout.scheduledEnd)) {
+      throw new ForbiddenException('Leaderboard will be available after the tryout ends.');
+    }
+
+    // 1. Get ALL finished attempts to determine the user's rank among everyone.
+    const allFinishedAttempts = await this.prisma.tryOutAttempt.findMany({
+      where: {
+        tryOutId: tryoutId,
+        status: 'FINISHED',
+      },
       orderBy: { totalScore: 'desc' },
       include: { user: { select: { id: true, name: true } } },
     });
 
-    const fullLeaderboard: LeaderboardItemDto[] = attempts.map(
+    // 2. Filter for attempts that are eligible for the official leaderboard.
+    const eligibleAttempts = allFinishedAttempts.filter(
+      (attempt) =>
+        attempt.finishedAt &&
+        new Date(attempt.finishedAt) <= new Date(tryout.scheduledEnd!),
+    );
+
+    // 3. Create the official leaderboard ranking from eligible attempts.
+    const officialLeaderboard: LeaderboardItemDto[] = eligibleAttempts.map(
       (attempt, index) => ({
         rank: index + 1,
         name: attempt.user.name,
@@ -320,9 +339,24 @@ export class TryoutService {
       }),
     );
 
-    const currentUserRank =
-      fullLeaderboard.find((item) => item.isCurrentUser) || null;
-    const top10 = fullLeaderboard.slice(0, 10);
+    // 4. Find the current user's rank among ALL participants.
+    let currentUserRank: LeaderboardItemDto | null = null;
+    const userAttemptIndex = allFinishedAttempts.findIndex(
+      (a) => a.userId === userId,
+    );
+
+    if (userAttemptIndex !== -1) {
+      const userAttempt = allFinishedAttempts[userAttemptIndex];
+      currentUserRank = {
+        rank: userAttemptIndex + 1,
+        name: userAttempt.user.name,
+        score: Math.round(userAttempt.totalScore),
+        isCurrentUser: true,
+      };
+    }
+
+    // 5. Get the top 10 from the official leaderboard.
+    const top10 = officialLeaderboard.slice(0, 10);
 
     return {
       top10,
