@@ -20,6 +20,7 @@ import { CreateTryoutDto } from './dto/create-tryout.dto';
 import { UpdateTryoutDto } from './dto/update-tryout.dto';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
+import { UpdateSubtestDto } from './dto/update-subtest.dto';
 import { AdminUserService } from './services/user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { TopupTokenDto } from './dto/topup-token.dto';
@@ -72,6 +73,11 @@ export class AdminController {
     return this.tryoutService.getTryoutById(id);
   }
 
+  @Get('tryouts/:id/preview')
+  getTryoutPreview(@Param('id') id: string) {
+    return this.tryoutService.getTryoutPreview(id);
+  }
+
   @Patch('tryouts/:id')
   updateTryout(
     @Param('id') id: string,
@@ -99,6 +105,14 @@ export class AdminController {
   @Get('subtests/:id')
   getSubtestById(@Param('id') id: string) {
     return this.subtestService.getSubtestById(id);
+  }
+
+  @Patch('subtests/:id')
+  updateSubtest(
+    @Param('id') id: string,
+    @Body() updateSubtestDto: UpdateSubtestDto,
+  ) {
+    return this.subtestService.updateSubtest(id, updateSubtestDto);
   }
 
   // --- QUESTION ---

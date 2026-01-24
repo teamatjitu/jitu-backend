@@ -5,6 +5,7 @@ import {
   QuestionType,
   Role,
   PaymentStatus,
+  TryoutStatus,
 } from '../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
@@ -583,6 +584,106 @@ async function main() {
 
     console.log(`✅ Filter Test Attempt created with Score: ${totalScoreReal}`);
   }
+
+  // =========================================================
+  // 8. TEST CASES FOR DATE LOGIC & PREVIEW
+  // =========================================================
+  console.log('📝 Seeding Date Logic Test Cases...');
+
+  const now = new Date();
+  const oneDay = 24 * 60 * 60 * 1000;
+
+  // 8a. Future Tryout (Not Started)
+  await prisma.tryOut.upsert({
+    where: { id: 'tryout-future-1' },
+    update: {},
+    create: {
+      id: 'tryout-future-1',
+      title: 'Test: Future Tryout',
+      description: 'Release & Start in future.',
+      batch: TryoutBatch.SNBT,
+      isPublic: true,
+      solutionPrice: 0,
+      releaseDate: new Date(now.getTime() + oneDay),
+      scheduledStart: new Date(now.getTime() + oneDay + 3600000),
+      scheduledEnd: new Date(now.getTime() + 365 * oneDay),
+      status: TryoutStatus.NOT_STARTED,
+    },
+  });
+
+  // 8b. Active Tryout (In Progress)
+  await prisma.tryOut.upsert({
+    where: { id: 'tryout-active-1' },
+    update: {},
+    create: {
+      id: 'tryout-active-1',
+      title: 'Test: Active Tryout',
+      description: 'Currently running.',
+      batch: TryoutBatch.SNBT,
+      isPublic: true,
+      solutionPrice: 0,
+      releaseDate: new Date(now.getTime() - oneDay),
+      scheduledStart: new Date(now.getTime() - oneDay),
+      scheduledEnd: new Date(now.getTime() + oneDay),
+      status: TryoutStatus.IN_PROGRESS,
+    },
+  });
+
+  // 8c. Finished Tryout (Standard)
+  await prisma.tryOut.upsert({
+    where: { id: 'tryout-finished-1' },
+    update: {},
+    create: {
+      id: 'tryout-finished-1',
+      title: 'Test: Finished Tryout',
+      description: 'Ended yesterday. Leaderboard should be OPEN.',
+      batch: TryoutBatch.SNBT,
+      isPublic: true,
+      solutionPrice: 0,
+      releaseDate: new Date(now.getTime() - 3 * oneDay),
+      scheduledStart: new Date(now.getTime() - 3 * oneDay),
+      scheduledEnd: new Date(now.getTime() - oneDay),
+      status: TryoutStatus.FINISHED,
+    },
+  });
+
+  // 8d. Past Reviewable Tryout (No Start Date - Edge Case)
+  await prisma.tryOut.upsert({
+    where: { id: 'tryout-past-review-1' },
+    update: {},
+    create: {
+      id: 'tryout-past-review-1',
+      title: 'Test: Edge Case (No Start Date)',
+      description: 'Ended yesterday but has NO Start Date. Leaderboard should still be OPEN.',
+      batch: TryoutBatch.SNBT,
+      isPublic: true,
+      solutionPrice: 0,
+      releaseDate: new Date(now.getTime() - oneDay),
+      scheduledStart: null,
+      scheduledEnd: new Date(now.getTime() - oneDay),
+      status: TryoutStatus.FINISHED,
+    },
+  });
+
+  // 8e. Weird Order Tryout (Edge Case)
+  await prisma.tryOut.upsert({
+    where: { id: 'tryout-weird-order-1' },
+    update: {},
+    create: {
+      id: 'tryout-weird-order-1',
+      title: 'Test: Weird Date Order',
+      description: 'Start Date is BEFORE Release Date. Should be IN_PROGRESS based on dates.',
+      batch: TryoutBatch.SNBT,
+      isPublic: true,
+      solutionPrice: 0,
+      releaseDate: new Date(now.getTime() + oneDay),
+      scheduledStart: new Date(now.getTime() - oneDay),
+      scheduledEnd: new Date(now.getTime() + 2 * oneDay),
+      status: TryoutStatus.IN_PROGRESS,
+    },
+  });
+
+  console.log('✅ Date Logic Test Cases seeded');
 }
 
 main()

@@ -37,13 +37,13 @@ export class AdminTryoutService {
     const formattedData = data.map((item) => {
       let currentStatus = item.status;
 
-      if (item.scheduledStart && item.scheduledEnd) {
+      if (item.scheduledEnd && now > item.scheduledEnd) {
+        currentStatus = 'FINISHED';
+      } else if (item.scheduledStart && item.scheduledEnd) {
         if (now < item.scheduledStart) {
           currentStatus = 'NOT_STARTED';
         } else if (now >= item.scheduledStart && now <= item.scheduledEnd) {
           currentStatus = 'IN_PROGRESS';
-        } else if (now > item.scheduledEnd) {
-          currentStatus = 'FINISHED';
         }
       }
 
@@ -67,6 +67,28 @@ export class AdminTryoutService {
     return this.prisma.tryOut.findUnique({
       where: { id },
     });
+  }
+
+  async getTryoutPreview(id: string) {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id },
+      include: {
+        subtests: {
+          orderBy: { order: 'asc' },
+          include: {
+            questions: {
+              orderBy: { id: 'asc' },
+              include: {
+                items: { orderBy: { order: 'asc' } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!tryout) throw new NotFoundException('Tryout tidak ditemukan');
+    return tryout;
   }
 
   async createTryout(dto: CreateTryoutDto) {
@@ -125,10 +147,10 @@ export class AdminTryoutService {
     const now = new Date();
 
     let newStatus = existingTryout.status;
-    if (start && end) {
-      if (now > end) {
-        newStatus = 'FINISHED';
-      } else if (now >= start) {
+    if (end && now > end) {
+      newStatus = 'FINISHED';
+    } else if (start && end) {
+      if (now >= start) {
         newStatus = 'IN_PROGRESS';
       } else {
         newStatus = 'NOT_STARTED';

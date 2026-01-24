@@ -52,20 +52,42 @@ export class DailyService {
       };
     }
 
-    // Use deterministic selection based on date
-    const totalQuestion = await this.prisma.question.count();
-    if (totalQuestion === 0) {
+    // Use deterministic selection based on HASH (ID + Date)
+    // This ensures adding new questions doesn't shift the selection for today.
+    const questions = await this.prisma.question.findMany({
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+
+    if (questions.length === 0) {
       throw new BadRequestException('Tidak ada soal yang tersedia');
     }
 
     const now = new Date();
-    const dateSeed =
-      now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
-    const skip = dateSeed % totalQuestion;
+    const dateStr = now.toISOString().split('T')[0];
 
-    const question = await this.prisma.question.findFirst({
-      skip: skip,
-      orderBy: { id: 'asc' }, // Ensure consistent ordering for deterministic selection
+    // Find best ID via Hash
+    let bestId = questions[0].id;
+    let maxHash = -1;
+
+    for (const q of questions) {
+      const input = q.id + dateStr;
+      let hash = 0;
+      for (let i = 0; i < input.length; i++) {
+        const char = input.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash |= 0;
+      }
+      hash = Math.abs(hash);
+
+      if (hash > maxHash) {
+        maxHash = hash;
+        bestId = q.id;
+      }
+    }
+
+    const question = await this.prisma.question.findUnique({
+      where: { id: bestId },
       include: {
         items: {
           orderBy: { order: 'asc' },
