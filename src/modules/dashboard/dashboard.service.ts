@@ -345,6 +345,7 @@ export class DashboardService {
     const tryouts = await this.prisma.tryOut.findMany({
       where: {
         scheduledStart: { lte: now },
+        isPublic: true,
       },
       include: {
         _count: {
@@ -380,6 +381,7 @@ export class DashboardService {
     const tryouts = await this.prisma.tryOut.findMany({
       where: {
         scheduledStart: { gt: now },
+        isPublic: true,
       },
       include: {
         _count: {

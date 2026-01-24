@@ -7,7 +7,12 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { TryOutCardDto, TryoutDetailDto } from './dto/tryout.dto';
+import {
+  TryOutCardDto,
+  TryoutDetailDto,
+  LeaderboardDto,
+  LeaderboardItemDto,
+} from './dto/tryout.dto';
 import { SubtestName } from '../../../generated/prisma/client';
 import { ExamService } from '../exam/exam.service';
 
@@ -98,10 +103,8 @@ export class TryoutService {
       };
     }
 
-    // LOGIC BARU: Semua pendaftaran GRATIS (Start Attempt)
-    // Pembayaran token hanya dilakukan saat ingin membuka pembahasan (Unlock Solution).
-
-    const attempt = await this.prisma.tryOutAttempt.create({
+    // 3. Buat attempt baru karena pendaftaran selalu gratis
+    const newAttempt = await this.prisma.tryOutAttempt.create({
       data: {
         userId,
         tryOutId: tryoutId,
@@ -111,19 +114,9 @@ export class TryoutService {
       },
     });
 
-    // Jika harga 0 (Gratis), otomatis unlock solusi
-    if (tryout.solutionPrice === 0) {
-      await this.prisma.unlockedSolution.create({
-        data: {
-          userId,
-          tryOutId: tryoutId,
-        },
-      });
-    }
-
     return {
-      message: 'Berhasil mendaftar tryout (Gratis Pengerjaan)',
-      attemptId: attempt.id,
+      message: 'Berhasil mendaftar tryout',
+      attemptId: newAttempt.id,
       isRegistered: true,
     };
   }
@@ -139,6 +132,12 @@ export class TryoutService {
 
     if (!tryout) throw new NotFoundException('Tryout tidak ditemukan');
 
+    // 1. Cek apakah sudah di-unlock
+    const existingUnlock = await this.prisma.unlockedSolution.findFirst({
+      where: { userId, tryOutId: tryoutId },
+    });
+    if (existingUnlock) return { message: 'Pembahasan sudah terbuka' };
+
     // 2. Cek saldo user
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -151,12 +150,6 @@ export class TryoutService {
 
     // 3. Transaksi (Potong Saldo & Unlock)
     return await this.prisma.$transaction(async (tx) => {
-      // FIX: Cek race condition di dalam transaksi
-      const existingUnlock = await tx.unlockedSolution.findFirst({
-        where: { userId, tryOutId: tryoutId },
-      });
-      if (existingUnlock) return { message: 'Pembahasan sudah terbuka' };
-
       await tx.user.update({
         where: { id: userId },
         data: { tokenBalance: { decrement: tryout.solutionPrice } },
@@ -177,24 +170,33 @@ export class TryoutService {
     });
   }
 
-  async getTryouts(): Promise<TryOutCardDto[]> {
+  async getTryouts(userId?: string): Promise<TryOutCardDto[]> {
     const tryouts = await this.prisma.tryOut.findMany({
+      where: { isPublic: true },
       include: {
         _count: { select: { attempts: true } },
+        // Include attempts only if a user is logged in
+        attempts: userId ? { where: { userId } } : false,
       },
       orderBy: { scheduledStart: 'desc' },
     });
 
-    return tryouts.map((t) => ({
-      id: t.id,
-      title: t.title,
-      number: t.code.toString(),
-      canEdit: false,
-      participants: t._count.attempts,
-      badge: t.batch,
-      solutionPrice: t.solutionPrice, // Add solutionPrice
-      isPublic: t.isPublic,
-    }));
+    const result = tryouts.map((t) => {
+      const isRegistered = t.attempts ? t.attempts.length > 0 : false;
+      return {
+        id: t.id,
+        title: t.title,
+        number: t.code.toString(),
+        canEdit: false,
+        participants: t._count.attempts,
+        badge: t.batch,
+        solutionPrice: t.solutionPrice,
+        isPublic: t.isPublic,
+        isRegistered: isRegistered,
+      };
+    });
+
+    return result;
   }
 
   async getTryoutById(id: string, userId?: string): Promise<TryoutDetailDto> {
@@ -246,8 +248,11 @@ export class TryoutService {
     }
 
     let latestFinishedAttemptId: string | null = null;
-    let latestAttemptStatus: 'IN_PROGRESS' | 'FINISHED' | 'NOT_STARTED' | null =
-      null;
+    let latestAttemptStatus:
+      | 'IN_PROGRESS'
+      | 'FINISHED'
+      | 'NOT_STARTED'
+      | null = null;
     let latestAttemptId: string | null = null;
     let currentSubtestOrder = 1;
     let latestScore = 0;
@@ -281,6 +286,82 @@ export class TryoutService {
       latestAttemptId,
       currentSubtestOrder,
       latestScore,
+    };
+  }
+
+  async getLeaderboard(
+    tryoutId: string,
+    userId: string,
+  ): Promise<LeaderboardDto> {
+    const tryout = await this.prisma.tryOut.findUnique({
+      where: { id: tryoutId },
+      select: { scheduledEnd: true },
+    });
+
+    if (!tryout) {
+      throw new NotFoundException('Tryout not found');
+    }
+
+    if (!tryout.scheduledEnd) {
+      throw new ForbiddenException(
+        'Leaderboard is not available for this tryout.',
+      );
+    }
+
+    // The leaderboard itself is only visible after the tryout period has ended.
+    if (new Date() < new Date(tryout.scheduledEnd)) {
+      throw new ForbiddenException('Leaderboard will be available after the tryout ends.');
+    }
+
+    // 1. Get ALL finished attempts to determine the user's rank among everyone.
+    const allFinishedAttempts = await this.prisma.tryOutAttempt.findMany({
+      where: {
+        tryOutId: tryoutId,
+        status: 'FINISHED',
+      },
+      orderBy: { totalScore: 'desc' },
+      include: { user: { select: { id: true, name: true } } },
+    });
+
+    // 2. Filter for attempts that are eligible for the official leaderboard.
+    const eligibleAttempts = allFinishedAttempts.filter(
+      (attempt) =>
+        attempt.finishedAt &&
+        new Date(attempt.finishedAt) <= new Date(tryout.scheduledEnd!),
+    );
+
+    // 3. Create the official leaderboard ranking from eligible attempts.
+    const officialLeaderboard: LeaderboardItemDto[] = eligibleAttempts.map(
+      (attempt, index) => ({
+        rank: index + 1,
+        name: attempt.user.name,
+        score: Math.round(attempt.totalScore),
+        isCurrentUser: attempt.user.id === userId,
+      }),
+    );
+
+    // 4. Find the current user's rank among ALL participants.
+    let currentUserRank: LeaderboardItemDto | null = null;
+    const userAttemptIndex = allFinishedAttempts.findIndex(
+      (a) => a.userId === userId,
+    );
+
+    if (userAttemptIndex !== -1) {
+      const userAttempt = allFinishedAttempts[userAttemptIndex];
+      currentUserRank = {
+        rank: userAttemptIndex + 1,
+        name: userAttempt.user.name,
+        score: Math.round(userAttempt.totalScore),
+        isCurrentUser: true,
+      };
+    }
+
+    // 5. Get the top 10 from the official leaderboard.
+    const top10 = officialLeaderboard.slice(0, 10);
+
+    return {
+      top10,
+      currentUserRank,
     };
   }
 
@@ -361,22 +442,38 @@ export class TryoutService {
 
     const isReviewMode = currentAttempt.status === 'FINISHED';
 
+    // [SECURITY] Cegah skip subtest atau akses subtest masa lalu/depan
+    // Standar UTBK: User HANYA boleh ada di subtes yang sedang aktif.
+    if (!isReviewMode && currentAttempt.status === 'IN_PROGRESS') {
+      const requestedOrder = subtest.order;
+      const currentOrder = currentAttempt.currentSubtestOrder;
+
+      if (requestedOrder !== currentOrder) {
+        throw new ForbiddenException(
+          requestedOrder < currentOrder
+            ? `Waktu subtes ini sudah habis. Kamu tidak bisa kembali.`
+            : `Kamu belum bisa mengerjakan subtes ini. Selesaikan subtes sebelumnya dahulu.`,
+        );
+      }
+    }
+
     // --- PROTEKSI PEMBAHASAN BERBAYAR ---
-    // Jika tryout berbayar (price > 0) dan user belum beli (unlock), maka kunci pembahasan.
-    let isSolutionLocked = false;
+    let showSolution = false;
     if (isReviewMode) {
-      const tryoutData = await this.prisma.tryOut.findUnique({
+      const tryout = await this.prisma.tryOut.findUnique({
         where: { id: tryOutId },
         select: { solutionPrice: true },
       });
 
-      if ((tryoutData?.solutionPrice ?? 0) > 0) {
+      if (tryout && tryout.solutionPrice > 0) {
         const unlocked = await this.prisma.unlockedSolution.findFirst({
           where: { userId, tryOutId },
         });
-        if (!unlocked) {
-          isSolutionLocked = true;
+        if (unlocked) {
+          showSolution = true;
         }
+      } else if (tryout && tryout.solutionPrice <= 0) {
+        showSolution = true;
       }
     }
 
@@ -418,9 +515,6 @@ export class TryoutService {
         const ua = q.userAnswers?.[0];
         const correctItem = q.items.find((i: any) => i.isCorrect);
 
-        // Hanya tampilkan solusi jika Review Mode DAN Tidak Terkunci
-        const showSolution = isReviewMode && !isSolutionLocked;
-
         return {
           id: q.id,
           type: q.type,
@@ -429,20 +523,21 @@ export class TryoutService {
             ? q.explanation || 'Tidak ada pembahasan.'
             : null,
           correctAnswerText: showSolution ? q.correctAnswer : null,
-          // Masking jawaban benar jika terkunci
-          correctAnswerId: showSolution ? (correctItem?.id ?? 'NO_KEY') : null,
+          // FIX: Agar soal kosong tidak dianggap benar (null === null)
+          correctAnswerId: showSolution
+            ? correctItem?.id ?? 'NO_KEY'
+            : null,
           options: q.items.map((i: any) => ({
             id: i.id,
             text: i.content,
             order: i.order,
-            // Sembunyikan indikator benar/salah pada opsi jika terkunci
             isCorrect: showSolution ? i.isCorrect : undefined,
           })),
           userAnswer: ua
             ? {
                 questionItemId: ua.questionItemId,
                 inputText: ua.inputText,
-                isCorrect: isReviewMode ? ua.isCorrect : false,
+                isCorrect: showSolution ? ua.isCorrect : false,
               }
             : {
                 questionItemId: null,
@@ -452,66 +547,7 @@ export class TryoutService {
         };
       }),
       isReviewMode,
-      isSolutionLocked, // Kirim status lock ke frontend
       attemptId: currentAttempt.id,
     };
-  }
-
-  async getLeaderboard(tryoutId: string, userId: string) {
-    // 1. Ambil Top 10 Scores
-    const topAttempts = await this.prisma.tryOutAttempt.findMany({
-      where: {
-        tryOutId: tryoutId,
-        status: 'FINISHED',
-      },
-      orderBy: { totalScore: 'desc' },
-      take: 10,
-      include: {
-        user: { select: { name: true, id: true } },
-      },
-    });
-
-    const top10 = topAttempts.map((attempt, index) => ({
-      rank: index + 1,
-      name: attempt.user.name,
-      score: Math.round(attempt.totalScore),
-      isCurrentUser: attempt.userId === userId,
-    }));
-
-    // 2. Ambil Rank User (jika ada)
-    let currentUserRank: {
-      rank: number;
-      name: string;
-      score: number;
-      isCurrentUser: boolean;
-    } | null = null;
-    const userAttempt = await this.prisma.tryOutAttempt.findFirst({
-      where: { userId, tryOutId: tryoutId, status: 'FINISHED' },
-      orderBy: { totalScore: 'desc' }, // Ambil skor terbaik user jika multiple attempt
-    });
-
-    if (userAttempt) {
-      const rankCount = await this.prisma.tryOutAttempt.count({
-        where: {
-          tryOutId: tryoutId,
-          status: 'FINISHED',
-          totalScore: { gt: userAttempt.totalScore },
-        },
-      });
-      const rank = rankCount + 1;
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { name: true },
-      });
-
-      currentUserRank = {
-        rank,
-        name: user?.name || 'Saya',
-        score: Math.round(userAttempt.totalScore),
-        isCurrentUser: true,
-      };
-    }
-
-    return { top10, currentUserRank };
   }
 }
