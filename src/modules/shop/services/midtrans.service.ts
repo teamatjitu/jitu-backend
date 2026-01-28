@@ -15,26 +15,46 @@ export class MidtransService {
   private readonly apiUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.serverKey = this.configService.get<string>('SERVER_KEY') || '';
-    this.clientKey = this.configService.get<string>('CLIENT_KEY') || '';
-    this.merchantId = this.configService.get<string>('MERCHANT_ID') || '';
-    this.isProduction =
-      this.configService.get<string>('NODE_ENV') === 'production';
+    // 1. Ambil raw value
+    const rawServerKey = this.configService.get<string>('SERVER_KEY') || '';
+    const rawClientKey = this.configService.get<string>('CLIENT_KEY') || '';
+    const rawMerchantId = this.configService.get<string>('MERCHANT_ID') || '';
+    const rawNodeEnv = this.configService.get<string>('NODE_ENV') || '';
+    const rawMidtransEnv =
+      this.configService.get<string>('MIDTRANS_IS_PRODUCTION');
+
+    // 2. Sanitasi (Hapus spasi dan tanda kutip yang tidak sengaja terbawa)
+    this.serverKey = rawServerKey.replace(/['"\s]/g, '');
+    this.clientKey = rawClientKey.replace(/['"\s]/g, '');
+    this.merchantId = rawMerchantId.replace(/['"\s]/g, '');
+
+    // 3. Tentukan Mode (Production vs Sandbox)
+    // Prioritas: MIDTRANS_IS_PRODUCTION > NODE_ENV
+    if (rawMidtransEnv !== undefined && rawMidtransEnv !== null) {
+      // Cek string "true" (case insensitive) atau boolean true
+      this.isProduction = String(rawMidtransEnv).toLowerCase() === 'true';
+    } else {
+      // Fallback ke NODE_ENV (juga bersihkan tanda kutipnya)
+      const cleanNodeEnv = rawNodeEnv.replace(/['"\s]/g, '');
+      this.isProduction = cleanNodeEnv === 'production';
+    }
+
     this.apiUrl = this.isProduction
       ? 'https://api.midtrans.com'
       : 'https://api.sandbox.midtrans.com';
 
-    // Log for debugging (remove in production)
-    console.log('Midtrans Config:', {
-      serverKey: this.serverKey
-        ? `${this.serverKey.substring(0, 15)}...`
-        : 'MISSING',
-      clientKey: this.clientKey
-        ? `${this.clientKey.substring(0, 15)}...`
-        : 'MISSING',
-      merchantId: this.merchantId || 'MISSING',
-      apiUrl: this.apiUrl,
-    });
+    // Log for debugging
+    console.log('--- MIDTRANS CONFIG ---');
+    console.log(`MODE       : ${this.isProduction ? 'PRODUCTION' : 'SANDBOX'}`);
+    console.log(
+      `SERVER KEY : ${
+        this.serverKey
+          ? this.serverKey.substring(0, 5) + '...' + this.serverKey.slice(-5)
+          : 'MISSING'
+      } (Length: ${this.serverKey.length})`,
+    );
+    console.log(`API URL    : ${this.apiUrl}`);
+    console.log('-----------------------');
   }
 
   /**
