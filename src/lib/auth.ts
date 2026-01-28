@@ -6,14 +6,9 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import * as nodemailer from 'nodemailer';
 
 const getOrigin = (req: Request) => {
-  // 1. Jika FRONTEND_URL ada (di production), gunakan ini sebagai origin utama
-  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
-
-  // 2. Fallback untuk local atau jika proxy meneruskan host asli
-  const proto = req.headers.get('x-forwarded-proto') || 'http';
-  const host = req.headers.get('host');
-
-  return `${proto}://${host}`;
+  // HARDCODE untuk memastikan tidak ada kesalahan pembacaan env atau header
+  // Ini memaksa semua redirect OAuth kembali ke Frontend Vercel
+  return 'https://jituptn.vercel.app';
 };
 
 const adapter = new PrismaPg({
@@ -112,7 +107,7 @@ const getResetPasswordEmailTemplate = (url: string, email: string) => {
 };
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL,
+  baseURL: 'https://jituptn.vercel.app', // Hardcode baseURL juga
   trustedOrigins: [
     'http://localhost:5173',
     'http://localhost:3000',
@@ -172,13 +167,6 @@ export const auth = betterAuth({
   advanced: {
     cookies: {
       session_token: {
-        attributes: {
-          sameSite: 'None',
-          secure: true,
-          httpOnly: true,
-        },
-      },
-      state: {
         attributes: {
           sameSite: 'None',
           secure: true,
