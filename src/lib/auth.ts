@@ -107,7 +107,7 @@ const getResetPasswordEmailTemplate = (url: string, email: string) => {
 };
 
 export const auth = betterAuth({
-  baseURL: process.env.FROTEND_URL, // Hardcode baseURL juga
+  baseURL: process.env.FRONTEND_URL, // Hardcode baseURL juga
   trustedOrigins: [
     'http://localhost:5173',
     'http://localhost:3000',
