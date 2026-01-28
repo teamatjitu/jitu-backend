@@ -89,6 +89,15 @@ export class TryoutService {
     });
     if (!tryout) throw new NotFoundException('Tryout tidak ditemukan');
 
+    // Cek Status Waktu (Pindahkan ke paling atas agar user lama pun terkena validasi)
+    const now = new Date();
+    if (tryout.scheduledStart && now < tryout.scheduledStart) {
+      throw new BadRequestException('Tryout belum dimulai.');
+    }
+    if (tryout.scheduledEnd && now > tryout.scheduledEnd) {
+      throw new BadRequestException('Masa pengerjaan tryout sudah berakhir.');
+    }
+
     // 2. Cek apakah user sudah terdaftar (punya attempt apa saja)
     const existingAttempt = await this.prisma.tryOutAttempt.findFirst({
       where: { userId, tryOutId: tryoutId },
@@ -411,6 +420,9 @@ export class TryoutService {
 
     // --- AUTO FINISH LOGIC (DIPERBAIKI) ---
     if (currentAttempt && currentAttempt.status === 'IN_PROGRESS') {
+      const now = new Date();
+
+      // 1. Cek Durasi Pengerjaan
       const totalDuration = currentAttempt.tryOut.subtests.reduce(
         (acc, s) => acc + (s.durationMinutes || 0),
         0,
@@ -419,7 +431,12 @@ export class TryoutService {
         currentAttempt.startedAt.getTime() + totalDuration * 60000,
       );
 
-      if (new Date() > expiryTime) {
+      // 2. Cek Jadwal Tryout Berakhir
+      const scheduleEnded =
+        currentAttempt.tryOut.scheduledEnd &&
+        now > currentAttempt.tryOut.scheduledEnd;
+
+      if (now > expiryTime || scheduleEnded) {
         // Gunakan ExamService untuk finish agar logic skor konsisten
         currentAttempt = await this.examService.finishExam(currentAttempt.id);
 

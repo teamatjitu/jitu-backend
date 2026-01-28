@@ -273,7 +273,7 @@ export class DashboardService {
         if (answer.isCorrect && answer.question?.subtest?.name) {
           const subtestName = answer.question.subtest.name.toUpperCase().trim();
           const points = answer.question.points || 0;
-          
+
           if (subtestName === 'PU') scores.pu += points;
           if (subtestName === 'PPU') scores.ppu += points;
           if (subtestName === 'PBM') scores.pbm += points;
@@ -361,19 +361,29 @@ export class DashboardService {
       orderBy: { scheduledStart: 'desc' },
     });
 
-    return tryouts.map((t) => ({
-      id: t.id,
-      title: t.title,
-      description: t.description,
-      solutionPrice: t.solutionPrice,
-      isPublic: t.isPublic,
-      scheduledStart: t.scheduledStart,
-      createdAt: t.createdAt,
-      participants: t._count.attempts,
-      isRegistered: t.attempts.length > 0,
-      status: t.attempts.length > 0 ? t.attempts[0].status : undefined,
-      score: t.attempts.length > 0 ? t.attempts[0].totalScore : undefined, // Map score
-    }));
+    return tryouts.map((t) => {
+      const now = new Date();
+      let status = t.attempts.length > 0 ? t.attempts[0].status : undefined;
+
+      // Force status to FINISHED if tryout expired (Override attempt status)
+      if (t.scheduledEnd && now > t.scheduledEnd) {
+        status = 'FINISHED';
+      }
+
+      return {
+        id: t.id,
+        title: t.title,
+        description: t.description,
+        solutionPrice: t.solutionPrice,
+        isPublic: t.isPublic,
+        scheduledStart: t.scheduledStart,
+        createdAt: t.createdAt,
+        participants: t._count.attempts,
+        isRegistered: t.attempts.length > 0,
+        status: status,
+        score: t.attempts.length > 0 ? t.attempts[0].totalScore : undefined, // Map score
+      };
+    });
   }
 
   async getAvailableTryouts(userId: string): Promise<OngoingTryoutDto[]> {
