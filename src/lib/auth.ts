@@ -6,20 +6,10 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import * as nodemailer from 'nodemailer';
 
 const getOrigin = (req: Request) => {
-  const frontendUrl = process.env.FRONTEND_URL;
-  const nodeEnv = process.env.NODE_ENV;
-  
-  // Debug log untuk melihat environment variables di runtime
-  console.log(`[AUTH] getOrigin called. FRONTEND_URL: ${frontendUrl}, NODE_ENV: ${nodeEnv}`);
+  // 1. Jika FRONTEND_URL ada (di production), gunakan ini sebagai origin utama
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
 
-  // Fallback hardcore jika env entah kenapa tidak terbaca di production
-  if (frontendUrl) return frontendUrl;
-  if (nodeEnv === 'production' && !frontendUrl) {
-    console.warn('[AUTH] WARN: NODE_ENV is production but FRONTEND_URL is missing! Defaulting to Vercel URL.');
-    return 'https://jituptn.vercel.app';
-  }
-
-  // Fly/Railway sets x-forwarded-proto to "https"
+  // 2. Fallback untuk local atau jika proxy meneruskan host asli
   const proto = req.headers.get('x-forwarded-proto') || 'http';
   const host = req.headers.get('host');
 
@@ -158,11 +148,8 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-      redirectUri: (req: Request) => {
-        const url = `${getOrigin(req)}/api/auth/callback/google`;
-        console.log(`[AUTH] Google Redirect URI generated: ${url}`);
-        return url;
-      },
+      redirectUri: (req: Request) =>
+        `${getOrigin(req)}/api/auth/callback/google`,
     },
   },
   user: {
@@ -193,11 +180,11 @@ export const auth = betterAuth({
       },
       state: {
         attributes: {
-          sameSite: 'None', 
+          sameSite: 'None',
           secure: true,
-          httpOnly: true, 
-        }
-      }
+          httpOnly: true,
+        },
+      },
     },
   },
 });
