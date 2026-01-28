@@ -6,12 +6,12 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import * as nodemailer from 'nodemailer';
 
 const getOrigin = (req: Request) => {
-  // Fly sets x-forwarded-proto to "https"
+  // If FRONTEND_URL is set (e.g., in production), use it as the origin
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
+
+  // Fly/Railway sets x-forwarded-proto to "https"
   const proto = req.headers.get('x-forwarded-proto') || 'http';
   const host = req.headers.get('host');
-
-  // If running locally and FRONTEND_URL is set, use that
-  if (!host && process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
 
   return `${proto}://${host}`;
 };
@@ -117,6 +117,10 @@ export const auth = betterAuth({
     'http://localhost:5173',
     'http://localhost:3000',
     'https://jitu-frontend-staging.vercel.app',
+    'https://jituptn.vercel.app',
+    ...(process.env.TRUSTED_ORIGINS
+      ? process.env.TRUSTED_ORIGINS.split(',')
+      : []),
   ],
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
