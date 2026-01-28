@@ -220,10 +220,16 @@ export class ShopService {
       );
 
       // Extract QR Code and Deeplink URLs from actions
-      const qrCodeAction = chargeResponse.actions.find(
+      const actions = chargeResponse.actions || [];
+      
+      if (!chargeResponse.actions) {
+        console.warn('Midtrans response missing actions:', JSON.stringify(chargeResponse));
+      }
+
+      const qrCodeAction = actions.find(
         (action) => action.name === 'generate-qr-code',
       );
-      const deeplinkAction = chargeResponse.actions.find(
+      const deeplinkAction = actions.find(
         (action) => action.name === 'deeplink-redirect',
       );
 
