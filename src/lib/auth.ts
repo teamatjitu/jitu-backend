@@ -107,7 +107,7 @@ const getResetPasswordEmailTemplate = (url: string, email: string) => {
 };
 
 export const auth = betterAuth({
-  baseURL: 'https://jituptn.vercel.app', // Hardcode baseURL juga
+  baseURL: process.env.FROTEND_URL, // Hardcode baseURL juga
   trustedOrigins: [
     'http://localhost:5173',
     'http://localhost:3000',
