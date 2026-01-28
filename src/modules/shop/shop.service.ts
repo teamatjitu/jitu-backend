@@ -219,6 +219,10 @@ export class ShopService {
         callbackUrl,
       );
 
+      console.log('--- MIDTRANS DEBUG ---');
+      console.log(JSON.stringify(chargeResponse, null, 2));
+      console.log('----------------------');
+
       // Extract QR Code and Deeplink URLs from actions
       const actions = chargeResponse.actions || [];
       
