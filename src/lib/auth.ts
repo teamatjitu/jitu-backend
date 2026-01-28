@@ -8,7 +8,7 @@ import * as nodemailer from 'nodemailer';
 const getOrigin = (req: Request) => {
   // HARDCODE untuk memastikan tidak ada kesalahan pembacaan env atau header
   // Ini memaksa semua redirect OAuth kembali ke Frontend Vercel
-  return 'https://jituptn.vercel.app';
+  return process.env.FRONTEND_URL;
 };
 
 const adapter = new PrismaPg({
