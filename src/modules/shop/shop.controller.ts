@@ -111,6 +111,27 @@ export class ShopController {
     return this.shopService.handleMidtransNotification(notification);
   }
 
+  /**
+   * Manually check status with Midtrans and confirm if paid
+   */
+  @Post('midtrans/check-status/:orderId')
+  async checkMidtransStatus(@Param('orderId') orderId: string) {
+    return this.shopService.checkMidtransAndConfirm(orderId);
+  }
+
+  /**
+   * MANUAL CONFIRMATION FOR LOCAL DEV
+   * ---
+   * This endpoint is for local development only to simulate a
+   * successful payment webhook from Midtrans.
+   */
+  @Post('manual-confirm/:orderId')
+  async manualConfirm(@Param('orderId') orderId: string) {
+    // In a real app, you might want to protect this endpoint
+    // or only enable it in 'development' mode.
+    return this.shopService.setPaidByOrderId(orderId);
+  }
+
   @Get('pending')
   async getPendingTransactions(@Session() session: UserSession) {
     return this.shopService.getPendingTransactions(session.user.id);

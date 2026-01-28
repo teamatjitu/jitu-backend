@@ -360,6 +360,22 @@ export class ShopService {
   }
 
   /**
+   * Manual confirmation by Order ID for local development
+   */
+  async setPaidByOrderId(orderId: string) {
+    const transaction = await this.prisma.payment.findUnique({
+      where: { orderId: orderId },
+    });
+
+    if (!transaction) {
+      throw new BadRequestException('Transaction with that Order ID not found!');
+    }
+
+    // Call the original setPaid method that uses the internal ID
+    return this.setPaid(transaction.id);
+  }
+
+  /**
    * Handle Midtrans webhook notification
    */
   async handleMidtransNotification(
@@ -418,6 +434,41 @@ export class ShopService {
       success: true,
       message: `Payment status updated to ${newStatus}`,
     };
+  }
+
+  async checkMidtransAndConfirm(orderId: string) {
+    // 1. Find the local payment record
+    const payment = await this.prisma.payment.findUnique({
+      where: { orderId },
+    });
+
+    if (!payment) {
+      throw new BadRequestException('Payment not found in our system.');
+    }
+
+    // 2. If already confirmed, just return it
+    if (payment.status === 'CONFIRMED') {
+      return payment;
+    }
+
+    // 3. Get latest status from Midtrans
+    const midtransStatus = await this.midtransService.getTransactionStatus(
+      orderId,
+    );
+
+    // 4. Map the status
+    const newStatus = this.midtransService.mapTransactionStatus(
+      midtransStatus.transaction_status,
+      midtransStatus.fraud_status,
+    );
+
+    // 5. If confirmed on Midtrans, finalize it locally
+    if (newStatus === 'CONFIRMED') {
+      return this.setPaid(payment.id);
+    }
+
+    // 6. Otherwise, just return the current local state
+    return payment;
   }
 
   checkTransactionStatus(transactionId: string) {
