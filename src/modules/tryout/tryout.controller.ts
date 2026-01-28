@@ -84,13 +84,4 @@ export class TryoutController {
   ) {
     return this.tryoutService.registerTryout(session.user.id, id);
   }
-
-  @Get(':id/leaderboard')
-  @UseGuards(AuthGuard)
-  async getLeaderboard(
-    @Param('id') id: string,
-    @Session() session: UserSession,
-  ) {
-    return this.tryoutService.getLeaderboard(id, session.user.id);
-  }
 }
