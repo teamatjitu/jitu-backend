@@ -146,7 +146,7 @@ export class ShopService {
     // Generate QRIS
     let qrisString = '';
     try {
-      qrisString = this.updateQrisAmount(
+      qrisString = this.midtransService.generateQris(
         selectedPackage.price,
         transaction.orderId,
       );
@@ -321,7 +321,7 @@ export class ShopService {
     let qrisString = '';
     try {
       // Gunakan amount transaksi, bukan dari paket (karena harga bisa berubah)
-      qrisString = this.updateQrisAmount(
+      qrisString = this.midtransService.generateQris(
         transaction.amount,
         transaction.orderId,
       );
@@ -489,49 +489,4 @@ export class ShopService {
     });
   }
 
-  /**
-   * Update nominal (tag 54) pada QRIS dan hitung ulang CRC.
-   */
-  updateQrisAmount(nominal: number | string, transactionId?: string): string {
-    const qris = this.configService.get<string>('QRIS_ID');
-
-    if (!qris) throw new Error('QRIS_ID belum dikonfigurasi.');
-    if (!nominal) throw new Error('Nominal wajib diisi.');
-
-    const nominalStr = String(nominal);
-    const pad2 = (n: number) => (n < 10 ? '0' + n : String(n));
-
-    // Simple CRC16-CCITT implementation
-    const toCRC16 = (input: string) => {
-      let crc = 0xffff;
-      for (let i = 0; i < input.length; i++) {
-        crc ^= input.charCodeAt(i) << 8;
-        for (let j = 0; j < 8; j++) {
-          crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
-          crc &= 0xffff;
-        }
-      }
-      return (crc & 0xffff).toString(16).toUpperCase().padStart(4, '0');
-    };
-
-    let base = qris.slice(0, -4);
-    base = base.includes('010211') ? base.replace('010211', '010212') : base;
-
-    const splitMarker = '5802ID';
-    const parts = base.split(splitMarker);
-    if (parts.length < 2) throw new Error('QRIS Marker 5802ID not found');
-
-    const amountTag = '54' + pad2(nominalStr.length) + nominalStr;
-    let payload = parts[0] + amountTag + splitMarker + parts[1];
-
-    if (transactionId) {
-      // Potong transactionId jika terlalu panjang agar muat di QRIS (max length tag 62 variatif)
-      const safeId = transactionId.slice(0, 20);
-      const tag62 = '62' + pad2(safeId.length) + safeId;
-      payload += tag62;
-    }
-
-    payload += '6304';
-    return payload + toCRC16(payload);
-  }
 }

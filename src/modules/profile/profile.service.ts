@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { auth } from '../../lib/auth';
+import { MidtransService } from '../shop/services/midtrans.service';
 
 @Injectable()
 export class ProfileService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private midtransService: MidtransService,
+  ) {}
 
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -31,6 +35,52 @@ export class ProfileService {
       _count: { _all: true },
     });
 
+    // 3. Ambil pending payment (jika ada) untuk ditampilkan di profile
+    const pendingPayment = await this.prisma.payment.findFirst({
+      where: {
+        userId,
+        status: 'PENDING',
+        paymentMethod: { in: ['GOPAY', 'QRIS'] },
+      },
+      include: {
+        tokenPackage: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    let paymentData: any = null;
+    if (pendingPayment) {
+      const expiryTime = new Date(pendingPayment.createdAt);
+      expiryTime.setMinutes(expiryTime.getMinutes() + 15);
+      const isExpired = new Date() > expiryTime;
+
+      if (isExpired) {
+        await this.prisma.payment.update({
+          where: { id: pendingPayment.id },
+          data: { status: 'CANCELLED' },
+        });
+      } else {
+        let qrisString = '';
+        try {
+          qrisString = this.midtransService.generateQris(
+            pendingPayment.amount,
+            pendingPayment.orderId,
+          );
+        } catch (error) {
+          console.error('Gagal generate QRIS di Profile:', error);
+        }
+
+        paymentData = {
+          ...pendingPayment,
+          qris: qrisString,
+          packageName: pendingPayment.tokenPackage.name,
+          expiresAt: expiryTime,
+        };
+      }
+    }
+
     const hasPassword = user.accounts.some(
       (acc) =>
         acc.providerId === 'credential' ||
@@ -53,6 +103,7 @@ export class ProfileService {
           recentAttempts.length > 0 ? recentAttempts[0].totalScore : 0,
         streak: user.currentStreak,
       },
+      pendingPayment: paymentData,
       attempts: recentAttempts.map((attempt) => ({
         id: attempt.id,
         title: attempt.tryOut.title,
