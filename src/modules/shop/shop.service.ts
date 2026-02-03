@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { MidtransService } from './services/midtrans.service';
@@ -390,59 +395,120 @@ export class ShopService {
   async handleMidtransNotification(
     notification: MidtransNotificationDto,
   ): Promise<{ success: boolean; message: string }> {
-    // Verify signature
-    const isValid = this.midtransService.verifySignature(notification);
-    if (!isValid) {
-      throw new BadRequestException('Invalid signature');
-    }
-
-    // Find payment by order_id
-    const payment = await this.prisma.payment.findUnique({
-      where: { orderId: notification.order_id },
-    });
-
-    if (!payment) {
-      throw new BadRequestException('Payment not found');
-    }
-
-    // Map Midtrans status to our status
-    const newStatus = this.midtransService.mapTransactionStatus(
-      notification.transaction_status || '',
-      notification.fraud_status,
+    this.logger.log(
+      `Received Midtrans notification for order: ${notification.order_id}`,
     );
+    this.logger.debug('Notification payload:', JSON.stringify(notification));
 
-    // Update payment status
-    await this.prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: newStatus,
-        metadata: {
-          ...(payment.metadata as any),
-          last_notification: notification,
-          updated_at: new Date().toISOString(),
-        },
-      },
-    });
+    try {
+      // Verify signature
+      const isValid = this.midtransService.verifySignature(notification);
+      this.logger.log(
+        `Signature verification for ${notification.order_id}: ${isValid ? 'VALID' : 'INVALID'}`,
+      );
 
-    // If payment is confirmed, credit user's token balance
-    if (newStatus === 'CONFIRMED' && payment.status !== 'CONFIRMED') {
-      await this.prisma.user.update({
-        where: { id: payment.userId },
+      if (!isValid) {
+        this.logger.warn(
+          `Invalid signature received for order: ${notification.order_id}`,
+        );
+        throw new BadRequestException('Invalid signature');
+      }
+
+      // Find payment by order_id
+      const payment = await this.prisma.payment.findUnique({
+        where: { orderId: notification.order_id },
+      });
+
+      if (!payment) {
+        this.logger.warn(
+          `Payment not found for order: ${notification.order_id}`,
+        );
+        throw new BadRequestException('Payment not found');
+      }
+
+      this.logger.log(
+        `Found payment ${payment.id} with current status: ${payment.status}`,
+      );
+
+      // Call Get Status API to verify transaction status (best practice)
+      this.logger.log(
+        `Verifying transaction status with Midtrans API for order: ${notification.order_id}`,
+      );
+      const midtransStatus = await this.midtransService.getTransactionStatus(
+        notification.order_id,
+      );
+      this.logger.debug(
+        'Midtrans Get Status response:',
+        JSON.stringify(midtransStatus),
+      );
+
+      // Map Midtrans status to our status using verified API response
+      const newStatus = this.midtransService.mapTransactionStatus(
+        midtransStatus.transaction_status || '',
+        midtransStatus.fraud_status,
+      );
+      this.logger.log(
+        `Status mapping for ${notification.order_id}: ${midtransStatus.transaction_status} -> ${newStatus}`,
+      );
+
+      // Update payment status
+      await this.prisma.payment.update({
+        where: { id: payment.id },
         data: {
-          tokenBalance: { increment: payment.tokenAmount },
+          status: newStatus,
+          metadata: {
+            ...(payment.metadata as any),
+            last_notification: notification,
+            last_status_check: midtransStatus,
+            updated_at: new Date().toISOString(),
+          },
         },
       });
 
+      // If payment is confirmed, credit user's token balance
+      if (newStatus === 'CONFIRMED' && payment.status !== 'CONFIRMED') {
+        await this.prisma.user.update({
+          where: { id: payment.userId },
+          data: {
+            tokenBalance: { increment: payment.tokenAmount },
+          },
+        });
+
+        this.logger.log(
+          `Payment ${payment.id} confirmed. Credited ${payment.tokenAmount} tokens to user ${payment.userId}`,
+        );
+
+        return {
+          success: true,
+          message: 'Payment confirmed and tokens credited',
+        };
+      }
+
+      this.logger.log(
+        `Payment ${payment.id} status updated to ${newStatus}`,
+      );
+
       return {
         success: true,
-        message: 'Payment confirmed and tokens credited',
+        message: `Payment status updated to ${newStatus}`,
       };
-    }
+    } catch (error) {
+      // Re-throw known exceptions
+      if (
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
 
-    return {
-      success: true,
-      message: `Payment status updated to ${newStatus}`,
-    };
+      // Log unexpected errors and return 500 so Midtrans retries
+      this.logger.error(
+        `Unexpected error processing notification for order ${notification.order_id}:`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Failed to process payment notification',
+      );
+    }
   }
 
   async checkMidtransAndConfirm(orderId: string) {

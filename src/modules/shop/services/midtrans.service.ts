@@ -198,6 +198,7 @@ export class MidtransService {
       case 'deny':
       case 'expire':
       case 'cancel':
+      case 'failure':
         return 'CANCELLED';
       default:
         return 'PENDING';
