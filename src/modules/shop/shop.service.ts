@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { MidtransService } from './services/midtrans.service';
@@ -9,6 +9,8 @@ import type {
 
 @Injectable()
 export class ShopService {
+  private readonly logger = new Logger(ShopService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
@@ -89,8 +91,7 @@ export class ShopService {
         try {
           await this.midtransService.cancelTransaction(payment.orderId);
         } catch (error) {
-          console.error('Failed to cancel on Midtrans:', error);
-          // Continue with local cancellation even if Midtrans fails
+          this.logger.warn('Failed to cancel on Midtrans, continuing with local cancellation', error);
         }
       }
     }
@@ -151,7 +152,7 @@ export class ShopService {
         transaction.orderId,
       );
     } catch (error) {
-      console.error('Gagal generate QRIS:', error);
+      this.logger.error('Failed to generate QRIS', error);
       throw new BadRequestException('Gagal generate QRIS Code');
     }
 
@@ -219,15 +220,13 @@ export class ShopService {
         callbackUrl,
       );
 
-      console.log('--- MIDTRANS DEBUG ---');
-      console.log(JSON.stringify(chargeResponse, null, 2));
-      console.log('----------------------');
+      this.logger.debug('Midtrans charge response', chargeResponse);
 
       // Extract QR Code and Deeplink URLs from actions
       const actions = chargeResponse.actions || [];
       
       if (!chargeResponse.actions) {
-        console.warn('Midtrans response missing actions:', JSON.stringify(chargeResponse));
+        this.logger.warn('Midtrans response missing actions', chargeResponse);
       }
 
       const qrCodeAction = actions.find(
@@ -326,7 +325,7 @@ export class ShopService {
         transaction.orderId,
       );
     } catch (error) {
-      console.error('Gagal generate QRIS:', error);
+      this.logger.error('Failed to generate QRIS', error);
     }
 
     return {

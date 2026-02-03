@@ -2,13 +2,17 @@ import {
   Injectable,
   BadRequestException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service'; // Sesuaikan path ini jika perlu
-import { Observable, interval, map, switchMap, of, from } from 'rxjs';
+import { Observable, of, from } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 import { MessageEvent } from './interfaces';
 
 @Injectable()
 export class ExamService {
+  private readonly logger = new Logger(ExamService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async startExam(tryOutId: string, userId: string) {
@@ -82,7 +86,11 @@ export class ExamService {
     });
   }
 
-  // SSE untuk memperbarui waktu
+  /**
+   * SSE endpoint for exam timer.
+   * Instead of creating per-user interval timers (which causes event loop starvation),
+   * we send the endTime and serverTime once. The client handles the countdown.
+   */
   getExamStream(attemptId: string, order: number): Observable<MessageEvent> {
     return from(
       this.prisma.tryOutAttempt.findUnique({
@@ -104,9 +112,6 @@ export class ExamService {
         }
 
         // Cari subtes yang sedang aktif berdasarkan order yang diminta
-        // Note: order parameter di sini idealnya match dengan attempt.currentSubtestOrder
-        // Tapi untuk robustness, kita ambil subtes sesuai order yang diminta frontend
-        // atau fallback ke currentSubtestOrder dari DB
         const activeOrder = order || attempt.currentSubtestOrder;
         const currentSubtest = attempt.tryOut.subtests.find(
           (s) => s.order === activeOrder,
@@ -118,63 +123,57 @@ export class ExamService {
           } as MessageEvent);
         }
 
-        // Waktu mulai subtes ini (gunakan subtestStartedAt jika ada, fallback ke startedAt untuk subtes pertama)
-        // Perbaikan: subtestStartedAt harusnya di-set setiap ganti subtes.
-        // Jika null (legacy data), pakai startedAt.
+        // Calculate end time for the current subtest
         const startTime = attempt.subtestStartedAt
           ? attempt.subtestStartedAt.getTime()
           : attempt.startedAt.getTime();
 
         const durationMs = currentSubtest.durationMinutes * 60000;
-        const endTime = startTime + durationMs;
-
-        return interval(1000).pipe(
-          switchMap(async () => {
-            const now = new Date();
-            const remainingSeconds = Math.max(
-              0,
-              Math.floor((endTime - now.getTime()) / 1000),
-            );
-
-            if (remainingSeconds === 0) {
-              // Jangan finishExam dulu, cuma kirim sinyal subtes selesai
-              return {
-                data: { status: 'SUBTEST_FINISHED', remainingSeconds: 0 },
-              } as MessageEvent;
-            }
-
-            return {
-              data: {
-                status: 'IN_PROGRESS',
-                remainingSeconds,
-                serverTime: now.toISOString(),
-              },
-            } as MessageEvent;
-          }),
+        const endTime = new Date(startTime + durationMs);
+        const serverTime = new Date();
+        const remainingSeconds = Math.max(
+          0,
+          Math.floor((endTime.getTime() - serverTime.getTime()) / 1000),
         );
+
+        // Send initial state with endTime - client handles countdown
+        // This eliminates per-user interval timers that cause event loop starvation
+        return of({
+          data: {
+            type: 'init',
+            status: remainingSeconds > 0 ? 'IN_PROGRESS' : 'SUBTEST_FINISHED',
+            endTime: endTime.toISOString(),
+            serverTime: serverTime.toISOString(),
+            remainingSeconds,
+            durationMinutes: currentSubtest.durationMinutes,
+            subtestOrder: activeOrder,
+          },
+        } as MessageEvent);
       }),
     );
   }
 
 
 
-  // --- PERBAIKAN UTAMA DI SINI ---
+  /**
+   * Saves user's answer without grading.
+   * Grading is deferred to finishExam to ensure:
+   * - Answer key corrections after submission are reflected
+   * - Consistent grading at exam completion time
+   */
   async saveAnswer(
     attemptId: string,
     questionId: string,
     questionItemId?: string,
     inputText?: string,
   ) {
-    // LOG INPUT DARI CONTROLLER
-    console.log('📥 SAVE ANSWER REQUEST:', {
+    this.logger.debug('Processing save answer request', {
       attemptId,
       questionId,
-      questionItemId,
-      inputText,
     });
 
     try {
-      // [SECURITY] Validasi status attempt sebelum menyimpan jawaban
+      // [SECURITY] Validate attempt status before saving
       const attempt = await this.prisma.tryOutAttempt.findUnique({
         where: { id: attemptId },
         select: { status: true },
@@ -185,12 +184,12 @@ export class ExamService {
       }
 
       if (attempt.status === 'FINISHED') {
-        throw new BadRequestException('Ujian sudah selesai, tidak bisa menyimpan jawaban.');
+        throw new BadRequestException(
+          'Ujian sudah selesai, tidak bisa menyimpan jawaban.',
+        );
       }
 
-      let isCorrect = false;
-
-      // VALIDASI 1: Pilihan Ganda / Benar-Salah
+      // Validate questionItemId if provided
       if (questionItemId) {
         const selectedItem = await this.prisma.questionItem.findUnique({
           where: { id: questionItemId },
@@ -201,51 +200,10 @@ export class ExamService {
             `ID Pilihan jawaban tidak ditemukan: ${questionItemId}`,
           );
         }
-        isCorrect = selectedItem.isCorrect;
-      }
-      // VALIDASI 2: Isian Singkat
-      else if (typeof inputText !== 'undefined') {
-        // Cek undefined agar string kosong "" tetap diproses
-
-        // Query Question
-        const question = await this.prisma.question.findUnique({
-          where: { id: questionId },
-        });
-
-        // Debug: Cek apakah question ditemukan
-        if (!question) {
-          throw new BadRequestException(
-            `Soal dengan ID ${questionId} tidak ditemukan`,
-          );
-        }
-
-        console.log('🔎 SOAL DITEMUKAN:', question);
-
-        // Debug: Cek field correctAnswer (apakah null atau ada isinya)
-        const key = question.correctAnswer;
-
-        if (key) {
-          // Pastikan kedua sisi adalah string sebelum trim()
-          const userAnswer = String(inputText).trim().toLowerCase();
-          const correctKey = String(key).trim().toLowerCase();
-
-          isCorrect = userAnswer === correctKey;
-          console.log(
-            `📝 GRADING: User='${userAnswer}' vs Key='${correctKey}' => ${isCorrect}`,
-          );
-        } else {
-          console.warn(
-            `⚠️ Soal ID ${questionId} tidak memiliki kunci jawaban (correctAnswer null).`,
-          );
-        }
-      } else {
-        // Jika questionItemId null DAN inputText undefined
-        console.warn('⚠️ Tidak ada jawaban yang dikirim (kosong)');
       }
 
-      // SIMPAN KE DB
-      console.log('💾 MENYIMPAN KE DB...', { isCorrect });
-
+      // Save answer WITHOUT grading - grading deferred to finishExam
+      // This ensures answer key corrections are reflected in final score
       const result = await this.prisma.userAnswer.upsert({
         where: {
           tryOutAttemptId_questionId: {
@@ -255,52 +213,110 @@ export class ExamService {
         },
         update: {
           questionItemId: questionItemId || null,
-          inputText: inputText || null,
-          isCorrect: isCorrect,
+          inputText: inputText ?? null,
+          // isCorrect is NOT set here - will be graded in finishExam
           updatedAt: new Date(),
         },
         create: {
           tryOutAttemptId: attemptId,
           questionId: questionId,
           questionItemId: questionItemId || null,
-          inputText: inputText || null,
-          isCorrect: isCorrect,
+          inputText: inputText ?? null,
+          isCorrect: false, // Default value, will be updated in finishExam
         },
       });
 
-      console.log('✅ BERHASIL DISIMPAN');
       return result;
     } catch (error) {
-      // LOG ERROR LENGKAP
-      console.error('❌ CRITICAL ERROR DI SAVE ANSWER:', error);
-
       if (error instanceof BadRequestException) throw error;
 
-      // Tampilkan pesan error asli ke frontend untuk debugging
-      const errorMessage =
-        error instanceof Error ? error.message : JSON.stringify(error);
-      throw new InternalServerErrorException(`Server Error: ${errorMessage}`);
+      this.logger.error('Failed to save answer', {
+        attemptId,
+        questionId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+
+      throw new InternalServerErrorException('Failed to save answer');
     }
   }
 
+  /**
+   * Grades a single answer against the current question key.
+   * Used by finishExam to ensure answers are graded with the latest key.
+   */
+  private async gradeAnswer(answer: {
+    questionItemId: string | null;
+    inputText: string | null;
+    questionId: string;
+  }): Promise<boolean> {
+    // For multiple choice / true-false: check if selected item is correct
+    if (answer.questionItemId) {
+      const selectedItem = await this.prisma.questionItem.findUnique({
+        where: { id: answer.questionItemId },
+        select: { isCorrect: true },
+      });
+      return selectedItem?.isCorrect ?? false;
+    }
+
+    // For short answer: compare text against correct answer key
+    if (answer.inputText !== null) {
+      const question = await this.prisma.question.findUnique({
+        where: { id: answer.questionId },
+        select: { correctAnswer: true },
+      });
+
+      if (!question?.correctAnswer) {
+        return false;
+      }
+
+      const userAnswer = answer.inputText.trim().toLowerCase();
+      const correctKey = question.correctAnswer.trim().toLowerCase();
+      return userAnswer === correctKey;
+    }
+
+    return false;
+  }
+
+  /**
+   * Finishes the exam and grades all answers.
+   * Grading is done at this point to ensure:
+   * - Answer key corrections after submission are reflected
+   * - All answers are graded consistently at exam completion
+   */
   async finishExam(attemptId: string) {
-    // 1. Ambil semua jawaban user untuk attempt ini
+    // 1. Get all answers for this attempt
     const answers = await this.prisma.userAnswer.findMany({
       where: { tryOutAttemptId: attemptId },
       include: { question: true },
     });
 
-    // 2. Hitung total skor berdasarkan poin soal yang benar
-    const totalScore = answers.reduce((acc, curr) => {
-      return curr.isCorrect ? acc + (curr.question.points || 0) : acc;
-    }, 0);
+    // 2. Grade each answer and update in database
+    let totalScore = 0;
+    for (const answer of answers) {
+      const isCorrect = await this.gradeAnswer({
+        questionItemId: answer.questionItemId,
+        inputText: answer.inputText,
+        questionId: answer.questionId,
+      });
 
-    // 3. Update status DAN skor secara bersamaan
+      // Update the answer with grading result
+      await this.prisma.userAnswer.update({
+        where: { id: answer.id },
+        data: { isCorrect },
+      });
+
+      // Add points if correct
+      if (isCorrect) {
+        totalScore += answer.question.points || 0;
+      }
+    }
+
+    // 3. Update attempt status and score
     return this.prisma.tryOutAttempt.update({
       where: { id: attemptId },
       data: {
         status: 'FINISHED',
-        totalScore: totalScore,
+        totalScore,
         finishedAt: new Date(),
       },
     });
