@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { PaymentStatus } from '../../../generated/prisma/client';
 import { MidtransService } from './services/midtrans.service';
 import type {
   EWalletPaymentResponse,
@@ -37,7 +38,7 @@ export class ShopService {
     const pendingPayment = await this.prisma.payment.findFirst({
       where: {
         userId,
-        status: 'PENDING',
+        status: PaymentStatus.PENDING,
         paymentMethod: { in: ['GOPAY', 'QRIS'] },
       },
       include: {
@@ -61,7 +62,7 @@ export class ShopService {
       // Auto-cancel expired payment
       await this.prisma.payment.update({
         where: { id: pendingPayment.id },
-        data: { status: 'CANCELLED' },
+        data: { status: PaymentStatus.CANCELLED },
       });
       return null;
     }
@@ -81,7 +82,7 @@ export class ShopService {
       where: {
         id: paymentId,
         userId,
-        status: 'PENDING',
+        status: PaymentStatus.PENDING,
       },
     });
 
@@ -104,7 +105,7 @@ export class ShopService {
     // Update payment status to CANCELLED
     const updatedPayment = await this.prisma.payment.update({
       where: { id: paymentId },
-      data: { status: 'CANCELLED' },
+      data: { status: PaymentStatus.CANCELLED },
     });
 
     return {
@@ -144,7 +145,7 @@ export class ShopService {
         orderId,
         amount: selectedPackage.price,
         tokenAmount: selectedPackage.tokenAmount,
-        status: 'PENDING',
+        status: PaymentStatus.PENDING,
         paymentMethod: 'QRIS_STATIC',
       },
     });
@@ -190,7 +191,7 @@ export class ShopService {
       where: {
         userId,
         tokenPackageId: packageId,
-        status: 'PENDING',
+        status: PaymentStatus.PENDING,
         paymentMethod: { in: ['GOPAY', 'QRIS'] },
       },
     });
@@ -212,7 +213,7 @@ export class ShopService {
         orderId,
         amount: selectedPackage.price,
         tokenAmount: selectedPackage.tokenAmount,
-        status: 'PENDING',
+        status: PaymentStatus.PENDING,
         paymentMethod: 'GOPAY',
       },
     });
@@ -278,7 +279,7 @@ export class ShopService {
     const transactions = await this.prisma.payment.findMany({
       where: {
         userId,
-        status: 'PENDING',
+        status: PaymentStatus.PENDING,
       },
       include: {
         tokenPackage: true,
@@ -297,7 +298,7 @@ export class ShopService {
     const transactions = await this.prisma.payment.findMany({
       where: {
         userId,
-        status: { not: 'PENDING' },
+        status: { not: PaymentStatus.PENDING },
       },
       include: {
         tokenPackage: true,
@@ -354,13 +355,13 @@ export class ShopService {
 
     if (!transaction)
       throw new BadRequestException('Transaksi tidak ditemukan!');
-    if (transaction.status === 'CONFIRMED') return transaction;
+    if (transaction.status === PaymentStatus.CONFIRMED) return transaction;
 
     // Update Status Transaksi
     return await this.prisma.$transaction(async (tx) => {
       const res = await tx.payment.update({
         where: { id: transactionId },
-        data: { status: 'CONFIRMED' },
+        data: { status: PaymentStatus.CONFIRMED },
       });
 
       await tx.user.update({
@@ -452,28 +453,50 @@ export class ShopService {
       );
 
       // Update payment status
-      await this.prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: newStatus,
-          metadata: {
-            ...(payment.metadata as any),
-            last_notification: notification,
-            last_status_check: midtransStatus,
-            updated_at: new Date().toISOString(),
-          },
-        },
-      });
+      const transactionResult = await this.prisma.$transaction(async (tx) => {
+        // Re-fetch the latest payment state inside the transaction to avoid using stale data
+        const currentPayment = await tx.payment.findUnique({
+          where: { id: payment.id },
+        });
 
-      // If payment is confirmed, credit user's token balance
-      if (newStatus === 'CONFIRMED' && payment.status !== 'CONFIRMED') {
-        await this.prisma.user.update({
-          where: { id: payment.userId },
+        if (!currentPayment) {
+          // If the payment was deleted between the initial read and now, abort processing
+          throw new BadRequestException('Payment not found in our system.');
+        }
+
+        const updatedPayment = await tx.payment.update({
+          where: { id: currentPayment.id },
           data: {
-            tokenBalance: { increment: payment.tokenAmount },
+            status: newStatus,
+            metadata: {
+              ...(currentPayment.metadata as any),
+              last_notification: notification,
+              last_status_check: midtransStatus,
+              updated_at: new Date().toISOString(),
+            },
           },
         });
 
+        let tokensCredited = false;
+
+        // If payment is newly confirmed, credit user's token balance atomically
+        if (
+          newStatus === PaymentStatus.CONFIRMED &&
+          currentPayment.status !== PaymentStatus.CONFIRMED
+        ) {
+          await tx.user.update({
+            where: { id: currentPayment.userId },
+            data: {
+              tokenBalance: { increment: currentPayment.tokenAmount },
+            },
+          });
+          tokensCredited = true;
+        }
+
+        return { updatedPayment, tokensCredited };
+      });
+
+      if (transactionResult.tokensCredited) {
         this.logger.log(
           `Payment ${payment.id} confirmed. Credited ${payment.tokenAmount} tokens to user ${payment.userId}`,
         );
@@ -522,7 +545,7 @@ export class ShopService {
     }
 
     // 2. If already confirmed, just return it
-    if (payment.status === 'CONFIRMED') {
+    if (payment.status === PaymentStatus.CONFIRMED) {
       return payment;
     }
 
@@ -538,7 +561,7 @@ export class ShopService {
     );
 
     // 5. If confirmed on Midtrans, finalize it locally
-    if (newStatus === 'CONFIRMED') {
+    if (newStatus === PaymentStatus.CONFIRMED) {
       return this.setPaid(payment.id);
     }
 

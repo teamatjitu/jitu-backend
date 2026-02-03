@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'node:crypto';
 import { crc16ccitt } from 'crc';
+import { PaymentStatus } from '../../../../generated/prisma/client';
 import type {
   EWalletChargeResponse,
   MidtransNotificationDto,
@@ -178,11 +179,14 @@ export class MidtransService {
 
   /**
    * Map Midtrans transaction status to our payment status
+   *
+   * Note: This returns string literals (e.g. 'CONFIRMED') to match callers
+   * that compare against raw strings, even though PaymentStatus is a string enum.
    */
   mapTransactionStatus(
     transactionStatus: string,
     fraudStatus?: string,
-  ): 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'DECLINED' {
+  ): 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'DECLINED' {
     // Handle fraud_status first
     if (fraudStatus === 'deny' || fraudStatus === 'challenge') {
       return 'DECLINED';
