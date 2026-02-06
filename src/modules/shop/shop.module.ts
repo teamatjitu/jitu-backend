@@ -6,5 +6,6 @@ import { MidtransService } from './services/midtrans.service';
 @Module({
   controllers: [ShopController],
   providers: [ShopService, MidtransService],
+  exports: [MidtransService],
 })
 export class ShopModule {}

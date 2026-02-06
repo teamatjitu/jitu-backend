@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ShopService } from './shop.service';
 import { PrismaService } from '../../prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { MidtransService } from './services/midtrans.service'; // Import MidtransService
 import { BadRequestException } from '@nestjs/common';
 
 // --- MOCK CONSTANTS ---
@@ -14,6 +15,7 @@ describe('ShopService', () => {
   let service: ShopService;
   let prismaService: PrismaService;
   let configService: ConfigService;
+  let midtransService: MidtransService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -22,10 +24,17 @@ describe('ShopService', () => {
         {
           provide: PrismaService,
           useValue: {
-            tokenTransaction: {
+            payment: {
               create: jest.fn(),
               findUnique: jest.fn(),
+              findFirst: jest.fn(),
               update: jest.fn(),
+              delete: jest.fn(),
+              findMany: jest.fn(),
+            },
+            tokenPackage: {
+              findUnique: jest.fn(),
+              findMany: jest.fn(),
             },
             user: {
               update: jest.fn(),
@@ -38,12 +47,26 @@ describe('ShopService', () => {
             get: jest.fn().mockReturnValue(MOCK_QRIS_STATIC),
           },
         },
+        {
+          provide: MidtransService, // Mock MidtransService
+          useValue: {
+            generateQris: jest.fn((nominal, txId) => {
+               // Simple mock implementation returning string containing expected values
+               return `MOCK_QRIS_${nominal}_${txId}_CRC`;
+            }),
+            createEWalletCharge: jest.fn(),
+            verifySignature: jest.fn(),
+            mapTransactionStatus: jest.fn(),
+            getTransactionStatus: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<ShopService>(ShopService);
     prismaService = module.get<PrismaService>(PrismaService);
     configService = module.get<ConfigService>(ConfigService);
+    midtransService = module.get<MidtransService>(MidtransService);
   });
 
   it('should be defined', () => {
@@ -52,134 +75,56 @@ describe('ShopService', () => {
 
   describe('createTokenTransaction', () => {
     it('should create a transaction and return dynamic QRIS', async () => {
+      // Mock data paket
+      const mockPackage = {
+          id: 'pkg-1',
+          name: 'Paket 1',
+          price: 99000,
+          tokenAmount: 10,
+          isActive: true
+      };
+      
       // Mock data transaksi yang dibuat
       const mockTx = {
         id: MOCK_TX_ID,
         userId: MOCK_USER_ID,
-        amount: 10,
-        type: 'UNPAID',
+        tokenPackageId: mockPackage.id,
+        orderId: 'ORDER-123',
+        amount: mockPackage.price,
+        tokenAmount: mockPackage.tokenAmount,
+        status: 'PENDING',
+        paymentMethod: 'QRIS_STATIC',
         createdAt: new Date(),
       };
 
-      jest
-        .spyOn(prismaService.tokenTransaction, 'create')
-        .mockResolvedValue(mockTx as any);
+      jest.spyOn(prismaService.tokenPackage as any, 'findUnique').mockResolvedValue(mockPackage);
+      jest.spyOn(prismaService.payment as any, 'create').mockResolvedValue(mockTx);
+      jest.spyOn(midtransService, 'generateQris').mockReturnValue('540599000...6210ORDER-123...010212');
 
-      // Panggil fungsi (Paket 1: Rp 99.000)
-      const result = await service.createTokenTransaction(MOCK_USER_ID, 1);
+      // Panggil fungsi
+      const result = await service.createTokenTransaction(MOCK_USER_ID, mockPackage.id);
 
       // Verifikasi:
-      expect(prismaService.tokenTransaction.create).toHaveBeenCalledWith({
-        data: {
-          amount: 10,
-          userId: MOCK_USER_ID,
-          type: 'UNPAID',
-        },
-      });
+      expect(prismaService.payment.create).toHaveBeenCalledWith(expect.objectContaining({
+          data: expect.objectContaining({
+              amount: 99000,
+              userId: MOCK_USER_ID,
+              status: 'PENDING'
+          })
+      }));
 
-      // Pastikan QRIS mengandung nominal (Tag 54) -> 99000 (panjang 5) -> "540599000"
+      // Check result properties directly
       expect(result.qris).toContain('540599000');
-
-      // Pastikan QRIS mengandung Transaction ID (Tag 62) -> ID: tx-abc-123 (panjang 10) -> "6210tx-abc-123"
-      expect(result.qris).toContain(`6210${MOCK_TX_ID}`);
-
-      // Pastikan Point of Initiation berubah jadi 12 (Dynamic)
+      expect(result.qris).toContain('6210ORDER-123');
       expect(result.qris).toContain('010212');
-
-      expect(result.totalPrice).toBe(99000);
+      expect(result.amount).toBe(99000);
     });
 
     it('should throw BadRequestException if package is invalid', async () => {
+      jest.spyOn(prismaService.tokenPackage as any, 'findUnique').mockResolvedValue(null);
       await expect(
-        service.createTokenTransaction(MOCK_USER_ID, 99 as any),
+        service.createTokenTransaction(MOCK_USER_ID, 'invalid-pkg-id'),
       ).rejects.toThrow(BadRequestException);
-    });
-  });
-
-  describe('setPaid', () => {
-    it('should update transaction status and increment user token', async () => {
-      const mockUnpaidTx = {
-        id: MOCK_TX_ID,
-        userId: MOCK_USER_ID,
-        amount: 10,
-        type: 'UNPAID',
-      };
-
-      const mockPaidTx = { ...mockUnpaidTx, type: 'PAID' };
-
-      jest
-        .spyOn(prismaService.tokenTransaction, 'findUnique')
-        .mockResolvedValue(mockUnpaidTx as any);
-      jest
-        .spyOn(prismaService.tokenTransaction, 'update')
-        .mockResolvedValue(mockPaidTx as any);
-      jest.spyOn(prismaService.user, 'update').mockResolvedValue({} as any);
-
-      const result = await service.setPaid(MOCK_TX_ID);
-
-      // 1. Cek Transaksi diupdate jadi PAID
-      expect(prismaService.tokenTransaction.update).toHaveBeenCalledWith({
-        where: { id: MOCK_TX_ID },
-        data: { type: 'PAID' },
-      });
-
-      // 2. Cek Saldo User ditambah
-      expect(prismaService.user.update).toHaveBeenCalledWith({
-        where: { id: MOCK_USER_ID },
-        data: {
-          tokenBalance: { increment: 10 },
-        },
-      });
-
-      expect(result.type).toBe('PAID');
-    });
-
-    it('should return immediately if already PAID (Idempotency)', async () => {
-      const mockPaidTx = {
-        id: MOCK_TX_ID,
-        userId: MOCK_USER_ID,
-        type: 'PAID',
-      };
-
-      jest
-        .spyOn(prismaService.tokenTransaction, 'findUnique')
-        .mockResolvedValue(mockPaidTx as any);
-
-      const result = await service.setPaid(MOCK_TX_ID);
-
-      // Tidak boleh update database lagi
-      expect(prismaService.tokenTransaction.update).not.toHaveBeenCalled();
-      expect(prismaService.user.update).not.toHaveBeenCalled();
-      expect(result).toEqual(mockPaidTx);
-    });
-
-    it('should throw error if transaction not found', async () => {
-      jest
-        .spyOn(prismaService.tokenTransaction, 'findUnique')
-        .mockResolvedValue(null);
-
-      await expect(service.setPaid('invalid-id')).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-  });
-
-  describe('updateQrisAmount (Unit Logic)', () => {
-    it('should generate valid QRIS with correct CRC16', () => {
-      // Kita test logic internalnya saja
-      const nominal = 10000;
-      const txId = 'TEST1234';
-
-      const qris = service.updateQrisAmount(nominal, txId);
-
-      // Format Tag 54: 54 + 05 + 10000 -> 540510000
-      expect(qris).toContain('540510000');
-
-      // Format Tag 62: 62 + 08 + TEST1234 -> 6208TEST1234
-      expect(qris).toContain('6208TEST1234');
-
-      // Pastikan diakhiri dengan CRC (4 digit hex)
-      expect(qris).toMatch(/[0-9A-F]{4}$/);
     });
   });
 });

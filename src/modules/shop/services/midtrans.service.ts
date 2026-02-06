@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as crypto from 'crypto';
+import * as crypto from 'node:crypto';
+import { crc16ccitt } from 'crc';
+import { PaymentStatus } from '../../../../generated/prisma/client';
 import type {
   EWalletChargeResponse,
   MidtransNotificationDto,
@@ -8,6 +10,7 @@ import type {
 
 @Injectable()
 export class MidtransService {
+  private readonly logger = new Logger(MidtransService.name);
   private readonly serverKey: string;
   private readonly clientKey: string;
   private readonly merchantId: string;
@@ -15,26 +18,34 @@ export class MidtransService {
   private readonly apiUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.serverKey = this.configService.get<string>('SERVER_KEY') || '';
-    this.clientKey = this.configService.get<string>('CLIENT_KEY') || '';
-    this.merchantId = this.configService.get<string>('MERCHANT_ID') || '';
-    this.isProduction =
-      this.configService.get<string>('NODE_ENV') === 'production';
+    // 1. Get raw values
+    const rawServerKey = this.configService.get<string>('SERVER_KEY') || '';
+    const rawClientKey = this.configService.get<string>('CLIENT_KEY') || '';
+    const rawMerchantId = this.configService.get<string>('MERCHANT_ID') || '';
+    const rawNodeEnv = this.configService.get<string>('NODE_ENV') || '';
+    const rawMidtransEnv =
+      this.configService.get<string>('MIDTRANS_IS_PRODUCTION');
+
+    // 2. Sanitize (remove accidental quotes and whitespace)
+    this.serverKey = rawServerKey.replace(/['"\s]/g, '');
+    this.clientKey = rawClientKey.replace(/['"\s]/g, '');
+    this.merchantId = rawMerchantId.replace(/['"\s]/g, '');
+
+    // 3. Determine mode (Production vs Sandbox)
+    if (rawMidtransEnv !== undefined && rawMidtransEnv !== null) {
+      this.isProduction = String(rawMidtransEnv).toLowerCase() === 'true';
+    } else {
+      const cleanNodeEnv = rawNodeEnv.replace(/['"\s]/g, '');
+      this.isProduction = cleanNodeEnv === 'production';
+    }
+
     this.apiUrl = this.isProduction
       ? 'https://api.midtrans.com'
       : 'https://api.sandbox.midtrans.com';
 
-    // Log for debugging (remove in production)
-    console.log('Midtrans Config:', {
-      serverKey: this.serverKey
-        ? `${this.serverKey.substring(0, 15)}...`
-        : 'MISSING',
-      clientKey: this.clientKey
-        ? `${this.clientKey.substring(0, 15)}...`
-        : 'MISSING',
-      merchantId: this.merchantId || 'MISSING',
-      apiUrl: this.apiUrl,
-    });
+    this.logger.log(
+      `Midtrans initialized: ${this.isProduction ? 'PRODUCTION' : 'SANDBOX'}`,
+    );
   }
 
   /**
@@ -168,11 +179,14 @@ export class MidtransService {
 
   /**
    * Map Midtrans transaction status to our payment status
+   *
+   * Note: This returns string literals (e.g. 'CONFIRMED') to match callers
+   * that compare against raw strings, even though PaymentStatus is a string enum.
    */
   mapTransactionStatus(
     transactionStatus: string,
     fraudStatus?: string,
-  ): 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'DECLINED' {
+  ): 'CONFIRMED' | 'PENDING' | 'CANCELLED' | 'DECLINED' {
     // Handle fraud_status first
     if (fraudStatus === 'deny' || fraudStatus === 'challenge') {
       return 'DECLINED';
@@ -188,9 +202,51 @@ export class MidtransService {
       case 'deny':
       case 'expire':
       case 'cancel':
+      case 'failure':
         return 'CANCELLED';
       default:
         return 'PENDING';
     }
+  }
+
+  /**
+   * Calculate CRC16-CCITT checksum for QRIS payload.
+   * Uses the battle-tested 'crc' library instead of manual bitwise implementation.
+   */
+  calculateCRC16(input: string): string {
+    return crc16ccitt(input).toString(16).toUpperCase().padStart(4, '0');
+  }
+
+  /**
+   * Generate QRIS String with CRC16
+   */
+  generateQris(nominal: number | string, transactionId?: string): string {
+    const qris = this.configService.get<string>('QRIS_ID');
+
+    if (!qris) throw new Error('QRIS_ID belum dikonfigurasi.');
+    if (!nominal) throw new Error('Nominal wajib diisi.');
+
+    const nominalStr = String(nominal);
+    const pad2 = (n: number) => (n < 10 ? '0' + n : String(n));
+
+    let base = qris.slice(0, -4);
+    base = base.includes('010211') ? base.replace('010211', '010212') : base;
+
+    const splitMarker = '5802ID';
+    const parts = base.split(splitMarker);
+    if (parts.length < 2) throw new Error('QRIS Marker 5802ID not found');
+
+    const amountTag = '54' + pad2(nominalStr.length) + nominalStr;
+    let payload = parts[0] + amountTag + splitMarker + parts[1];
+
+    if (transactionId) {
+      // Truncate transactionId if too long for QRIS (max length tag 62)
+      const safeId = transactionId.slice(0, 20);
+      const tag62 = '62' + pad2(safeId.length) + safeId;
+      payload += tag62;
+    }
+
+    payload += '6304';
+    return payload + this.calculateCRC16(payload);
   }
 }

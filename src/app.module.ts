@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
@@ -14,6 +14,8 @@ import { PrismaModule } from './prisma.module';
 import { ExamModule } from './modules/exam/exam.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ProfileModule } from './modules/profile/profile.module';
+import { AuthModule as CustomAuthModule } from './modules/auth/auth.module';
+import * as bodyParser from 'body-parser';
 
 @Module({
   imports: [
@@ -22,6 +24,7 @@ import { ProfileModule } from './modules/profile/profile.module';
       isGlobal: true,
     }),
     AuthModule.forRoot({ auth, disableGlobalAuthGuard: true }),
+    CustomAuthModule,
     PrismaModule,
     DashboardModule,
     DailyModule,
@@ -36,4 +39,13 @@ import { ProfileModule } from './modules/profile/profile.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Apply JSON body parser to all routes except /api/auth/*
+    // Auth routes need raw body for better-auth to handle
+    consumer
+      .apply(bodyParser.json(), bodyParser.urlencoded({ extended: true }))
+      .exclude('api/auth/(.*)')
+      .forRoutes('*');
+  }
+}

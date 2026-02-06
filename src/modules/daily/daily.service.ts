@@ -52,42 +52,26 @@ export class DailyService {
       };
     }
 
-    // Use deterministic selection based on HASH (ID + Date)
+    // Use deterministic selection based on PostgreSQL HASHTEXT function
     // This ensures adding new questions doesn't shift the selection for today.
-    const questions = await this.prisma.question.findMany({
-      select: { id: true },
-      orderBy: { id: 'asc' },
-    });
+    // Moved hash logic to SQL to avoid loading all question IDs into memory.
+    const dateStr = new Date().toISOString().split('T')[0];
 
-    if (questions.length === 0) {
+    // Use raw SQL to select question with highest hash (deterministic for the day)
+    const selectedQuestion = await this.prisma.$queryRaw<
+      Array<{ id: string }>
+    >`
+      SELECT id FROM "Question"
+      ORDER BY ABS(HASHTEXT(id || ${dateStr})) DESC
+      LIMIT 1
+    `;
+
+    if (!selectedQuestion || selectedQuestion.length === 0) {
       throw new BadRequestException('Tidak ada soal yang tersedia');
     }
 
-    const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
-
-    // Find best ID via Hash
-    let bestId = questions[0].id;
-    let maxHash = -1;
-
-    for (const q of questions) {
-      const input = q.id + dateStr;
-      let hash = 0;
-      for (let i = 0; i < input.length; i++) {
-        const char = input.charCodeAt(i);
-        hash = (hash << 5) - hash + char;
-        hash |= 0;
-      }
-      hash = Math.abs(hash);
-
-      if (hash > maxHash) {
-        maxHash = hash;
-        bestId = q.id;
-      }
-    }
-
     const question = await this.prisma.question.findUnique({
-      where: { id: bestId },
+      where: { id: selectedQuestion[0].id },
       include: {
         items: {
           orderBy: { order: 'asc' },
