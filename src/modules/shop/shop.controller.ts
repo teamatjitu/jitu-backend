@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Post,
@@ -18,9 +19,14 @@ import type {
 } from './dto/ewallet.dto';
 
 @Controller('shop')
-@UseGuards(AuthGuard)
 export class ShopController {
   constructor(private readonly shopService: ShopService) {}
+
+  private assertDevPaymentEndpointEnabled() {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('Payment dev endpoint is disabled');
+    }
+  }
 
   @Get('packages')
   async getPackages() {
@@ -31,6 +37,7 @@ export class ShopController {
    * Get current pending e-wallet payment
    */
   @Get('pending-payment')
+  @UseGuards(AuthGuard)
   async getPendingPayment(@Session() session: UserSession) {
     const pending = await this.shopService.getPendingEWalletPayment(
       session.user.id,
@@ -42,6 +49,7 @@ export class ShopController {
    * Cancel a pending payment
    */
   @Post('cancel/:paymentId')
+  @UseGuards(AuthGuard)
   async cancelPayment(
     @Session() session: UserSession,
     @Param('paymentId') paymentId: string,
@@ -50,6 +58,7 @@ export class ShopController {
   }
 
   @Post('create/:packageId')
+  @UseGuards(AuthGuard)
   async createTransaction(
     @Session() session: UserSession,
     @Param('packageId') packageId: string,
@@ -69,12 +78,22 @@ export class ShopController {
   }
 
   @Post('check/:transactionId')
-  checkTransactionStatus(@Param('transactionId') transactionId: string) {
-    return this.shopService.checkTransactionStatus(transactionId);
+  @UseGuards(AuthGuard)
+  checkTransactionStatus(
+    @Session() session: UserSession,
+    @Param('transactionId') transactionId: string,
+  ) {
+    return this.shopService.checkTransactionStatus(
+      session.user.id,
+      transactionId,
+    );
   }
 
   @Post('webhook')
+  @UseGuards(AuthGuard)
   async handlePaymentWebhook(@Body() body: { transactionId: string }) {
+    this.assertDevPaymentEndpointEnabled();
+
     if (!body.transactionId) {
       throw new BadRequestException('transactionId is required');
     }
@@ -85,6 +104,7 @@ export class ShopController {
    * Create E-Wallet payment (GoPay/QRIS)
    */
   @Post('ewallet/create/:packageId')
+  @UseGuards(AuthGuard)
   async createEWalletPayment(
     @Session() session: UserSession,
     @Param('packageId') packageId: string,
@@ -115,8 +135,12 @@ export class ShopController {
    * Manually check status with Midtrans and confirm if paid
    */
   @Post('midtrans/check-status/:orderId')
-  async checkMidtransStatus(@Param('orderId') orderId: string) {
-    return this.shopService.checkMidtransAndConfirm(orderId);
+  @UseGuards(AuthGuard)
+  async checkMidtransStatus(
+    @Session() session: UserSession,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.shopService.checkMidtransAndConfirm(orderId, session.user.id);
   }
 
   /**
@@ -126,23 +150,27 @@ export class ShopController {
    * successful payment webhook from Midtrans.
    */
   @Post('manual-confirm/:orderId')
+  @UseGuards(AuthGuard)
   async manualConfirm(@Param('orderId') orderId: string) {
-    // In a real app, you might want to protect this endpoint
-    // or only enable it in 'development' mode.
+    this.assertDevPaymentEndpointEnabled();
+
     return this.shopService.setPaidByOrderId(orderId);
   }
 
   @Get('pending')
+  @UseGuards(AuthGuard)
   async getPendingTransactions(@Session() session: UserSession) {
     return this.shopService.getPendingTransactions(session.user.id);
   }
 
   @Get('past')
+  @UseGuards(AuthGuard)
   async getPastTransactions(@Session() session: UserSession) {
     return this.shopService.getPastTransactions(session.user.id);
   }
 
   @Get('data/:transactionId')
+  @UseGuards(AuthGuard)
   async getTransactionData(
     @Session() session: UserSession,
     @Param('transactionId') transactionId: string,
