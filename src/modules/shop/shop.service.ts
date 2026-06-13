@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
+import type { Prisma } from '../../../generated/prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { PaymentStatus } from '../../../generated/prisma/client';
 import { MidtransService } from './services/midtrans.service';
@@ -22,6 +23,41 @@ export class ShopService {
     private readonly configService: ConfigService,
     private readonly midtransService: MidtransService,
   ) {}
+
+  private mergePaymentMetadata(
+    metadata: unknown,
+    notification: MidtransNotificationDto,
+  ): Prisma.InputJsonValue {
+    const current =
+      metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+        ? (metadata as Record<string, Prisma.InputJsonValue>)
+        : {};
+    const sanitizedNotification = JSON.parse(
+      JSON.stringify(notification),
+    ) as Prisma.InputJsonValue;
+
+    return {
+      ...current,
+      last_notification: sanitizedNotification,
+      last_notification_at: new Date().toISOString(),
+    };
+  }
+
+  private isMatchingPaymentAmount(
+    notification: MidtransNotificationDto,
+    amount: number,
+  ) {
+    if (!notification.gross_amount) {
+      return false;
+    }
+
+    const notificationAmount = Number(notification.gross_amount);
+    if (!Number.isFinite(notificationAmount)) {
+      return false;
+    }
+
+    return Math.round(notificationAmount * 100) === amount * 100;
+  }
 
   // Ambil daftar paket dari database
   async getPackages() {
@@ -97,7 +133,10 @@ export class ShopService {
         try {
           await this.midtransService.cancelTransaction(payment.orderId);
         } catch (error) {
-          this.logger.warn('Failed to cancel on Midtrans, continuing with local cancellation', error);
+          this.logger.warn(
+            'Failed to cancel on Midtrans, continuing with local cancellation',
+            error,
+          );
         }
       }
     }
@@ -230,9 +269,12 @@ export class ShopService {
 
       // Extract QR Code and Deeplink URLs from actions
       const actions = chargeResponse.actions || [];
-      
+
       if (!chargeResponse.actions) {
-        this.logger.warn('Midtrans response missing actions', chargeResponse);
+        console.warn(
+          'Midtrans response missing actions:',
+          JSON.stringify(chargeResponse),
+        );
       }
 
       const qrCodeAction = actions.find(
@@ -355,21 +397,36 @@ export class ShopService {
 
     if (!transaction)
       throw new BadRequestException('Transaksi tidak ditemukan!');
-    if (transaction.status === PaymentStatus.CONFIRMED) return transaction;
 
     // Update Status Transaksi
     return await this.prisma.$transaction(async (tx) => {
-      const res = await tx.payment.update({
-        where: { id: transactionId },
-        data: { status: PaymentStatus.CONFIRMED },
-      });
-
-      await tx.user.update({
-        where: { id: res.userId },
+      const updateResult = await tx.payment.updateMany({
+        where: {
+          id: transactionId,
+          status: { not: 'CONFIRMED' },
+        },
         data: {
-          tokenBalance: { increment: res.tokenAmount },
+          status: 'CONFIRMED',
         },
       });
+
+      const res = await tx.payment.findUnique({
+        where: { id: transactionId },
+      });
+
+      if (!res) {
+        throw new BadRequestException('Transaksi tidak ditemukan!');
+      }
+
+      if (updateResult.count > 0) {
+        await tx.user.update({
+          where: { id: res.userId },
+          data: {
+            tokenBalance: { increment: res.tokenAmount },
+          },
+        });
+      }
+
       return res;
     });
   }
@@ -383,7 +440,9 @@ export class ShopService {
     });
 
     if (!transaction) {
-      throw new BadRequestException('Transaction with that Order ID not found!');
+      throw new BadRequestException(
+        'Transaction with that Order ID not found!',
+      );
     }
 
     // Call the original setPaid method that uses the internal ID
@@ -402,10 +461,11 @@ export class ShopService {
     this.logger.debug('Notification payload:', JSON.stringify(notification));
 
     try {
-      // Verify signature
       const isValid = this.midtransService.verifySignature(notification);
       this.logger.log(
-        `Signature verification for ${notification.order_id}: ${isValid ? 'VALID' : 'INVALID'}`,
+        `Signature verification for ${notification.order_id}: ${
+          isValid ? 'VALID' : 'INVALID'
+        }`,
       );
 
       if (!isValid) {
@@ -415,7 +475,10 @@ export class ShopService {
         throw new BadRequestException('Invalid signature');
       }
 
-      // Find payment by order_id
+      if (!this.midtransService.verifyMerchant(notification)) {
+        throw new BadRequestException('Invalid merchant');
+      }
+
       const payment = await this.prisma.payment.findUnique({
         where: { orderId: notification.order_id },
       });
@@ -427,11 +490,14 @@ export class ShopService {
         throw new BadRequestException('Payment not found');
       }
 
+      if (!this.isMatchingPaymentAmount(notification, payment.amount)) {
+        throw new BadRequestException('Invalid payment amount');
+      }
+
       this.logger.log(
         `Found payment ${payment.id} with current status: ${payment.status}`,
       );
 
-      // Call Get Status API to verify transaction status (best practice)
       this.logger.log(
         `Verifying transaction status with Midtrans API for order: ${notification.order_id}`,
       );
@@ -443,62 +509,75 @@ export class ShopService {
         JSON.stringify(midtransStatus),
       );
 
-      // Map Midtrans status to our status using verified API response
       const newStatus = this.midtransService.mapTransactionStatus(
-        midtransStatus.transaction_status || '',
-        midtransStatus.fraud_status,
+        midtransStatus.transaction_status ||
+          notification.transaction_status ||
+          '',
+        midtransStatus.fraud_status || notification.fraud_status,
       );
       this.logger.log(
         `Status mapping for ${notification.order_id}: ${midtransStatus.transaction_status} -> ${newStatus}`,
       );
 
-      // Update payment status
-      const transactionResult = (await this.prisma.$transaction(
-        async (tx): Promise<{ tokensCredited: boolean }> => {
-          // Re-fetch the latest payment state inside the transaction to avoid using stale data
-          const currentPayment = await tx.payment.findUnique({
-            where: { id: payment.id },
-          });
+      const notificationMetadata = this.mergePaymentMetadata(
+        payment.metadata,
+        notification,
+      );
+      const baseMetadata =
+        notificationMetadata &&
+        typeof notificationMetadata === 'object' &&
+        !Array.isArray(notificationMetadata)
+          ? (notificationMetadata as Record<string, Prisma.InputJsonValue>)
+          : {};
+      const metadata = {
+        ...baseMetadata,
+        last_status_check: JSON.parse(
+          JSON.stringify(midtransStatus),
+        ) as Prisma.InputJsonValue,
+        last_status_check_at: new Date().toISOString(),
+      } as Prisma.InputJsonValue;
 
-          if (!currentPayment) {
-            // If the payment was deleted between the initial read and now, abort processing
-            throw new BadRequestException('Payment not found in our system.');
-          }
+      const result = await this.prisma.$transaction(async (tx) => {
+        const currentPayment = await tx.payment.findUnique({
+          where: { id: payment.id },
+        });
 
+        if (!currentPayment) {
+          throw new BadRequestException('Payment not found in our system.');
+        }
+
+        if (currentPayment.status === PaymentStatus.CONFIRMED) {
           await tx.payment.update({
             where: { id: currentPayment.id },
+            data: { metadata },
+          });
+
+          return { alreadyConfirmed: true, credited: false };
+        }
+
+        await tx.payment.update({
+          where: { id: currentPayment.id },
+          data: {
+            status: newStatus,
+            metadata,
+          },
+        });
+
+        if (newStatus === PaymentStatus.CONFIRMED) {
+          await tx.user.update({
+            where: { id: currentPayment.userId },
             data: {
-              status: newStatus,
-              metadata: {
-                ...(currentPayment.metadata as any),
-                last_notification: notification,
-                last_status_check: midtransStatus,
-                updated_at: new Date().toISOString(),
-              },
+              tokenBalance: { increment: currentPayment.tokenAmount },
             },
           });
 
-          let tokensCredited = false;
+          return { alreadyConfirmed: false, credited: true };
+        }
 
-          // If payment is newly confirmed, credit user's token balance atomically
-          if (
-            newStatus === PaymentStatus.CONFIRMED &&
-            currentPayment.status !== PaymentStatus.CONFIRMED
-          ) {
-            await tx.user.update({
-              where: { id: currentPayment.userId },
-              data: {
-                tokenBalance: { increment: currentPayment.tokenAmount },
-              },
-            });
-            tokensCredited = true;
-          }
+        return { alreadyConfirmed: false, credited: false };
+      });
 
-          return { tokensCredited };
-        },
-      )) as { tokensCredited: boolean };
-
-      if (transactionResult.tokensCredited) {
+      if (result.credited) {
         this.logger.log(
           `Payment ${payment.id} confirmed. Credited ${payment.tokenAmount} tokens to user ${payment.userId}`,
         );
@@ -509,23 +588,22 @@ export class ShopService {
         };
       }
 
-      this.logger.log(
-        `Payment ${payment.id} status updated to ${newStatus}`,
-      );
+      if (result.alreadyConfirmed) {
+        return {
+          success: true,
+          message: 'Payment already confirmed; notification recorded',
+        };
+      }
 
       return {
         success: true,
         message: `Payment status updated to ${newStatus}`,
       };
     } catch (error) {
-      // Re-throw known exceptions
-      if (
-        error instanceof BadRequestException
-      ) {
+      if (error instanceof BadRequestException) {
         throw error;
       }
 
-      // Log unexpected errors and return 500 so Midtrans retries
       this.logger.error(
         `Unexpected error processing notification for order ${notification.order_id}:`,
         error,
@@ -536,10 +614,10 @@ export class ShopService {
     }
   }
 
-  async checkMidtransAndConfirm(orderId: string) {
+  async checkMidtransAndConfirm(orderId: string, userId: string) {
     // 1. Find the local payment record
-    const payment = await this.prisma.payment.findUnique({
-      where: { orderId },
+    const payment = await this.prisma.payment.findFirst({
+      where: { orderId, userId },
     });
 
     if (!payment) {
@@ -552,9 +630,8 @@ export class ShopService {
     }
 
     // 3. Get latest status from Midtrans
-    const midtransStatus = await this.midtransService.getTransactionStatus(
-      orderId,
-    );
+    const midtransStatus =
+      await this.midtransService.getTransactionStatus(orderId);
 
     // 4. Map the status
     const newStatus = this.midtransService.mapTransactionStatus(
@@ -571,12 +648,12 @@ export class ShopService {
     return payment;
   }
 
-  checkTransactionStatus(transactionId: string) {
-    return this.prisma.payment.findUnique({
+  checkTransactionStatus(userId: string, transactionId: string) {
+    return this.prisma.payment.findFirst({
       where: {
         id: transactionId,
+        userId,
       },
     });
   }
-
 }
