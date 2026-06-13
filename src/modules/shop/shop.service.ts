@@ -453,48 +453,50 @@ export class ShopService {
       );
 
       // Update payment status
-      const transactionResult = await this.prisma.$transaction(async (tx) => {
-        // Re-fetch the latest payment state inside the transaction to avoid using stale data
-        const currentPayment = await tx.payment.findUnique({
-          where: { id: payment.id },
-        });
+      const transactionResult = (await this.prisma.$transaction(
+        async (tx): Promise<{ tokensCredited: boolean }> => {
+          // Re-fetch the latest payment state inside the transaction to avoid using stale data
+          const currentPayment = await tx.payment.findUnique({
+            where: { id: payment.id },
+          });
 
-        if (!currentPayment) {
-          // If the payment was deleted between the initial read and now, abort processing
-          throw new BadRequestException('Payment not found in our system.');
-        }
+          if (!currentPayment) {
+            // If the payment was deleted between the initial read and now, abort processing
+            throw new BadRequestException('Payment not found in our system.');
+          }
 
-        const updatedPayment = await tx.payment.update({
-          where: { id: currentPayment.id },
-          data: {
-            status: newStatus,
-            metadata: {
-              ...(currentPayment.metadata as any),
-              last_notification: notification,
-              last_status_check: midtransStatus,
-              updated_at: new Date().toISOString(),
-            },
-          },
-        });
-
-        let tokensCredited = false;
-
-        // If payment is newly confirmed, credit user's token balance atomically
-        if (
-          newStatus === PaymentStatus.CONFIRMED &&
-          currentPayment.status !== PaymentStatus.CONFIRMED
-        ) {
-          await tx.user.update({
-            where: { id: currentPayment.userId },
+          await tx.payment.update({
+            where: { id: currentPayment.id },
             data: {
-              tokenBalance: { increment: currentPayment.tokenAmount },
+              status: newStatus,
+              metadata: {
+                ...(currentPayment.metadata as any),
+                last_notification: notification,
+                last_status_check: midtransStatus,
+                updated_at: new Date().toISOString(),
+              },
             },
           });
-          tokensCredited = true;
-        }
 
-        return { updatedPayment, tokensCredited };
-      });
+          let tokensCredited = false;
+
+          // If payment is newly confirmed, credit user's token balance atomically
+          if (
+            newStatus === PaymentStatus.CONFIRMED &&
+            currentPayment.status !== PaymentStatus.CONFIRMED
+          ) {
+            await tx.user.update({
+              where: { id: currentPayment.userId },
+              data: {
+                tokenBalance: { increment: currentPayment.tokenAmount },
+              },
+            });
+            tokensCredited = true;
+          }
+
+          return { tokensCredited };
+        },
+      )) as { tokensCredited: boolean };
 
       if (transactionResult.tokensCredited) {
         this.logger.log(

@@ -234,7 +234,7 @@ async function main() {
             },
             {
               name: SubtestName.LBI,
-              durationMinutes: 45,
+              durationMinutes: 43,
               order: 5,
               questions: {
                 create: [
@@ -262,7 +262,7 @@ async function main() {
             },
             {
               name: SubtestName.PM,
-              durationMinutes: 45,
+              durationMinutes: 30,
               order: 7,
               questions: {
                 create: [
@@ -654,7 +654,8 @@ async function main() {
     create: {
       id: 'tryout-past-review-1',
       title: 'Test: Edge Case (No Start Date)',
-      description: 'Ended yesterday but has NO Start Date. Leaderboard should still be OPEN.',
+      description:
+        'Ended yesterday but has NO Start Date. Leaderboard should still be OPEN.',
       batch: TryoutBatch.SNBT,
       isPublic: true,
       solutionPrice: 0,
@@ -672,7 +673,8 @@ async function main() {
     create: {
       id: 'tryout-weird-order-1',
       title: 'Test: Weird Date Order',
-      description: 'Start Date is BEFORE Release Date. Should be IN_PROGRESS based on dates.',
+      description:
+        'Start Date is BEFORE Release Date. Should be IN_PROGRESS based on dates.',
       batch: TryoutBatch.SNBT,
       isPublic: true,
       solutionPrice: 0,
