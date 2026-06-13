@@ -537,45 +537,49 @@ export class ShopService {
         last_status_check_at: new Date().toISOString(),
       } as Prisma.InputJsonValue;
 
-      const result = await this.prisma.$transaction(async (tx) => {
-        const currentPayment = await tx.payment.findUnique({
-          where: { id: payment.id },
-        });
-
-        if (!currentPayment) {
-          throw new BadRequestException('Payment not found in our system.');
-        }
-
-        if (currentPayment.status === PaymentStatus.CONFIRMED) {
-          await tx.payment.update({
-            where: { id: currentPayment.id },
-            data: { metadata },
+      const result = (await this.prisma.$transaction(
+        async (
+          tx,
+        ): Promise<{ alreadyConfirmed: boolean; credited: boolean }> => {
+          const currentPayment = await tx.payment.findUnique({
+            where: { id: payment.id },
           });
 
-          return { alreadyConfirmed: true, credited: false };
-        }
+          if (!currentPayment) {
+            throw new BadRequestException('Payment not found in our system.');
+          }
 
-        await tx.payment.update({
-          where: { id: currentPayment.id },
-          data: {
-            status: newStatus,
-            metadata,
-          },
-        });
+          if (currentPayment.status === PaymentStatus.CONFIRMED) {
+            await tx.payment.update({
+              where: { id: currentPayment.id },
+              data: { metadata },
+            });
 
-        if (newStatus === PaymentStatus.CONFIRMED) {
-          await tx.user.update({
-            where: { id: currentPayment.userId },
+            return { alreadyConfirmed: true, credited: false };
+          }
+
+          await tx.payment.update({
+            where: { id: currentPayment.id },
             data: {
-              tokenBalance: { increment: currentPayment.tokenAmount },
+              status: newStatus,
+              metadata,
             },
           });
 
-          return { alreadyConfirmed: false, credited: true };
-        }
+          if (newStatus === PaymentStatus.CONFIRMED) {
+            await tx.user.update({
+              where: { id: currentPayment.userId },
+              data: {
+                tokenBalance: { increment: currentPayment.tokenAmount },
+              },
+            });
 
-        return { alreadyConfirmed: false, credited: false };
-      });
+            return { alreadyConfirmed: false, credited: true };
+          }
+
+          return { alreadyConfirmed: false, credited: false };
+        },
+      )) as { alreadyConfirmed: boolean; credited: boolean };
 
       if (result.credited) {
         this.logger.log(
