@@ -1,22 +1,12 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
-import * as express from 'express';
-import type { Request, Response, NextFunction } from 'express';
 
 async function bootstrap() {
+  // Enable standard NestJS body parser
+  // Auth routes that need raw body are handled via middleware exclusion in AppModule
   const app = await NestFactory.create(AppModule, {
-    bodyParser: false,
-  });
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.path.includes('/api/auth')) {
-      next();
-    } else {
-      express.json()(req, res, (err) => {
-        if (err) next(err);
-        else express.urlencoded({ extended: true })(req, res, next);
-      });
-    }
+    rawBody: true, // Enable raw body for webhook routes that need it
   });
 
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
@@ -28,8 +18,18 @@ async function bootstrap() {
     }),
   );
 
+  // Parse allowed origins from environment variable
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map((o) =>
+    o.trim(),
+  );
+
+  // Validate CORS configuration in production
+  if (process.env.NODE_ENV === 'production' && !allowedOrigins?.length) {
+    throw new Error('ALLOWED_ORIGINS must be set in production');
+  }
+
   app.enableCors({
-    origin: true,
+    origin: allowedOrigins?.length ? allowedOrigins : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id'],

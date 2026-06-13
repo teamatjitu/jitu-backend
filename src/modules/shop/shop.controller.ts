@@ -9,6 +9,7 @@ import {
   Body,
   Query,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '../../guards/auth.guard';
 import { Session } from '../../decorators/session.decorator';
 import type { UserSession } from '../../decorators/session.decorator'; // Gunakan import type!
@@ -20,7 +21,10 @@ import type {
 
 @Controller('shop')
 export class ShopController {
-  constructor(private readonly shopService: ShopService) {}
+  constructor(
+    private readonly shopService: ShopService,
+    private readonly configService: ConfigService,
+  ) {}
 
   private assertDevPaymentEndpointEnabled() {
     if (process.env.NODE_ENV === 'production') {
@@ -29,6 +33,7 @@ export class ShopController {
   }
 
   @Get('packages')
+  @UseGuards(AuthGuard)
   async getPackages() {
     return this.shopService.getPackages();
   }

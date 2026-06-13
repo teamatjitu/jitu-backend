@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../../prisma.service';
@@ -13,6 +14,8 @@ import { QuestionType } from 'generated/prisma/client';
 
 @Injectable()
 export class AdminQuestionService {
+  private readonly logger = new Logger(AdminQuestionService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
@@ -35,11 +38,11 @@ export class AdminQuestionService {
         },
         (error, result) => {
           if (error) {
-            console.error('Cloudinary Upload Error:', error); // DEBUG LOG
+            this.logger.error('Cloudinary upload failed', error);
             return reject(error);
           }
           if (!result || !result.secure_url) {
-            console.error('Cloudinary Result Empty:', result); // DEBUG LOG
+            this.logger.error('Cloudinary returned empty result', result);
             return reject(
               new Error('Gagal mengupload gambar ke Cloudinary: Result kosong'),
             );

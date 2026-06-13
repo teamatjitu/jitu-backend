@@ -1,7 +1,13 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import type { Prisma } from '../../../generated/prisma/client';
 import { ConfigService } from '@nestjs/config';
+import { PaymentStatus } from '../../../generated/prisma/client';
 import { MidtransService } from './services/midtrans.service';
 import type {
   EWalletPaymentResponse,
@@ -10,6 +16,8 @@ import type {
 
 @Injectable()
 export class ShopService {
+  private readonly logger = new Logger(ShopService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
@@ -66,7 +74,7 @@ export class ShopService {
     const pendingPayment = await this.prisma.payment.findFirst({
       where: {
         userId,
-        status: 'PENDING',
+        status: PaymentStatus.PENDING,
         paymentMethod: { in: ['GOPAY', 'QRIS'] },
       },
       include: {
@@ -90,7 +98,7 @@ export class ShopService {
       // Auto-cancel expired payment
       await this.prisma.payment.update({
         where: { id: pendingPayment.id },
-        data: { status: 'CANCELLED' },
+        data: { status: PaymentStatus.CANCELLED },
       });
       return null;
     }
@@ -110,7 +118,7 @@ export class ShopService {
       where: {
         id: paymentId,
         userId,
-        status: 'PENDING',
+        status: PaymentStatus.PENDING,
       },
     });
 
@@ -125,8 +133,7 @@ export class ShopService {
         try {
           await this.midtransService.cancelTransaction(payment.orderId);
         } catch (error) {
-          console.error('Failed to cancel on Midtrans:', error);
-          // Continue with local cancellation even if Midtrans fails
+          this.logger.warn('Failed to cancel on Midtrans, continuing with local cancellation', error);
         }
       }
     }
@@ -134,7 +141,7 @@ export class ShopService {
     // Update payment status to CANCELLED
     const updatedPayment = await this.prisma.payment.update({
       where: { id: paymentId },
-      data: { status: 'CANCELLED' },
+      data: { status: PaymentStatus.CANCELLED },
     });
 
     return {
@@ -174,7 +181,7 @@ export class ShopService {
         orderId,
         amount: selectedPackage.price,
         tokenAmount: selectedPackage.tokenAmount,
-        status: 'PENDING',
+        status: PaymentStatus.PENDING,
         paymentMethod: 'QRIS_STATIC',
       },
     });
@@ -187,7 +194,7 @@ export class ShopService {
         transaction.orderId,
       );
     } catch (error) {
-      console.error('Gagal generate QRIS:', error);
+      this.logger.error('Failed to generate QRIS', error);
       throw new BadRequestException('Gagal generate QRIS Code');
     }
 
@@ -220,7 +227,7 @@ export class ShopService {
       where: {
         userId,
         tokenPackageId: packageId,
-        status: 'PENDING',
+        status: PaymentStatus.PENDING,
         paymentMethod: { in: ['GOPAY', 'QRIS'] },
       },
     });
@@ -242,7 +249,7 @@ export class ShopService {
         orderId,
         amount: selectedPackage.price,
         tokenAmount: selectedPackage.tokenAmount,
-        status: 'PENDING',
+        status: PaymentStatus.PENDING,
         paymentMethod: 'GOPAY',
       },
     });
@@ -255,9 +262,7 @@ export class ShopService {
         callbackUrl,
       );
 
-      console.log('--- MIDTRANS DEBUG ---');
-      console.log(JSON.stringify(chargeResponse, null, 2));
-      console.log('----------------------');
+      this.logger.debug('Midtrans charge response', chargeResponse);
 
       // Extract QR Code and Deeplink URLs from actions
       const actions = chargeResponse.actions || [];
@@ -313,7 +318,7 @@ export class ShopService {
     const transactions = await this.prisma.payment.findMany({
       where: {
         userId,
-        status: 'PENDING',
+        status: PaymentStatus.PENDING,
       },
       include: {
         tokenPackage: true,
@@ -332,7 +337,7 @@ export class ShopService {
     const transactions = await this.prisma.payment.findMany({
       where: {
         userId,
-        status: { not: 'PENDING' },
+        status: { not: PaymentStatus.PENDING },
       },
       include: {
         tokenPackage: true,
@@ -365,7 +370,7 @@ export class ShopService {
         transaction.orderId,
       );
     } catch (error) {
-      console.error('Gagal generate QRIS:', error);
+      this.logger.error('Failed to generate QRIS', error);
     }
 
     return {
@@ -447,11 +452,10 @@ export class ShopService {
   async handleMidtransNotification(
     notification: MidtransNotificationDto,
   ): Promise<{ success: boolean; message: string }> {
-    // Verify signature
-    const isValid = this.midtransService.verifySignature(notification);
-    if (!isValid) {
-      throw new BadRequestException('Invalid signature');
-    }
+    this.logger.log(
+      `Received Midtrans notification for order: ${notification.order_id}`,
+    );
+    this.logger.debug('Notification payload:', JSON.stringify(notification));
 
     if (!this.midtransService.verifyMerchant(notification)) {
       throw new BadRequestException('Invalid merchant');
@@ -462,9 +466,12 @@ export class ShopService {
       where: { orderId: notification.order_id },
     });
 
-    if (!payment) {
-      throw new BadRequestException('Payment not found');
-    }
+      if (!isValid) {
+        this.logger.warn(
+          `Invalid signature received for order: ${notification.order_id}`,
+        );
+        throw new BadRequestException('Invalid signature');
+      }
 
     if (!this.isMatchingPaymentAmount(notification, payment.amount)) {
       throw new BadRequestException('Invalid payment amount');
@@ -515,9 +522,15 @@ export class ShopService {
     if (result.credited) {
       return {
         success: true,
-        message: 'Payment confirmed and tokens credited',
+        message: `Payment status updated to ${newStatus}`,
       };
-    }
+    } catch (error) {
+      // Re-throw known exceptions
+      if (
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
 
     if (result.alreadyConfirmed) {
       return {
@@ -543,7 +556,7 @@ export class ShopService {
     }
 
     // 2. If already confirmed, just return it
-    if (payment.status === 'CONFIRMED') {
+    if (payment.status === PaymentStatus.CONFIRMED) {
       return payment;
     }
 
@@ -558,7 +571,7 @@ export class ShopService {
     );
 
     // 5. If confirmed on Midtrans, finalize it locally
-    if (newStatus === 'CONFIRMED') {
+    if (newStatus === PaymentStatus.CONFIRMED) {
       return this.setPaid(payment.id);
     }
 
