@@ -26,6 +26,12 @@ export class ShopController {
     private readonly configService: ConfigService,
   ) {}
 
+  private assertDevPaymentEndpointEnabled() {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('Payment dev endpoint is disabled');
+    }
+  }
+
   @Get('packages')
   @UseGuards(AuthGuard)
   async getPackages() {
@@ -78,13 +84,21 @@ export class ShopController {
 
   @Post('check/:transactionId')
   @UseGuards(AuthGuard)
-  checkTransactionStatus(@Param('transactionId') transactionId: string) {
-    return this.shopService.checkTransactionStatus(transactionId);
+  checkTransactionStatus(
+    @Session() session: UserSession,
+    @Param('transactionId') transactionId: string,
+  ) {
+    return this.shopService.checkTransactionStatus(
+      session.user.id,
+      transactionId,
+    );
   }
 
   @Post('webhook')
   @UseGuards(AuthGuard)
   async handlePaymentWebhook(@Body() body: { transactionId: string }) {
+    this.assertDevPaymentEndpointEnabled();
+
     if (!body.transactionId) {
       throw new BadRequestException('transactionId is required');
     }
@@ -127,8 +141,11 @@ export class ShopController {
    */
   @Post('midtrans/check-status/:orderId')
   @UseGuards(AuthGuard)
-  async checkMidtransStatus(@Param('orderId') orderId: string) {
-    return this.shopService.checkMidtransAndConfirm(orderId);
+  async checkMidtransStatus(
+    @Session() session: UserSession,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.shopService.checkMidtransAndConfirm(orderId, session.user.id);
   }
 
   /**
@@ -140,12 +157,8 @@ export class ShopController {
   @Post('manual-confirm/:orderId')
   @UseGuards(AuthGuard)
   async manualConfirm(@Param('orderId') orderId: string) {
-    // Block this endpoint in production
-    if (this.configService.get<string>('NODE_ENV') === 'production') {
-      throw new ForbiddenException(
-        'This endpoint is disabled in production',
-      );
-    }
+    this.assertDevPaymentEndpointEnabled();
+
     return this.shopService.setPaidByOrderId(orderId);
   }
 

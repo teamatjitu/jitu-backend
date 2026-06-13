@@ -23,8 +23,9 @@ export class MidtransService {
     const rawClientKey = this.configService.get<string>('CLIENT_KEY') || '';
     const rawMerchantId = this.configService.get<string>('MERCHANT_ID') || '';
     const rawNodeEnv = this.configService.get<string>('NODE_ENV') || '';
-    const rawMidtransEnv =
-      this.configService.get<string>('MIDTRANS_IS_PRODUCTION');
+    const rawMidtransEnv = this.configService.get<string>(
+      'MIDTRANS_IS_PRODUCTION',
+    );
 
     // 2. Sanitize (remove accidental quotes and whitespace)
     this.serverKey = rawServerKey.replace(/['"\s]/g, '');
@@ -175,6 +176,14 @@ export class MidtransService {
       .digest('hex');
 
     return hash === signature_key;
+  }
+
+  verifyMerchant(notification: MidtransNotificationDto): boolean {
+    return Boolean(
+      this.merchantId &&
+      notification.merchant_id &&
+      notification.merchant_id === this.merchantId,
+    );
   }
 
   /**
