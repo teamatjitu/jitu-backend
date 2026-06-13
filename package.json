@@ -88,6 +88,24 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "setupFiles": [
+      "<rootDir>/test/jest.setup.ts"
+    ],
+    "moduleNameMapper": {
+      "^generated/prisma/client$": "<rootDir>/test/prisma-client.stub.ts",
+      "^generated/prisma/enums$": "<rootDir>/test/prisma-client.stub.ts",
+      "^src/prisma.service$": "<rootDir>/prisma.service.ts",
+      "^\\.\\./\\.\\./generated/prisma/enums$": "<rootDir>/test/prisma-client.stub.ts",
+      "^\\.\\./\\.\\./\\.\\./generated/prisma/enums$": "<rootDir>/test/prisma-client.stub.ts",
+      "^\\.\\./\\.\\./\\.\\./\\.\\./generated/prisma/enums$": "<rootDir>/test/prisma-client.stub.ts",
+      "^\\.\\./\\.\\./generated/prisma/client$": "<rootDir>/test/prisma-client.stub.ts",
+      "^\\.\\./\\.\\./\\.\\./generated/prisma/client$": "<rootDir>/test/prisma-client.stub.ts",
+      "^\\.\\./\\.\\./\\.\\./\\.\\./generated/prisma/client$": "<rootDir>/test/prisma-client.stub.ts",
+      "^@thallesp/nestjs-better-auth$": "<rootDir>/test/nestjs-better-auth.stub.ts",
+      "^better-auth$": "<rootDir>/test/better-auth.stub.ts",
+      "^better-auth/adapters/prisma$": "<rootDir>/test/better-auth-prisma.stub.ts",
+      "^better-auth/node$": "<rootDir>/test/better-auth-node.stub.ts"
+    },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],

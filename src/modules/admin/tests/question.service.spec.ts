@@ -22,6 +22,9 @@ describe('AdminQuestionService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    questionItem: {
+      deleteMany: jest.fn(),
+    },
     subtest: {
       findUnique: jest.fn(),
     },
@@ -84,6 +87,7 @@ describe('AdminQuestionService', () => {
           content: dto.content,
           explanation: dto.explanation,
           correctAnswer: undefined,
+          points: 1,
           items: {
             create: dto.items.map((item) => ({
               content: item.content,
@@ -120,6 +124,9 @@ describe('AdminQuestionService', () => {
           type: true,
           imageUrl: true,
           content: true,
+          points: true,
+          explanation: true,
+          items: true,
         },
       });
       expect(result).toEqual(mockQuestions);
@@ -141,6 +148,9 @@ describe('AdminQuestionService', () => {
 
       const result = await service.updateQuestion(dto as any, questionId);
 
+      expect(prisma.questionItem.deleteMany).toHaveBeenCalledWith({
+        where: { questionId },
+      });
       expect(prisma.question.update).toHaveBeenCalledWith({
         where: { id: questionId },
         data: {
@@ -148,6 +158,7 @@ describe('AdminQuestionService', () => {
           content: dto.content,
           explanation: undefined,
           correctAnswer: dto.correctAnswer,
+          points: undefined,
           items: {
             create: [],
           },
@@ -162,6 +173,9 @@ describe('AdminQuestionService', () => {
     it('should delete a question', async () => {
       mockPrismaService.question.delete.mockResolvedValue({ id: 'q1' });
       await service.deleteQuestion('q1');
+      expect(prisma.questionItem.deleteMany).toHaveBeenCalledWith({
+        where: { questionId: 'q1' },
+      });
       expect(prisma.question.delete).toHaveBeenCalledWith({
         where: { id: 'q1' },
       });

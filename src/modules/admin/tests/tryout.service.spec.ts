@@ -64,15 +64,27 @@ describe('AdminService', () => {
         { id: '2', title: 'Tryout 2' },
       ];
       mockPrismaService.tryOut.findMany.mockResolvedValue(mockTryouts);
+      mockPrismaService.tryOut.count.mockResolvedValue(mockTryouts.length);
 
       // Act
       const result = await tryoutService.getTryouts();
 
       // Assert
-      expect(result).toEqual(mockTryouts);
-      expect(prisma.tryOut.findMany).toHaveBeenCalledWith({
-        orderBy: { createdAt: 'desc' },
+      expect(result).toEqual({
+        data: mockTryouts,
+        meta: {
+          total: 2,
+          page: 1,
+          lastPage: 1,
+        },
       });
+      expect(prisma.tryOut.findMany).toHaveBeenCalledWith({
+        skip: 0,
+        take: 10,
+        orderBy: { createdAt: 'asc' },
+        select: expect.any(Object),
+      });
+      expect(prisma.tryOut.count).toHaveBeenCalledTimes(1);
     });
   });
 

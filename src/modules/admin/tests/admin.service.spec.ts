@@ -25,12 +25,15 @@ describe('AdminService', () => {
   const mockPrismaService = {
     tryOut: {
       count: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
     },
+    user: {
+      count: jest.fn(),
+    },
+    payment: {
+      aggregate: jest.fn(),
+      count: jest.fn(),
+    },
+    $queryRaw: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -62,18 +65,43 @@ describe('AdminService', () => {
       mockPrismaService.tryOut.count
         .mockResolvedValueOnce(10) // total
         .mockResolvedValueOnce(5) // active
-        .mockResolvedValueOnce(5); // upcoming
+        .mockResolvedValueOnce(3) // upcoming
+        .mockResolvedValueOnce(2); // ended
+      mockPrismaService.user.count
+        .mockResolvedValueOnce(100)
+        .mockResolvedValueOnce(80)
+        .mockResolvedValueOnce(4);
+      mockPrismaService.payment.aggregate.mockResolvedValue({
+        _sum: { amount: 250000 },
+      });
+      mockPrismaService.payment.count.mockResolvedValue(7);
+      mockPrismaService.$queryRaw
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
 
       // Act
       const result = await service.getDashboardStats();
 
       // Assert
-      expect(result).toEqual({
+      expect(result).toEqual(expect.objectContaining({
         totalTryout: 10,
         totalActiveTryout: 5,
-        totalUpcomingTryout: 5,
-      });
-      expect(prisma.tryOut.count).toHaveBeenCalledTimes(3);
+        totalUpcomingTryout: 3,
+        totalEndedTryout: 2,
+        totalUser: 100,
+        activeUser: 80,
+        totalAdmin: 4,
+        totalRevenue: 250000,
+        totalPendingPayment: 7,
+      }));
+      expect(result.charts.revenue).toHaveLength(6);
+      expect(result.charts.userGrowth).toHaveLength(6);
+      expect(result.charts.weeklyActivity).toHaveLength(7);
+      expect(prisma.tryOut.count).toHaveBeenCalledTimes(4);
+      expect(prisma.user.count).toHaveBeenCalledTimes(3);
+      expect(prisma.payment.aggregate).toHaveBeenCalledTimes(1);
+      expect(prisma.payment.count).toHaveBeenCalledTimes(1);
     });
   });
 });

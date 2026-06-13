@@ -37,9 +37,8 @@ describe('MidtransService', () => {
 
   describe('calculateCRC16', () => {
     it('should calculate correct CRC16-CCITT checksum', () => {
-      // Known test vectors for CRC16-CCITT
-      // These are standard test cases to verify the CRC implementation
-      expect(service.calculateCRC16('123456789')).toBe('31C3');
+      // QRIS/EMV uses CRC16-CCITT-FALSE: polynomial 0x1021, initial 0xFFFF.
+      expect(service.calculateCRC16('123456789')).toBe('29B1');
     });
 
     it('should handle empty string', () => {
