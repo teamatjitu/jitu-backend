@@ -1,0 +1,105 @@
+# Backend Production: GCP Cloud Run
+
+Target production shape:
+
+- Backend API: GCP Cloud Run
+- Database: Supabase Postgres
+- Asset storage: Cloudinary
+- Frontend origin: Vercel Pro
+- AI provider implementation: skipped for now; keep AI service on demo mode until OpenAI providers are enabled.
+
+## Required Environment
+
+Use `.env.production.example` as the Cloud Run variable checklist. Important values:
+
+- `HOST=0.0.0.0`
+- `PORT=8080`
+- `DATABASE_URL` from Supabase with `sslmode=require`
+- `FRONTEND_URL=https://YOUR_VERCEL_DOMAIN`
+- `BETTER_AUTH_URL=https://YOUR_BACKEND_CLOUD_RUN_URL`
+- `ALLOWED_ORIGINS=https://YOUR_VERCEL_DOMAIN`
+- `TRUSTED_ORIGINS=https://YOUR_VERCEL_DOMAIN`
+- `AI_SERVICE_URL=https://YOUR_AI_SERVICE_CLOUD_RUN_URL`
+- `AI_SERVICE_INTERNAL_API_KEY` must match the AI service `INTERNAL_API_KEY`
+- `CLOUDINARY_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+- `CLOUDINARY_CLOUD_NAME` should use the same value as `CLOUDINARY_NAME`
+
+## One-time GCP Setup
+
+Create these before running the GitHub workflow:
+
+- Cloud Run service: `jitu-backend`
+- Artifact Registry Docker repository, for example `jitu`
+- GitHub Workload Identity Federation provider
+- GitHub deploy service account with Cloud Run Admin, Artifact Registry Writer, Secret Manager Secret Accessor, and Service Account User permissions
+- GCP Secret Manager secrets listed below
+
+Required GitHub repository variables:
+
+```text
+GCP_PROJECT_ID=your-gcp-project-id
+GCP_REGION=asia-southeast2
+GCP_WORKLOAD_IDENTITY_PROVIDER=projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/jitu-backend
+GCP_SERVICE_ACCOUNT=github-deploy@your-gcp-project-id.iam.gserviceaccount.com
+ARTIFACT_REGISTRY_REPOSITORY=jitu
+BACKEND_CLOUD_RUN_SERVICE=jitu-backend
+BACKEND_URL=https://YOUR_BACKEND_CLOUD_RUN_URL
+FRONTEND_URL=https://YOUR_VERCEL_DOMAIN
+AI_SERVICE_URL=https://YOUR_AI_SERVICE_CLOUD_RUN_URL
+```
+
+Required GCP Secret Manager secrets:
+
+```text
+backend-database-url
+backend-better-auth-secret
+google-client-id
+google-client-secret
+cloudinary-cloud-name
+cloudinary-api-key
+cloudinary-api-secret
+smtp-host
+smtp-user
+smtp-pass
+smtp-from
+midtrans-merchant-id
+midtrans-client-key
+midtrans-server-key
+ai-internal-api-key
+```
+
+The value of `ai-internal-api-key` must be exactly the same secret used by the AI service as `INTERNAL_API_KEY`.
+
+## GitHub Deploy
+
+After variables and secrets are ready, run:
+
+```text
+GitHub Actions -> Deploy Backend to Cloud Run -> Run workflow
+```
+
+The workflow builds a Docker image, pushes it to Artifact Registry, runs `pnpm prisma migrate deploy` against Supabase, and deploys the image to Cloud Run.
+
+## Build And Deploy
+
+```bash
+gcloud builds submit --tag gcr.io/PROJECT_ID/jitu-backend
+gcloud run deploy jitu-backend \
+  --image gcr.io/PROJECT_ID/jitu-backend \
+  --region asia-southeast2 \
+  --platform managed \
+  --allow-unauthenticated \
+  --port 8080
+```
+
+Set secrets through Cloud Run environment variables or Secret Manager. Do not commit real secrets.
+
+## Database Migration
+
+Run Prisma migrations against Supabase before routing traffic:
+
+```bash
+DATABASE_URL="postgresql://..." pnpm prisma migrate deploy
+```
+
+For the first production admin user, create the account through the app, then promote it with a controlled DB update.

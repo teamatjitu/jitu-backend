@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+.git
+.env
+.env.*
+!.env.example
+!.env.production.example
+npm-debug.log
+pnpm-debug.log
+Dockerfile
+.DS_Store
+gha-creds-*.json

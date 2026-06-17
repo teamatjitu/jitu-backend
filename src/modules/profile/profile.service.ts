@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
 import { auth } from '../../lib/auth';
 import { MidtransService } from '../shop/services/midtrans.service';
 
 @Injectable()
 export class ProfileService {
+  private readonly logger = new Logger(ProfileService.name);
+
   constructor(
     private prisma: PrismaService,
     private midtransService: MidtransService,
@@ -69,7 +71,7 @@ export class ProfileService {
             pendingPayment.orderId,
           );
         } catch (error) {
-          console.error('Gagal generate QRIS di Profile:', error);
+          this.logger.error('Failed to generate QRIS in Profile', error);
         }
 
         paymentData = {

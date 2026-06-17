@@ -201,23 +201,23 @@ export class DashboardService {
       newStreak = 0;
     }
 
-    await this.prisma.$transaction([
-      this.prisma.dailyQuestionLog.create({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.dailyQuestionLog.create({
         data: {
           userId,
           questionId: selectedItem.questionId,
           isCorrect,
           completedAt: now,
         },
-      }),
-      this.prisma.user.update({
+      });
+      await tx.user.update({
         where: { id: userId },
         data: {
           currentStreak: newStreak,
           lastDailyDate: now,
         },
-      }),
-    ]);
+      });
+    });
 
     let correctAnswerId: string | undefined = undefined;
     if (!isCorrect) {
