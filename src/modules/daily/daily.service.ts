@@ -250,8 +250,8 @@ export class DailyService {
     }
 
     // Save to database
-    await this.prisma.$transaction([
-      this.prisma.dailyQuestionLog.create({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.dailyQuestionLog.create({
         data: {
           userId,
           questionId: payload.questionId,
@@ -259,15 +259,15 @@ export class DailyService {
           isCorrect,
           completedAt: new Date(),
         },
-      }),
-      this.prisma.user.update({
+      });
+      await tx.user.update({
         where: { id: userId },
         data: {
           currentStreak: newStreak,
           lastDailyDate: new Date(),
         },
-      }),
-    ]);
+      });
+    });
 
     return {
       success: true,

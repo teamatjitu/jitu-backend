@@ -43,7 +43,16 @@ const prismaMock = {
     findUnique: jest.fn(),
     findFirst: jest.fn(),
   },
-  $transaction: jest.fn((promises) => Promise.all(promises)),
+  $transaction: jest.fn((callback) =>
+    callback({
+      dailyQuestionLog: {
+        create: prismaMock.dailyQuestionLog.create,
+      },
+      user: {
+        update: prismaMock.user.update,
+      },
+    }),
+  ),
 };
 
 describe('DashboardService', () => {
@@ -161,6 +170,10 @@ describe('DashboardService', () => {
       prismaMock.tryOutAttempt.count
         .mockResolvedValueOnce(3)
         .mockResolvedValueOnce(5);
+      prismaMock.user.findUnique.mockResolvedValue({
+        tokenBalance: 12,
+        currentStreak: 4,
+      });
 
       const result = await service.getUserStats(userId);
 
@@ -169,6 +182,8 @@ describe('DashboardService', () => {
         personalBest: 800,
         weeklyActivity: 3,
         totalFinished: 5,
+        tokenBalance: 12,
+        currentStreak: 4,
       });
     });
 
@@ -180,6 +195,7 @@ describe('DashboardService', () => {
         _max: { totalScore: null },
       });
       prismaMock.tryOutAttempt.count.mockResolvedValue(0);
+      prismaMock.user.findUnique.mockResolvedValue(null);
 
       const result = await service.getUserStats(userId);
 
@@ -188,6 +204,8 @@ describe('DashboardService', () => {
         personalBest: 0,
         weeklyActivity: 0,
         totalFinished: 0,
+        tokenBalance: 0,
+        currentStreak: 0,
       });
     });
   });

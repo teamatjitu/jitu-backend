@@ -1,11 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TryoutService } from './tryout.service';
 import { PrismaService } from '../../prisma.service';
+import { ExamService } from '../exam/exam.service';
 
 const prismaMock = {
   tryOut: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
+  },
+  tryOutAttempt: {
+    findFirst: jest.fn(),
+  },
+  userAnswer: {
+    findMany: jest.fn(),
   },
 };
 
@@ -69,6 +76,7 @@ describe('TryoutService', () => {
       providers: [
         TryoutService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: ExamService, useValue: {} },
       ],
     }).compile();
 
@@ -76,6 +84,8 @@ describe('TryoutService', () => {
 
     prismaMock.tryOut.findMany.mockClear();
     prismaMock.tryOut.findUnique.mockClear();
+    prismaMock.tryOutAttempt.findFirst.mockClear();
+    prismaMock.userAnswer.findMany.mockClear();
   });
 
   describe('getTryouts', () => {
@@ -95,6 +105,9 @@ describe('TryoutService', () => {
         canEdit: false,
         participants: 10, // Mengambil dari _count.attempts
         badge: 'SNBT',
+        solutionPrice: 0,
+        isPublic: true,
+        isRegistered: false,
       });
 
       // Verifikasi Item 2
@@ -105,6 +118,9 @@ describe('TryoutService', () => {
         canEdit: false,
         participants: 5,
         badge: 'SNBT',
+        solutionPrice: 30000,
+        isPublic: true,
+        isRegistered: false,
       });
     });
   });
@@ -114,6 +130,7 @@ describe('TryoutService', () => {
       // Ambil item pertama dari array mock sebagai target test
       const targetTryout = mockTryoutsComplete[0];
       prismaMock.tryOut.findUnique.mockResolvedValue(targetTryout);
+      prismaMock.tryOutAttempt.findFirst.mockResolvedValue(null);
 
       const result = await service.getTryoutById('cku1tryout1', 'user123');
 
@@ -122,20 +139,31 @@ describe('TryoutService', () => {
         include: {
           subtests: {
             include: {
-              questions: true,
+              questions: { select: { id: true } },
             },
           },
-          attempts: { where: { userId: 'user123' } },
+          attempts: {
+            where: { userId: 'user123' },
+            select: {
+              id: true,
+              status: true,
+              startedAt: true,
+              finishedAt: true,
+            },
+            orderBy: { startedAt: 'desc' },
+          },
+          _count: { select: { attempts: true } },
           unlockedSolutions: { where: { userId: 'user123' } },
         },
       });
+      expect(prismaMock.tryOutAttempt.findFirst).toHaveBeenCalledTimes(2);
 
       expect(result).toEqual({
         id: 'cku1tryout1', // CUID
         title: 'Try Out UTBK SNBT 1',
-        number: 1,
+        number: '1',
         badge: 'SNBT',
-        participants: 0,
+        participants: 10,
         description: 'Simulasi UTBK SNBT lengkap',
         duration: 75,
         totalQuestions: 5,
@@ -144,6 +172,12 @@ describe('TryoutService', () => {
         isRegistered: false,
         isFree: true,
         tokenCost: 0,
+        unlockedSolutions: [],
+        latestFinishedAttemptId: null,
+        latestAttemptStatus: null,
+        latestAttemptId: null,
+        currentSubtestOrder: 1,
+        latestScore: 0,
         categories: [
           {
             id: 1,
