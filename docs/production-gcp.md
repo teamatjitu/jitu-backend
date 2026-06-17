@@ -6,7 +6,7 @@ Target production shape:
 - Database: Supabase Postgres
 - Asset storage: Cloudinary
 - Frontend origin: Vercel Pro
-- AI provider implementation: skipped for now; keep AI service on demo mode until OpenAI providers are enabled.
+- AI provider implementation: OpenAI in production.
 
 ## Required Environment
 
