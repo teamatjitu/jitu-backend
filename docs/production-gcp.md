@@ -121,4 +121,12 @@ Run Prisma migrations against Supabase before routing traffic:
 DATABASE_URL="postgresql://..." pnpm prisma migrate deploy
 ```
 
-For the first production admin user, create the account through the app, then promote it with a controlled DB update.
+Do not run `prisma db seed` against production. The seed file creates local/demo users and tryout fixtures.
+
+For the first production admin user, create the account through the app, then promote it with a controlled DB update:
+
+```sql
+update jitu_backend."user"
+set role = 'ADMIN'
+where email = 'YOUR_ADMIN_EMAIL';
+```
