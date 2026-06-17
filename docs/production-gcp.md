@@ -14,7 +14,7 @@ Use `.env.production.example` as the Cloud Run variable checklist. Important val
 
 - `HOST=0.0.0.0`
 - `PORT=8080`
-- `DATABASE_URL` from Supabase with `sslmode=require`
+- `DATABASE_URL` from Supabase with `schema=jitu_backend` and `sslmode=require`
 - `FRONTEND_URL=https://YOUR_VERCEL_DOMAIN`
 - `BETTER_AUTH_URL=https://YOUR_BACKEND_CLOUD_RUN_URL`
 - `ALLOWED_ORIGINS=https://YOUR_VERCEL_DOMAIN`
@@ -69,6 +69,25 @@ ai-internal-api-key
 ```
 
 The value of `ai-internal-api-key` must be exactly the same secret used by the AI service as `INTERNAL_API_KEY`.
+
+## Supabase Database
+
+Use one Supabase project for JituPTN, but keep backend and AI service tables in separate Postgres schemas.
+
+Run this once in Supabase SQL Editor:
+
+```sql
+create schema if not exists jitu_backend;
+create schema if not exists jitu_ai;
+```
+
+Backend production `DATABASE_URL` should point to the backend schema:
+
+```text
+postgresql://USER:PASSWORD@HOST:PORT/postgres?schema=jitu_backend&sslmode=require
+```
+
+Use Supabase's direct connection string for Prisma migrations when possible. If the deployment network is IPv4-only and the direct endpoint is unavailable, use Supabase session pooler instead of transaction pooler for Prisma-backed backend services.
 
 ## GitHub Deploy
 
