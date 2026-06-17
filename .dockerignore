@@ -10,3 +10,4 @@ npm-debug.log
 pnpm-debug.log
 Dockerfile
 .DS_Store
+gha-creds-*.json
